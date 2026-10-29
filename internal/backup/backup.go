@@ -212,9 +212,12 @@ func ListBackups(backupRoot string, conn config.Connection, allConnections []con
 		})
 	}
 
-	// Sort descending by CreatedAt
+	// Sort descending by CreatedAt, using ID as tie-breaker
 	sort.Slice(results, func(i, j int) bool {
-		return results[i].CreatedAt > results[j].CreatedAt
+		if results[i].CreatedAt != results[j].CreatedAt {
+			return results[i].CreatedAt > results[j].CreatedAt
+		}
+		return results[i].ID > results[j].ID
 	})
 
 	return results, nil

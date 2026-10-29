@@ -279,8 +279,28 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 		}
 	}
 
-	allUploads := append(plan.Uploads, resolvedUploads...)
-	allDownloads := append(plan.Downloads, resolvedDownloads...)
+	// Filter out any items in plan.Uploads or plan.Downloads that are in plan.Conflicts
+	conflictSet := make(map[string]bool)
+	for _, c := range plan.Conflicts {
+		conflictSet[filepath.ToSlash(filepath.Join(c.Profile, c.RelPath))] = true
+	}
+
+	filteredUploads := make([]SyncItem, 0)
+	for _, up := range plan.Uploads {
+		if !conflictSet[up.FullPath] {
+			filteredUploads = append(filteredUploads, up)
+		}
+	}
+
+	filteredDownloads := make([]SyncItem, 0)
+	for _, dl := range plan.Downloads {
+		if !conflictSet[dl.FullPath] {
+			filteredDownloads = append(filteredDownloads, dl)
+		}
+	}
+
+	allUploads := append(filteredUploads, resolvedUploads...)
+	allDownloads := append(filteredDownloads, resolvedDownloads...)
 
 	result := &SyncResult{
 		BackupSessions: make([]string, 0),
@@ -350,7 +370,11 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 			result.Pulled = behind
 
 			// Step 4 from spec: Recalculate status after pull as source files changed
-			allDownloads = make([]SyncItem, 0)
+			allDownloads = append([]SyncItem{}, resolvedDownloads...)
+			downloadSet := make(map[string]bool)
+			for _, dl := range allDownloads {
+				downloadSet[dl.FullPath] = true
+			}
 			for _, conn := range cfg.Connections {
 				statusAfterPull, err := syncer.ComputeStatus(cfg.RootPath, conn, st)
 				if err != nil {
@@ -359,11 +383,14 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 				for _, file := range statusAfterPull.Files {
 					if file.Status == syncer.FileSourceChanged || file.Status == syncer.FileNewInSource || file.Status == syncer.FileTargetMissing {
 						fullPath := filepath.ToSlash(filepath.Join(conn.Profile, file.RelPath))
-						allDownloads = append(allDownloads, SyncItem{
-							Profile:  conn.Profile,
-							RelPath:  file.RelPath,
-							FullPath: fullPath,
-						})
+						if !downloadSet[fullPath] {
+							downloadSet[fullPath] = true
+							allDownloads = append(allDownloads, SyncItem{
+								Profile:  conn.Profile,
+								RelPath:  file.RelPath,
+								FullPath: fullPath,
+							})
+						}
 					}
 				}
 			}

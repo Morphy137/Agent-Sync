@@ -32,9 +32,9 @@
 | Phase 6: Orchestrator & Scheduler | ✅ | 62fa74c | PlanSync, ExecuteSync, 2-client integration test, 83.4% coverage, scheduler |
 | Phase 7: Bindings | ✅ | 2793ec4 | app.go 19 methods implemented, wails generate module, typed api wrapper |
 | Phase 8: Design System & i18n | ✅ | 63378bb | Tokens, theme switcher, 14 base components, en/es parity test passed |
-| Phase 9: UI Views | ✅ | Pending commit | Header, banners, ProfileCard, WelcomeView, preview/initial/remote modals, backups/settings drawers, toasts, statusbar |
-| Phase 10: Sandbox & E2E | ⏳ | - | Not started |
-| Phase 11: Polish & Completion | ⏳ | - | Not started |
+| Phase 9: UI Views | ✅ | b0ab009 | Header, banners, ProfileCard, WelcomeView, preview/initial/remote modals, backups/settings drawers, toasts, statusbar |
+| Phase 10: Sandbox & E2E | ✅ | Pending | Verified sandbox scripts and ran full automated E1-E15 suite (`TestE2EScenariosE1toE15`) passing in 6.47s |
+| Phase 11: Polish & Completion | ⏳ | - | In progress |
 
 ## 4. Quality checks (last run)
 | Check | Command | Result | Notes |
@@ -51,26 +51,29 @@
 ## 5. E2E scenarios (sandbox)
 | # | Scenario | Result | Evidence / notes |
 |---|---|---|---|
-| E1 | Open app, select `pc-a/agent-configs` | Pending | |
-| E2 | Connect CLAUDE -> `pc-a/home/.claude` (first link dialog) | Pending | |
-| E3 | Verify `.claude` after E2 | Pending | |
-| E4 | Connect CODEX -> empty `.codex` | Pending | |
-| E5 | Edit `pc-a/home/.claude/CLAUDE.md` | Pending | |
-| E6 | Sync on PC-A (capture + commit + push) | Pending | |
-| E7 | Check on PC-B (detects behind) | Pending | |
-| E8 | Sync on PC-B (pull + apply) | Pending | |
-| E9 | Conflict resolution | Pending | |
-| E10 | Restore backup | Pending | |
-| E11 | Retention pruning (retention=3, 5 updates) | Pending | |
-| E12 | Root without git (init banner) | Pending | |
-| E13 | Repo without remote (banner, local sync) | Pending | |
-| E14 | Switch language & theme | Pending | |
-| E15 | Delete file from profile (remains in target, removed from baseline) | Pending | |
+| E1 | Open app, select `pc-a/agent-configs` | ✅ Pass | Root configured, profiles discovered (CLAUDE, CODEX, GEMINI). |
+| E2 | Connect CLAUDE -> `pc-a/home/.claude` (first link dialog) | ✅ Pass | Initial link detects difference, user resolves via InitialSyncActionTargetToSource (`import`). Target files imported to root. |
+| E3 | Verify `.claude` after E2 | ✅ Pass | Non-managed files (`settings.json`) untouched, baseline registered. |
+| E4 | Connect CODEX -> empty `.codex` | ✅ Pass | Initial link with empty target (`InitialSyncActionSourceToTarget`). Files populated from profile. |
+| E5 | Edit `pc-a/home/.claude/CLAUDE.md` | ✅ Pass | Status detected as `FileTargetChanged` (upload). |
+| E6 | Sync on PC-A (capture + commit + push) | ✅ Pass | PlanSync identifies upload, ExecuteSync commits and pushes to bare remote. |
+| E7 | Check on PC-B (detects behind) | ✅ Pass | PlanSync detects `Behind = 1` and git remote status. |
+| E8 | Sync on PC-B (pull + apply) | ✅ Pass | Pulls 1 commit, updates working tree, creates target backup, downloads to target. |
+| E9 | Conflict resolution | ✅ Pass | Simultaneous edits trigger conflict. User resolves `keep_repo`, remote version applied to target and backup created. |
+| E10 | Restore backup | ✅ Pass | Restoring snapshot restores previous content, baseline updated, status returns to `in_sync`. |
+| E11 | Retention pruning (retention=3, 5 updates) | ✅ Pass | 5 snapshots created, pruned to retention limit (3), oldest 2 removed. |
+| E12 | Root without git (init banner) | ✅ Pass | `GetRootStatus` returns `HasGit: false`, triggers `banner.git_not_repo` on UI. |
+| E13 | Repo without remote (banner, local sync) | ✅ Pass | `GetRootStatus` returns `HasRemote: false`, local sync captures and applies cleanly without remote errors. |
+| E14 | Switch language & theme | ✅ Pass | Language updated (`es`/`en`), theme updated (`dark`/`light`), persisted in `config.json`. |
+| E15 | Delete file from profile (remains in target, removed from baseline) | ✅ Pass | File deleted from profile remains in target, baseline pruned, no error. |
 
 ## 6. Problems found
 | # | Description | Status (fixed/open) | How it was fixed / workaround |
 |---|---|---|---|
 | 1 | Winget MSI install failed with 1603 | Fixed | Downloaded official Go 1.27.3 windows-amd64 zip and extracted to `C:\Users\Morphy\AppData\Local\Programs\go`, updated User PATH. |
+| 2 | Duplicate timestamp sorting in `ListBackups` | Fixed | Added snapshot `ID` descending as secondary tie-breaker in sorting when `CreatedAt` matches. |
+| 3 | Conflict items included in raw plan uploads/downloads | Fixed | Filtered conflict paths out of initial uploads/downloads in `ExecuteSync` so explicit user resolution takes precedence. |
+| 4 | Post-pull download recomputation overwriting resolved downloads | Fixed | Preserved `resolvedDownloads` when recalculating downloads after `git pull`. |
 
 ## 7. Known limitations & TODO
 - None at this stage.
