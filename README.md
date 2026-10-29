@@ -24,7 +24,7 @@ AgentSync is a high-performance, lightweight desktop application built with Go, 
                  |   ├── GEMINI/                              |
                  |   │   └── GEMINI.md                        |
                  |   └── CODEX/                               |
-                 |       └── instructions.md                  |
+                 |       └── AGENTS.md                        |
                  +---------------------+----------------------+
                                        |
                            Bidirectional Sync Engine
@@ -46,15 +46,13 @@ AgentSync is a high-performance, lightweight desktop application built with Go, 
 
 ## Key Features
 
-- **Three-Way State Tracking:** Uses SHA-256 baselines (Source, Target, Baseline) to accurately detect whether local files, repository files, or both have changed.
+- **Three-Way State Tracking:** Uses SHA-256 baselines (Source, Target, Baseline) to accurately detect whether local files, repository files, or both have changed, including locked/unreadable file detection.
+- **Single-State Service Layer & Concurrency Lock:** `internal/service` maintains a single in-memory `*config.Config` and `*state.State` guarded by a global `sync.Mutex` (`TryLock` for background scheduler checks), preventing race conditions and overlapping Git index operations.
+- **Plan Fingerprinting & Safe Sync Order:** `PlanSync` produces a deterministic SHA-256 fingerprint verified by `ExecuteSync` under lock before applying changes. `ExecuteSync` follows a safe 11-step sequence (capture non-conflicting uploads, discard `keep_repo` conflicts, commit, `pull --rebase` before capturing `keep_local` conflicts, push with automatic rebase-retry on non-fast-forward rejection, and apply downloads).
 - **Strict Boundary Protection:** Only files explicitly present in a profile are managed. Unmanaged files in target directories (such as API keys, `settings.json`, session histories, and local caches) are never touched, read, or committed.
-- **Safety First with Automated Backups:** Any target file before being overwritten is backed up in a timestamped snapshot. Backups can be restored with a single click. Configurable retention pruning automatically maintains the desired number of snapshots.
-- **Conflict Resolution UI:** Visual diffs allow choosing between keeping repository versions (`keep_repo`) or keeping local workstation versions (`keep_local`).
-- **Atomic File Operations:** All file writes use `.agentsync.tmp` files, synced to disk (`fsync`), and atomically replaced via filesystem rename.
-- **First-Class Git Integration:** Supports Git init, branch checkout, commit, push, pull, remote branch tracking (`ahead` / `behind`), and remote URL assignment through the system Git CLI without third-party dependencies or external credentials configuration.
-- **Bilingual Interface (i18n):** Zero hardcoded user strings; full parity between English (`en`) and Spanish (`es`).
-- **Modern Theme System:** Custom CSS design tokens with support for Light, Dark, and System modes.
-- **Lightweight Single Binary:** Produces a single standalone Windows executable (~11.8 MB) using native WebView2, requiring no Electron runtime.
+- **Mandatory Automated Backups:** Target files are backed up in a timestamped snapshot before any overwrite or restore. If backup creation fails, the write is immediately aborted. Restoring a snapshot leaves files as `target_changed` so the next sync uploads the restored version to the repository.
+- **Frameless Window & Monochrome Soft Elevation Design System:** Custom frameless titlebar with native window controls, zero-flash theme initialization (`localStorage` + inline boot script), tactile multi-layer shadows, and recessed sunken wells.
+- **Bilingual Interface (i18n):** 100% key parity between English (`en`) and Spanish (`es`), including native dialog titles, ARIA labels, and dynamic `<html lang>`.
 
 ---
 
@@ -73,10 +71,13 @@ AgentSync is a high-performance, lightweight desktop application built with Go, 
 
 ## Building from Source
 
-To compile a standalone production binary:
+To regenerate the application icon and compile a standalone production binary:
 
 ```powershell
-# In the repository root:
+# Optional: regenerate build/appicon.png from SVG
+node scripts/generate-icon.mjs
+
+# Compile production executable
 wails build -clean
 ```
 
@@ -111,10 +112,10 @@ D:\agent-configs\
 ├── GEMINI\
 │   └── GEMINI.md
 └── CODEX\
-    └── instructions.md
+    └── AGENTS.md
 ```
 - Folders starting with `.` (such as `.git`) are automatically ignored.
-- Ignored files across profiles: `.gitkeep`, `.DS_Store`, `Thumbs.db`, `desktop.ini`.
+- Ignored files across profiles: `.gitkeep`, `.DS_Store`, `Thumbs.db`, `desktop.ini`, `*.agentsync.tmp`.
 
 ### 2. Linking Target Directories
 Inside AgentSync, link each discovered profile to the corresponding directory on your machine:
@@ -137,14 +138,14 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-sandbox.ps1
 This generates:
 - `sandbox/remote.git`: Bare central Git repository.
 - `sandbox/pc-a/agent-configs`: Cloned Git root for PC-A.
-- `sandbox/pc-a/home/`: Simulated target directories for PC-A (`.claude`, `.codex`, `.gemini`).
+- `sandbox/pc-a/home/`: Simulated target directories for PC-A (`.claude`, `.codex`, `.gemini`, `.config/opencode`).
 - `sandbox/pc-b/agent-configs`: Cloned Git root for PC-B.
 - `sandbox/pc-b/home/`: Simulated target directories for PC-B.
 
 ### 2. Launch AgentSync in Sandbox Isolation
 To run the app against the sandbox without touching your real machine configuration:
 ```powershell
-$env:AGENTSYNC_CONFIG_DIR = "$PWD\sandbox\config-pc-a"
+$env:AGENTSYNC_CONFIG_DIR = "$PWD\sandbox\pc-a\config"
 .\build\bin\agentsync.exe
 ```
 
@@ -159,18 +160,20 @@ powershell -ExecutionPolicy Bypass -File scripts/reset-sandbox.ps1
 
 ### Go Unit, Integration, & E2E Tests
 ```powershell
-# Run all tests with code coverage
-go test -cover ./internal/...
+# Run all Go packages (excluding frontend/node_modules) with code coverage
+go test . ./internal/... -count=1 -cover
 ```
 
 Coverage highlights:
-- `internal/syncer`: **92.2%**
-- `internal/orchestrator`: **89.7%**
-- `internal/backup`: **81.0%**
+- `internal/scheduler`: **95.7%**
+- `internal/syncer`: **89.1%**
+- `internal/orchestrator`: **87.9%**
 - `internal/state`: **84.2%**
-- `internal/gitops`: **74.8%**
+- `internal/service`: **81.4%**
+- `internal/backup`: **81.1%**
 - `internal/profiles`: **75.9%**
 - `internal/config`: **70.8%**
+- `internal/gitops`: **68.1%**
 
 ### Frontend Lint, Type Check & Vitest
 ```powershell
@@ -189,6 +192,6 @@ cd ..
 The codebase adheres strictly to:
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
 - `gofmt -l .` with zero formatting deviations.
-- `go vet ./...` with zero issues.
-- `staticcheck ./...` with zero warnings.
+- `go vet . ./internal/...` with zero issues.
+- `staticcheck . ./internal/...` with zero warnings.
 - 100% key parity between English and Spanish localizations.
