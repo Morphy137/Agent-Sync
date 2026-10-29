@@ -24,6 +24,20 @@ export function getSystemLocale(): SupportedLocale {
 
 export function setLocale(lang: LanguageSetting) {
   const resolved: SupportedLocale = lang === "system" ? getSystemLocale() : lang;
+  if (typeof document !== "undefined") {
+    document.documentElement.setAttribute("lang", resolved);
+    const titleVal = getNestedValue(dictionaries[resolved], "app.title");
+    if (titleVal) {
+      document.title = titleVal;
+    }
+  }
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("agentsync_lang", resolved);
+    }
+  } catch {
+    // ignore storage errors
+  }
   if (resolved !== currentLocale) {
     currentLocale = resolved;
     listeners.forEach((fn) => fn(currentLocale));

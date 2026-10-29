@@ -12,14 +12,16 @@
   }
 
   let { value, options, label, onchange }: Props = $props();
+
+  const selectId = $derived(`select-${Math.random().toString(36).slice(2, 8)}`);
 </script>
 
 <div class="select-group">
   {#if label}
-    <label class="select-label" for="select-field">{label}</label>
+    <label class="select-label" for={selectId}>{label}</label>
   {/if}
   <select
-    id="select-field"
+    id={selectId}
     class="select-input"
     {value}
     onchange={(e) => onchange((e.target as HTMLSelectElement).value)}
@@ -45,21 +47,21 @@
   }
 
   .select-input {
-    height: 38px;
+    height: 36px;
     padding: 0 var(--space-3);
     border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background-color: var(--surface);
-    color: var(--text);
+    border: none;
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--ink);
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     outline: none;
     cursor: pointer;
-    transition: border-color var(--duration-fast) var(--easing);
+    transition: box-shadow var(--duration-fast) var(--easing-out);
   }
 
   .select-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-ring);
+    box-shadow: var(--focus-ring);
   }
 </style>

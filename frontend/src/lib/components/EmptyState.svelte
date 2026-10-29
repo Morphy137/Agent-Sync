@@ -14,7 +14,7 @@
 
 <div class="empty-state">
   <div class="icon-wrap">
-    <FolderOpen size={44} />
+    <FolderOpen size={28} />
   </div>
   <h2 class="title">{title}</h2>
   <p class="description">{description}</p>
@@ -34,23 +34,31 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: var(--space-12) var(--space-6);
+    padding: var(--space-10) var(--space-6);
     background-color: var(--surface);
-    border: 1px dashed var(--border-strong);
+    box-shadow: var(--elev-1);
     border-radius: var(--radius-lg);
     max-width: 540px;
     margin: 0 auto;
   }
 
   .icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
     color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-bottom: var(--space-4);
   }
 
   .title {
     font-size: var(--text-xl);
     font-weight: var(--weight-semibold);
-    color: var(--text);
+    color: var(--ink);
     margin: 0 0 var(--space-2) 0;
   }
 

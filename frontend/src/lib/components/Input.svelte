@@ -16,14 +16,16 @@
     disabled = false,
     oninput,
   }: Props = $props();
+
+  const inputId = $derived(`input-${Math.random().toString(36).slice(2, 8)}`);
 </script>
 
 <div class="input-group">
   {#if label}
-    <label class="input-label" for="input-field">{label}</label>
+    <label class="input-label" for={inputId}>{label}</label>
   {/if}
   <input
-    id="input-field"
+    id={inputId}
     class="text-input"
     {type}
     {value}
@@ -48,26 +50,29 @@
   }
 
   .text-input {
-    height: 38px;
+    height: 36px;
     padding: 0 var(--space-3);
     border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background-color: var(--surface);
-    color: var(--text);
+    border: none;
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--ink);
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     outline: none;
-    transition: border-color var(--duration-fast) var(--easing);
+    transition: box-shadow var(--duration-fast) var(--easing-out);
+  }
+
+  .text-input::placeholder {
+    color: var(--text-subtle);
   }
 
   .text-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-ring);
+    box-shadow: var(--focus-ring);
   }
 
   .text-input:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-    background-color: var(--surface-raised);
   }
 </style>

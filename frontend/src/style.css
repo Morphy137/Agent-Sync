@@ -1,23 +1,46 @@
 @import "@fontsource-variable/inter";
 @import "./lib/theme/tokens.css";
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
   width: 100%;
   overflow: hidden;
   font-family: var(--font-sans);
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
 #app {
   height: 100%;
   width: 100%;
+}
+
+/* Custom thin 6px scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
 }

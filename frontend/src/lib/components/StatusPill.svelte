@@ -6,30 +6,33 @@
 
   let { status, text }: Props = $props();
 
-  const variantClass = $derived.by(() => {
+  const dotClass = $derived.by(() => {
     switch (status) {
       case "in_sync":
-        return "status-success";
+      case "ok":
+        return "dot-ok";
       case "source_changed":
       case "new_in_source":
       case "target_missing":
-        return "status-info";
+      case "down":
+        return "dot-down";
       case "target_changed":
-        return "status-accent";
       case "diverged":
       case "untracked_diff":
-        return "status-warning";
+      case "up":
+        return "dot-up";
       case "conflict":
       case "target_unavailable":
-        return "status-danger";
+      case "unreadable":
+        return "dot-conflict";
       default:
-        return "status-neutral";
+        return "dot-idle";
     }
   });
 </script>
 
-<span class="status-pill {variantClass}">
-  <span class="dot"></span>
+<span class="status-pill">
+  <span class="dot {dotClass}"></span>
   <span class="label">{text}</span>
 </span>
 
@@ -38,55 +41,41 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-1) var(--space-3);
+    padding: 3px var(--space-3);
     border-radius: var(--radius-full);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: var(--weight-medium);
-    border: 1px solid transparent;
     user-select: none;
-    line-height: 1.4;
+    line-height: 1.3;
   }
 
   .dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: var(--radius-full);
-    background-color: currentColor;
+    flex-shrink: 0;
   }
 
-  .status-success {
-    background-color: var(--success-bg);
-    color: var(--success-fg);
-    border-color: var(--success-border);
+  .dot-ok {
+    background-color: var(--dot-ok);
   }
 
-  .status-info {
-    background-color: var(--info-bg);
-    color: var(--info-fg);
-    border-color: var(--info-border);
+  .dot-down {
+    background-color: var(--dot-down);
   }
 
-  .status-accent {
-    background-color: var(--surface-raised);
-    color: var(--accent);
-    border-color: var(--accent);
+  .dot-up {
+    background-color: var(--dot-up);
   }
 
-  .status-warning {
-    background-color: var(--warning-bg);
-    color: var(--warning-fg);
-    border-color: var(--warning-border);
+  .dot-conflict {
+    background-color: var(--dot-conflict);
   }
 
-  .status-danger {
-    background-color: var(--danger-bg);
-    color: var(--danger-fg);
-    border-color: var(--danger-border);
-  }
-
-  .status-neutral {
-    background-color: var(--surface-raised);
-    color: var(--text-muted);
-    border-color: var(--border);
+  .dot-idle {
+    background-color: var(--dot-idle);
   }
 </style>

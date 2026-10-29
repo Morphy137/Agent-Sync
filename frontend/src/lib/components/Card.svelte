@@ -3,23 +3,27 @@
 
   interface Props {
     padding?: "sm" | "md" | "lg";
+    interactive?: boolean;
     children?: Snippet;
   }
 
-  let { padding = "md", children }: Props = $props();
+  let { padding = "md", interactive = false, children }: Props = $props();
 </script>
 
-<div class="card pad-{padding}">
+<div class="card pad-{padding}" class:interactive>
   {@render children?.()}
 </div>
 
 <style>
   .card {
     background-color: var(--surface);
-    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    transition: border-color var(--duration-fast) var(--easing);
+    box-shadow: var(--elev-1);
+    transition: box-shadow var(--duration-fast) var(--easing-out);
+  }
+
+  .card.interactive:hover {
+    box-shadow: var(--elev-2);
   }
 
   .pad-sm {

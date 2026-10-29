@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { CheckCircle2, AlertCircle, Info, X } from "@lucide/svelte";
+  import { X } from "@lucide/svelte";
+  import { t } from "../i18n";
 
   export interface ToastItem {
     id: string;
@@ -17,22 +18,19 @@
 
 <div class="toast-container" aria-live="polite">
   {#each toasts.slice(-3) as toast (toast.id)}
-    <div class="toast toast-{toast.type}">
-      <div class="icon">
-        {#if toast.type === "success"}
-          <CheckCircle2 size={16} />
-        {:else if toast.type === "error"}
-          <AlertCircle size={16} />
-        {:else}
-          <Info size={16} />
-        {/if}
-      </div>
+    <div class="toast">
+      <span
+        class="status-dot"
+        class:dot-ok={toast.type === "success"}
+        class:dot-conflict={toast.type === "error"}
+        class:dot-down={toast.type === "info"}
+      ></span>
       <div class="message">{toast.message}</div>
       <button
         type="button"
         class="close-btn"
         onclick={() => ondismiss(toast.id)}
-        aria-label="Dismiss toast"
+        aria-label={t("common.dismiss_toast")}
       >
         <X size={14} />
       </button>
@@ -43,38 +41,63 @@
 <style>
   .toast-container {
     position: fixed;
-    bottom: var(--space-6);
-    right: var(--space-6);
+    bottom: var(--space-8);
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: var(--space-2);
     z-index: 200;
     pointer-events: none;
-    max-width: 380px;
+    width: 100%;
+    max-width: 420px;
+    padding: 0 var(--space-4);
   }
 
   .toast {
     pointer-events: auto;
+    width: 100%;
     display: flex;
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
+    background-color: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--elev-3);
     font-size: var(--text-sm);
-    box-shadow: var(--shadow-md);
-    border: 1px solid transparent;
-    animation: fadeIn var(--duration-fast) var(--easing);
+    animation: fadeIn var(--duration-fast) var(--easing-out);
   }
 
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(6px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .dot-ok {
+    background-color: var(--dot-ok);
+  }
+
+  .dot-conflict {
+    background-color: var(--dot-conflict);
+  }
+
+  .dot-down {
+    background-color: var(--dot-down);
   }
 
   .message {
@@ -85,33 +108,21 @@
   .close-btn {
     background: none;
     border: none;
-    color: inherit;
-    opacity: 0.6;
+    color: var(--text-muted);
     cursor: pointer;
     padding: var(--space-1);
     display: flex;
     align-items: center;
+    border-radius: var(--radius-xs);
   }
 
   .close-btn:hover {
-    opacity: 1;
+    color: var(--ink);
   }
 
-  .toast-success {
-    background-color: var(--surface);
-    color: var(--success-fg);
-    border-color: var(--success-border);
-  }
-
-  .toast-error {
-    background-color: var(--surface);
-    color: var(--danger-fg);
-    border-color: var(--danger-border);
-  }
-
-  .toast-info {
-    background-color: var(--surface);
-    color: var(--info-fg);
-    border-color: var(--info-border);
+  @media (prefers-reduced-motion: reduce) {
+    .toast {
+      animation: none;
+    }
   }
 </style>

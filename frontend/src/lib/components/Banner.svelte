@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { AlertCircle, Info, TriangleAlert, CheckCircle } from "@lucide/svelte";
   import Button from "./Button.svelte";
 
   interface Props {
@@ -19,27 +18,24 @@
   }: Props = $props();
 </script>
 
-<div class="banner banner-{variant}" role="alert">
-  <div class="icon-wrap">
-    {#if variant === "info"}
-      <Info size={18} />
-    {:else if variant === "warning"}
-      <TriangleAlert size={18} />
-    {:else if variant === "danger"}
-      <AlertCircle size={18} />
-    {:else}
-      <CheckCircle size={18} />
-    {/if}
-  </div>
+<div class="banner" role="alert">
+  <span
+    class="status-dot"
+    class:dot-down={variant === "info"}
+    class:dot-up={variant === "warning"}
+    class:dot-conflict={variant === "danger"}
+    class:dot-ok={variant === "success"}
+  ></span>
 
   <div class="content">
-    <div class="title">{title}</div>
-    <div class="message">{message}</div>
+    <span class="title">{title}</span>
+    <span class="sep">·</span>
+    <span class="message">{message}</span>
   </div>
 
   {#if actionLabel && onaction}
     <div class="action">
-      <Button size="sm" variant={variant === "danger" ? "danger" : "secondary"} onclick={onaction}>
+      <Button size="sm" variant="secondary" onclick={onaction}>
         {actionLabel}
       </Button>
     </div>
@@ -50,59 +46,61 @@
   .banner {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    border: 1px solid transparent;
-    font-size: var(--text-sm);
+    border-radius: var(--radius-lg);
+    background-color: var(--surface);
+    box-shadow: var(--elev-1);
+    color: var(--ink);
+    font-size: var(--text-xs);
   }
 
-  .icon-wrap {
-    display: flex;
-    align-items: center;
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
     flex-shrink: 0;
+  }
+
+  .dot-down {
+    background-color: var(--dot-down);
+  }
+
+  .dot-up {
+    background-color: var(--dot-up);
+  }
+
+  .dot-conflict {
+    background-color: var(--dot-conflict);
+  }
+
+  .dot-ok {
+    background-color: var(--dot-ok);
   }
 
   .content {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 
   .title {
     font-weight: var(--weight-semibold);
-    margin-bottom: var(--space-1);
+    color: var(--ink);
+  }
+
+  .sep {
+    color: var(--text-subtle);
   }
 
   .message {
-    opacity: 0.9;
-    font-size: var(--text-xs);
+    color: var(--text-muted);
   }
 
   .action {
     flex-shrink: 0;
-  }
-
-  .banner-info {
-    background-color: var(--info-bg);
-    color: var(--info-fg);
-    border-color: var(--info-border);
-  }
-
-  .banner-warning {
-    background-color: var(--warning-bg);
-    color: var(--warning-fg);
-    border-color: var(--warning-border);
-  }
-
-  .banner-danger {
-    background-color: var(--danger-bg);
-    color: var(--danger-fg);
-    border-color: var(--danger-border);
-  }
-
-  .banner-success {
-    background-color: var(--success-bg);
-    color: var(--success-fg);
-    border-color: var(--success-border);
   }
 </style>

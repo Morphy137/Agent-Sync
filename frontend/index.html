@@ -3,7 +3,30 @@
 <head>
     <meta charset="UTF-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>agentsync</title>
+    <meta name="color-scheme" content="light dark"/>
+    <title>AgentSync</title>
+    <script>
+      (function () {
+        try {
+          var storedTheme = localStorage.getItem("agentsync_theme");
+          var resolved =
+            storedTheme === "dark" || storedTheme === "light"
+              ? storedTheme
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+          var meta = document.querySelector('meta[name="color-scheme"]');
+          if (meta) meta.setAttribute("content", resolved);
+          var storedLang = localStorage.getItem("agentsync_lang");
+          if (storedLang === "en" || storedLang === "es") {
+            document.documentElement.setAttribute("lang", storedLang);
+          }
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
 </head>
 <body>
 <div id="app"></div>

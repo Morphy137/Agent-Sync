@@ -51,25 +51,35 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--backdrop-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 100;
-    backdrop-filter: blur(2px);
   }
 
   .dialog {
     background-color: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--elev-3);
     width: 90%;
     max-width: 600px;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: modalEnter var(--duration-normal) var(--easing-out);
+  }
+
+  @keyframes modalEnter {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .modal-header {
@@ -77,18 +87,24 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-4) var(--space-6);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--hairline);
   }
 
   .modal-title {
     font-size: var(--text-lg);
     font-weight: var(--weight-semibold);
-    color: var(--text);
+    color: var(--ink);
     margin: 0;
   }
 
   .modal-body {
     padding: var(--space-6);
     overflow-y: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dialog {
+      animation: none;
+    }
   }
 </style>

@@ -3,8 +3,6 @@
 
   interface Props {
     label: string;
-    variant?: "ghost" | "secondary" | "primary";
-    size?: "sm" | "md";
     disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
     children?: Snippet;
@@ -12,8 +10,6 @@
 
   let {
     label,
-    variant = "ghost",
-    size = "md",
     disabled = false,
     onclick,
     children,
@@ -22,7 +18,7 @@
 
 <button
   type="button"
-  class="icon-btn btn-{variant} btn-{size}"
+  class="icon-btn"
   aria-label={label}
   title={label}
   {disabled}
@@ -33,64 +29,41 @@
 
 <style>
   .icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background-color: transparent;
+    color: var(--text-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-md);
-    border: 1px solid transparent;
     cursor: pointer;
-    transition: all var(--duration-fast) var(--easing);
+    padding: 0;
+    transition:
+      background-color var(--duration-fast) var(--easing-out),
+      box-shadow var(--duration-fast) var(--easing-out),
+      color var(--duration-fast) var(--easing-out);
   }
 
   .icon-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px var(--accent-ring);
+    box-shadow: var(--focus-ring);
   }
 
   .icon-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
-  .btn-sm {
-    width: 28px;
-    height: 28px;
-    padding: var(--space-1);
-  }
-
-  .btn-md {
-    width: 36px;
-    height: 36px;
-    padding: var(--space-2);
-  }
-
-  .btn-ghost {
-    background-color: transparent;
-    color: var(--text-muted);
-  }
-
-  .btn-ghost:hover:not(:disabled) {
-    background-color: var(--surface-raised);
-    color: var(--text);
-  }
-
-  .btn-secondary {
+  .icon-btn:hover:not(:disabled) {
     background-color: var(--surface);
-    color: var(--text);
-    border-color: var(--border);
+    color: var(--ink);
+    box-shadow: var(--elev-1);
   }
 
-  .btn-secondary:hover:not(:disabled) {
-    background-color: var(--surface-raised);
-    border-color: var(--border-strong);
-  }
-
-  .btn-primary {
-    background-color: var(--accent);
-    color: var(--accent-contrast);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background-color: var(--accent-hover);
+  .icon-btn:active:not(:disabled) {
+    background-color: var(--surface-sunken);
+    box-shadow: var(--pressed);
   }
 </style>

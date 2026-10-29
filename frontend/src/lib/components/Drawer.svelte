@@ -51,30 +51,32 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: var(--backdrop-overlay);
     display: flex;
     justify-content: flex-end;
     z-index: 90;
-    backdrop-filter: blur(1px);
   }
 
   .drawer {
     background-color: var(--surface);
-    border-left: 1px solid var(--border);
     width: 100%;
-    max-width: 440px;
+    max-width: 420px;
     height: 100%;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-lg);
-    animation: slideIn var(--duration-normal) var(--easing);
+    box-shadow: var(--elev-3);
+    border-top-left-radius: var(--radius-xl);
+    border-bottom-left-radius: var(--radius-xl);
+    animation: drawerEnter var(--duration-normal) var(--easing-out);
   }
 
-  @keyframes slideIn {
+  @keyframes drawerEnter {
     from {
-      transform: translateX(100%);
+      opacity: 0;
+      transform: translateX(16px);
     }
     to {
+      opacity: 1;
       transform: translateX(0);
     }
   }
@@ -84,19 +86,25 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-4) var(--space-6);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--hairline);
   }
 
   .drawer-title {
     font-size: var(--text-md);
     font-weight: var(--weight-semibold);
-    color: var(--text);
+    color: var(--ink);
     margin: 0;
   }
 
   .drawer-body {
-    padding: var(--space-6);
+    padding: var(--space-5);
     overflow-y: auto;
     flex: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .drawer {
+      animation: none;
+    }
   }
 </style>

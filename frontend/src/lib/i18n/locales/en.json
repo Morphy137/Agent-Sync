@@ -9,7 +9,19 @@
     "confirm": "Confirm",
     "save": "Save",
     "delete": "Delete",
-    "back": "Back"
+    "back": "Back",
+    "dismiss_toast": "Dismiss notification",
+    "toggle_switch": "Toggle switch"
+  },
+  "titlebar": {
+    "check_remote": "Check for remote changes",
+    "sync_button": "Sync",
+    "settings_button": "Settings",
+    "change_root": "Change repository root",
+    "window_minimize": "Minimize window",
+    "window_maximize": "Maximize window",
+    "window_restore": "Restore window",
+    "window_close": "Close window"
   },
   "header": {
     "select_root": "Select root folder",
@@ -17,6 +29,10 @@
     "sync_button": "Sync",
     "settings_button": "Settings",
     "changes_pending": "{count} pending"
+  },
+  "profiles_section": {
+    "title": "Profiles",
+    "summary": "{total} profiles · {connected} connected"
   },
   "banners": {
     "not_repo": {
@@ -33,15 +49,22 @@
       "title": "Remote Updates Available",
       "message": "There are incoming updates in the remote repository ready to download.",
       "button_sync": "Sync Now"
+    },
+    "identity_missing": {
+      "title": "Git Identity Required",
+      "message": "Configure a git user name and email for this repository before committing changes.",
+      "button_configure": "Configure Identity"
     }
   },
   "connections": {
     "card": {
       "not_connected": "Not connected",
-      "managed_files_count": "{count} managed files",
+      "managed_files_count": "{count} files",
       "button_connect": "Connect",
       "button_update": "Update",
       "button_backups": "Backups",
+      "view_files": "View files ({count})",
+      "hide_files": "Hide files",
       "menu_change_target": "Change target",
       "menu_open_explorer": "Open in explorer",
       "menu_disconnect": "Disconnect",
@@ -57,7 +80,9 @@
     "conflict": "Conflict",
     "target_unavailable": "Target unavailable",
     "new_in_source": "New in source",
-    "target_missing": "Missing in target"
+    "target_missing": "Missing in target",
+    "unreadable": "Unreadable file",
+    "not_connected": "Not connected"
   },
   "welcome": {
     "title": "Welcome to AgentSync",
@@ -66,9 +91,9 @@
   },
   "preview": {
     "title": "Sync Preview",
-    "downloads_section": "Will be downloaded ({count})",
-    "uploads_section": "Will be uploaded ({count})",
-    "conflicts_section": "Conflicts to resolve ({count})",
+    "downloads_section": "Download ({count})",
+    "uploads_section": "Upload ({count})",
+    "conflicts_section": "Conflicts ({count})",
     "commit_preview": "Files included in git commit",
     "backups_notice": "Safety backups will be automatically created before applying overwrites.",
     "button_cancel": "Cancel",
@@ -77,10 +102,10 @@
   "conflicts": {
     "title": "Conflict Resolution",
     "subtitle": "Choose which version to keep for each conflicting file:",
-    "keep_repo": "Keep repository version",
-    "keep_local": "Keep this PC's version",
-    "apply_all_repo": "Use repository for all",
-    "apply_all_local": "Use this PC for all"
+    "keep_repo": "Repository",
+    "keep_local": "This PC",
+    "apply_all_repo": "Apply Repository to all",
+    "apply_all_local": "Apply This PC to all"
   },
   "initial_link": {
     "title": "Initial Link Detected",
@@ -97,7 +122,8 @@
     "title": "Backups for {name}",
     "empty": "No backups found for this connection.",
     "button_restore": "Restore",
-    "confirm_restore": "Restore this backup? A snapshot of current files will be taken before restoring.",
+    "confirm_restore": "Restore this backup? A snapshot of current files will be taken first. After restoring, Sync will upload this version to the repository.",
+    "restore_sync_notice": "After restoring, Sync will upload this version to the repository.",
     "button_open_folder": "Open Folder",
     "files_count": "{count} files backed up",
     "reason_apply": "Local update",
@@ -107,25 +133,34 @@
   },
   "settings": {
     "title": "Settings",
+    "section_appearance": "Appearance",
+    "section_sync": "Synchronization",
+    "section_backups": "Backups",
+    "section_repository": "Repository",
     "language_label": "Language",
     "theme_label": "Theme",
     "backup_path_label": "Backups Location",
     "backup_retention_label": "Backup Retention Count",
     "check_interval_label": "Periodic Check Interval",
-    "confirm_before_sync_label": "Show preview before syncing",
+    "confirm_before_sync_label": "Confirm before syncing",
     "root_path_label": "Agent Configurations Root",
+    "remote_url_label": "Remote URL",
+    "git_name_label": "Git User Name",
+    "git_email_label": "Git User Email",
+    "git_name_placeholder": "Your Name",
+    "git_email_placeholder": "you@example.com",
     "button_save": "Save Settings",
-    "language_system": "System default",
+    "language_system": "System",
     "language_en": "English",
     "language_es": "Español",
-    "theme_system": "System default",
+    "theme_system": "System",
     "theme_light": "Light",
     "theme_dark": "Dark",
     "interval_disabled": "Disabled",
     "interval_minutes": "Every {count} minutes"
   },
   "statusbar": {
-    "branch": "Branch: {branch}",
+    "branch": "{branch}",
     "no_branch": "No branch",
     "ahead_behind": "↑{ahead} ↓{behind}",
     "last_check": "Checked {time}",
@@ -137,16 +172,23 @@
     "sync_success": "Synchronization completed successfully.",
     "save_success": "Settings saved successfully.",
     "disconnect_success": "Profile disconnected.",
-    "restore_success": "Backup successfully restored.",
+    "restore_success": "Backup restored. Sync will upload this version to the repository.",
     "init_repo_success": "Git repository initialized.",
     "add_remote_success": "Remote added and synchronized.",
+    "identity_saved": "Git identity saved for this repository.",
+    "remote_checked": "Remote status updated.",
     "error": "Error: {message}"
   },
   "dialogs": {
+    "select_root_title": "Select agent configurations root folder",
+    "select_target_title": "Select target folder for profile {profile}",
     "add_remote_title": "Add Remote Repository",
     "add_remote_input_label": "Git Remote URL (HTTPS or SSH)",
     "add_remote_placeholder": "https://github.com/user/agent-configs.git",
-    "add_remote_submit": "Add Remote and Push"
+    "add_remote_submit": "Add Remote and Push",
+    "git_identity_title": "Configure Git Identity",
+    "git_identity_description": "Git requires a name and email to create commits in this repository. These settings will be saved locally to this repository only.",
+    "git_identity_submit": "Save Identity"
   },
   "errors": {
     "root_not_found": "The specified root folder was not found or is inaccessible.",
@@ -158,11 +200,17 @@
     "git_not_fast_forward": "Cannot fast-forward changes from remote. A rebase or merge is required.",
     "git_rebase_conflict": "Git rebase conflict occurred while pulling changes.",
     "git_dirty_outside_profiles": "There are uncommitted changes in the repository outside of profile directories.",
+    "git_dirty_worktree": "Uncommitted changes in the repository overlap with incoming remote updates. Please commit or clean the repository worktree first.",
+    "git_identity_missing": "Git user identity (name and email) is not configured for this repository.",
+    "git_push_rejected": "Push was rejected by the remote repository even after rebasing.",
     "target_not_found": "Target folder '{path}' does not exist.",
     "target_inside_root": "Target folder '{path}' cannot be inside or equal to the repository root.",
     "target_already_connected": "Target folder '{path}' is already connected to another profile.",
+    "profile_not_found": "Profile '{profile}' was not found in the repository root.",
+    "profile_already_connected": "Profile '{profile}' is already connected.",
+    "plan_changed": "Files changed since the preview was generated. Please review the updated Sync Preview.",
     "unresolved_conflicts": "Unresolved file conflicts remain. Please choose a version for every file.",
-    "backup_failed": "Failed to create or restore backup snapshot.",
+    "backup_failed": "Failed to create or restore safety backup snapshot. Operation aborted.",
     "write_failed": "Failed to write file to disk.",
     "operation_in_progress": "A sync operation is already in progress. Please wait.",
     "unknown": "An unexpected error occurred."
