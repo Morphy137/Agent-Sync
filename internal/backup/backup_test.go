@@ -98,8 +98,9 @@ func TestCreateListPruneAndRestoreBackup(t *testing.T) {
 		t.Fatalf("expected 3 backups after pruning with retention=3, got %d", len(listPruned))
 	}
 
-	// 4. Test RestoreBackup
+	// 4. Test RestoreBackup (C4: must NOT touch baseline, leaving restored file as target_changed)
 	st := state.NewState()
+	st.SetBaseline(conn.ID, "CLAUDE.md", "baseline-hash-before-restore")
 	// Change target to version modified
 	if err := os.WriteFile(claudePath, []byte("modified version"), 0o644); err != nil {
 		t.Fatal(err)
@@ -119,9 +120,16 @@ func TestCreateListPruneAndRestoreBackup(t *testing.T) {
 		t.Errorf("file was not restored to older content")
 	}
 
-	// Baseline should be updated in state
+	// Baseline MUST remain untouched after restore (C4)
 	baseline := st.GetBaseline(conn.ID, "CLAUDE.md")
-	if baseline == "" {
-		t.Errorf("expected baseline to be updated in state after restore")
+	if baseline != "baseline-hash-before-restore" {
+		t.Errorf("expected baseline to remain untouched ('baseline-hash-before-restore'), got '%s'", baseline)
+	}
+
+	// 5. Test RestoreBackup aborts if pre-restore CreateBackup fails (C1)
+	badBackupFile := filepath.Join(tempDir, "not-a-dir-file")
+	_ = os.WriteFile(badBackupFile, []byte("file"), 0o644)
+	if err := backup.RestoreBackup(badBackupFile, conn, []config.Connection{conn}, oldestBackupID, st, 10); err == nil {
+		t.Errorf("expected RestoreBackup to fail when backupRoot is a file")
 	}
 }

@@ -248,7 +248,7 @@ func PruneBackups(backupRoot string, conn config.Connection, allConnections []co
 
 // RestoreBackup restores files from a snapshot back to targetPath.
 // Before restoring, it takes a backup snapshot of current target with ReasonRestore.
-// It also updates state baselines for the restored files.
+// It does NOT touch state baselines so that restored files remain target_changed and will be uploaded on the next sync.
 func RestoreBackup(backupRoot string, conn config.Connection, allConnections []config.Connection, backupID string, st *state.State, retention int) error {
 	targetDirName := TargetFolderID(conn.TargetPath, conn.ID, allConnections)
 	snapshotDir := filepath.Join(backupRoot, targetDirName, backupID)
@@ -264,10 +264,12 @@ func RestoreBackup(backupRoot string, conn config.Connection, allConnections []c
 		return apperr.Wrap(apperr.BackupFailed, err)
 	}
 
-	// 1. Create backup of current target state before restoring
-	_, _ = CreateBackup(backupRoot, conn, allConnections, manifest.Files, ReasonRestore, retention)
+	// 1. Create mandatory backup of current target state before restoring
+	if _, err := CreateBackup(backupRoot, conn, allConnections, manifest.Files, ReasonRestore, retention); err != nil {
+		return err
+	}
 
-	// 2. Restore each file from snapshot
+	// 2. Restore each file from snapshot without modifying baseline
 	for _, relPath := range manifest.Files {
 		src := filepath.Join(snapshotDir, filepath.FromSlash(relPath))
 		dst := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
@@ -275,17 +277,6 @@ func RestoreBackup(backupRoot string, conn config.Connection, allConnections []c
 		if err := fsops.AtomicCopy(src, dst); err != nil {
 			return apperr.Wrap(apperr.WriteFailed, err)
 		}
-
-		if st != nil {
-			hash, err := fsops.HashFile(dst)
-			if err == nil {
-				st.SetBaseline(conn.ID, relPath, hash)
-			}
-		}
-	}
-
-	if st != nil {
-		_ = st.Save()
 	}
 
 	return nil
