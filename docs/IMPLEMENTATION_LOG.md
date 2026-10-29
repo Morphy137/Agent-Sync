@@ -25,8 +25,8 @@
 |---|---|---|---|
 | Phase 0: Environment | ✅ | ea9aac6 | Go 1.27.3, Wails v2.17.0, staticcheck installed, git on `feature/agent-sync-app` |
 | Phase 1: Scaffold | ✅ | ea9aac6 | Wails v2 + Svelte 5 + TS initialized, Vitest, ESLint, Prettier, wails build passes |
-| Phase 2: Core Files | ✅ | Pending commit | apperr, config, state, fsops, profiles with unit tests |
-| Phase 3: Backups | ⏳ | - | Not started |
+| Phase 2: Core Files | ✅ | a516493 | apperr, config, state, fsops, profiles with unit tests |
+| Phase 3: Backups | ✅ | Pending commit | Snapshot creation, manifest, pruning, restore, coverage 81.6% |
 | Phase 4: Sync Engine | ⏳ | - | Not started |
 | Phase 5: Git Operations | ⏳ | - | Not started |
 | Phase 6: Orchestrator & Scheduler | ⏳ | - | Not started |
