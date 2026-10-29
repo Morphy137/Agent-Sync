@@ -30,8 +30,8 @@
 | Phase 4: Sync Engine | ✅ | be2c2ec | Complete 5.3 status matrix, Apply/Capture, 92.2% coverage |
 | Phase 5: Git Operations | ✅ | d44908c | git CLI wrapper, Windows CREATE_NO_WINDOW, bare remote integration tests |
 | Phase 6: Orchestrator & Scheduler | ✅ | 62fa74c | PlanSync, ExecuteSync, 2-client integration test, 83.4% coverage, scheduler |
-| Phase 7: Bindings | ✅ | Pending commit | app.go 19 methods implemented, wails generate module, typed api wrapper |
-| Phase 8: Design System & i18n | ⏳ | - | Not started |
+| Phase 7: Bindings | ✅ | 2793ec4 | app.go 19 methods implemented, wails generate module, typed api wrapper |
+| Phase 8: Design System & i18n | ✅ | Pending commit | Tokens, theme switcher, 14 base components, en/es parity test passed |
 | Phase 9: UI Views | ⏳ | - | Not started |
 | Phase 10: Sandbox & E2E | ⏳ | - | Not started |
 | Phase 11: Polish & Completion | ⏳ | - | Not started |

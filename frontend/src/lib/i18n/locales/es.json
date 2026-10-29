@@ -1,0 +1,170 @@
+{
+  "app": {
+    "title": "AgentSync"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "back": "Volver"
+  },
+  "header": {
+    "select_root": "Seleccionar carpeta raíz",
+    "change_root": "Cambiar raíz del repositorio",
+    "sync_button": "Sincronizar",
+    "settings_button": "Ajustes",
+    "changes_pending": "{count} pendientes"
+  },
+  "banners": {
+    "not_repo": {
+      "title": "No es un repositorio Git",
+      "message": "Esta carpeta no es un repositorio git. El control de versiones y la sincronización entre PCs están desactivados.",
+      "button_init": "Inicializar Repositorio"
+    },
+    "no_remote": {
+      "title": "Sin remoto configurado",
+      "message": "Sin remoto configurado; la sincronización entre PCs está desactivada.",
+      "button_add_remote": "Agregar Remoto"
+    },
+    "remote_changes": {
+      "title": "Actualizaciones remotas disponibles",
+      "message": "Hay cambios en el repositorio remoto listos para descargar.",
+      "button_sync": "Sincronizar Ahora"
+    }
+  },
+  "connections": {
+    "card": {
+      "not_connected": "Sin conectar",
+      "managed_files_count": "{count} archivos gestionados",
+      "button_connect": "Conectar",
+      "button_update": "Actualizar",
+      "button_backups": "Backups",
+      "menu_change_target": "Cambiar destino",
+      "menu_open_explorer": "Abrir en explorador",
+      "menu_disconnect": "Desconectar",
+      "menu_toggle": "Más opciones"
+    }
+  },
+  "status": {
+    "in_sync": "Sincronizado",
+    "source_changed": "Cambios por bajar",
+    "target_changed": "Cambios por subir",
+    "diverged": "Modificado en ambos",
+    "untracked_diff": "Diferencia inicial",
+    "conflict": "Conflicto",
+    "target_unavailable": "Destino no disponible",
+    "new_in_source": "Nuevo en repositorio",
+    "target_missing": "Ausente en destino"
+  },
+  "welcome": {
+    "title": "Bienvenido a AgentSync",
+    "description": "Mantén sincronizados los archivos de configuración global de tus agentes IA (Claude, Gemini, Codex, OpenCode) entre varios equipos con control de versiones en git.",
+    "button_select_folder": "Seleccionar Carpeta de Configuraciones"
+  },
+  "preview": {
+    "title": "Vista Previa de Sincronización",
+    "downloads_section": "Se descargará ({count})",
+    "uploads_section": "Se subirá ({count})",
+    "conflicts_section": "Conflictos por resolver ({count})",
+    "commit_preview": "Archivos incluidos en el commit de git",
+    "backups_notice": "Se crearán copias de seguridad de seguridad antes de sobrescribir archivos.",
+    "button_cancel": "Cancelar",
+    "button_sync": "Iniciar Sincronización"
+  },
+  "conflicts": {
+    "title": "Resolución de Conflictos",
+    "subtitle": "Elige qué versión conservar para cada archivo en conflicto:",
+    "keep_repo": "Mantener versión del repositorio",
+    "keep_local": "Mantener versión de este PC",
+    "apply_all_repo": "Usar repositorio para todos",
+    "apply_all_local": "Usar este PC para todos"
+  },
+  "initial_link": {
+    "title": "Vinculación Inicial Detectada",
+    "description": "La carpeta de destino ya contiene archivos que difieren del repositorio. Elige cómo deseas proceder:",
+    "use_repo": "Usar versión del repositorio (recomendado)",
+    "use_repo_desc": "Sobrescribe los archivos locales con los del repositorio (crea backup previo).",
+    "use_local": "Usar versión de este PC",
+    "use_local_desc": "Sobrescribe los archivos del repositorio con los locales en la próxima sincronización.",
+    "decide_later": "Decidir después",
+    "decide_later_desc": "Mantiene ambos intactos; la conexión queda marcada con diferencia no rastreada.",
+    "button_confirm": "Confirmar Vinculación"
+  },
+  "backups": {
+    "title": "Copias de seguridad para {name}",
+    "empty": "No hay copias de seguridad para esta conexión.",
+    "button_restore": "Restaurar",
+    "confirm_restore": "¿Restaurar esta copia de seguridad? Se creará una instantánea del estado actual antes de restaurar.",
+    "button_open_folder": "Abrir Carpeta",
+    "files_count": "{count} archivos respaldados",
+    "reason_apply": "Actualización local",
+    "reason_sync": "Sincronización completa",
+    "reason_restore": "Instantánea previa a restauración",
+    "reason_initial_link": "Vinculación inicial"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language_label": "Idioma",
+    "theme_label": "Tema",
+    "backup_path_label": "Ubicación de Copias de Seguridad",
+    "backup_retention_label": "Cantidad de Retención de Backups",
+    "check_interval_label": "Intervalo de Comprobación Periódica",
+    "confirm_before_sync_label": "Mostrar vista previa antes de sincronizar",
+    "root_path_label": "Raíz de Configuraciones de Agentes",
+    "button_save": "Guardar Ajustes",
+    "language_system": "Predeterminado del sistema",
+    "language_en": "English",
+    "language_es": "Español",
+    "theme_system": "Predeterminado del sistema",
+    "theme_light": "Claro",
+    "theme_dark": "Oscuro",
+    "interval_disabled": "Desactivado",
+    "interval_minutes": "Cada {count} minutos"
+  },
+  "statusbar": {
+    "branch": "Rama: {branch}",
+    "no_branch": "Sin rama",
+    "ahead_behind": "↑{ahead} ↓{behind}",
+    "last_check": "Comprobado {time}",
+    "checking": "Comprobando...",
+    "offline": "Sin conexión",
+    "synced": "Todo sincronizado"
+  },
+  "toasts": {
+    "sync_success": "Sincronización completada con éxito.",
+    "save_success": "Ajustes guardados correctamente.",
+    "disconnect_success": "Perfil desconectado.",
+    "restore_success": "Copia de seguridad restaurada correctamente.",
+    "init_repo_success": "Repositorio git inicializado.",
+    "add_remote_success": "Remoto agregado y sincronizado.",
+    "error": "Error: {message}"
+  },
+  "dialogs": {
+    "add_remote_title": "Agregar Repositorio Remoto",
+    "add_remote_input_label": "URL Remota de Git (HTTPS o SSH)",
+    "add_remote_placeholder": "https://github.com/usuario/agent-configs.git",
+    "add_remote_submit": "Agregar Remoto y Subir"
+  },
+  "errors": {
+    "root_not_found": "La carpeta raíz especificada no fue encontrada o es inaccesible.",
+    "root_not_repo": "La carpeta raíz no es un repositorio git válido.",
+    "git_not_installed": "El CLI de Git no está instalado en este sistema. Por favor, instala Git para continuar.",
+    "git_no_remote": "No hay ningún remoto git configurado para este repositorio.",
+    "git_auth_failed": "Falló la autenticación con Git. Por favor, verifica tus credenciales o claves SSH.",
+    "git_network": "Error de red de Git. No se pudo conectar al host remoto.",
+    "git_not_fast_forward": "No se pueden incorporar los cambios del remoto por fast-forward. Se requiere rebase o fusión.",
+    "git_rebase_conflict": "Ocurrió un conflicto de rebase al descargar los cambios.",
+    "git_dirty_outside_profiles": "Hay cambios sin confirmar en el repositorio fuera de las carpetas de perfiles.",
+    "target_not_found": "La carpeta de destino '{path}' no existe.",
+    "target_inside_root": "La carpeta de destino '{path}' no puede estar dentro ni ser igual a la raíz del repositorio.",
+    "target_already_connected": "La carpeta de destino '{path}' ya está conectada a otro perfil.",
+    "unresolved_conflicts": "Quedan conflictos de archivos sin resolver. Por favor, elige una versión para cada archivo.",
+    "backup_failed": "Error al crear o restaurar la copia de seguridad.",
+    "write_failed": "Error al escribir archivos en el disco.",
+    "operation_in_progress": "Ya hay una operación de sincronización en curso. Por favor, espera.",
+    "unknown": "Ocurrió un error inesperado."
+  }
+}
