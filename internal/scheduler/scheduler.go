@@ -3,42 +3,39 @@ package scheduler
 import (
 	"sync"
 	"time"
-
-	"agentsync/internal/config"
-	"agentsync/internal/orchestrator"
-	"agentsync/internal/state"
 )
 
 const (
 	MinCheckDebounce = 30 * time.Second
 )
 
-// StatusEventPayload is emitted to the frontend on status change.
-type StatusEventPayload struct {
-	Direction   string `json:"direction"`
-	Ahead       int    `json:"ahead"`
-	Behind      int    `json:"behind"`
-	Connections any    `json:"connections"`
-	LastCheckAt string `json:"lastCheckAt"`
-}
+// CheckFunc is executed by the scheduler when a check runs.
+// It should attempt a non-blocking lock (TryLock) and return true if the check was executed.
+type CheckFunc func() bool
 
 // Scheduler handles periodic background status checks.
 type Scheduler struct {
-	orch      *orchestrator.Orchestrator
-	emitFunc  func(eventName string, data any)
-	stopChan  chan struct{}
-	lastCheck time.Time
-	mu        sync.Mutex
-	isRunning bool
+	checkFunc      CheckFunc
+	stopChan       chan struct{}
+	lastCheck      time.Time
+	mu             sync.Mutex
+	isRunning      bool
+	tickerDuration time.Duration // custom override for tests; if 0, uses intervalMinutes * time.Minute
 }
 
-// NewScheduler creates a new background scheduler.
-func NewScheduler(orch *orchestrator.Orchestrator, emitFunc func(eventName string, data any)) *Scheduler {
+// NewScheduler creates a new background scheduler using the given CheckFunc.
+func NewScheduler(checkFunc CheckFunc) *Scheduler {
 	return &Scheduler{
-		orch:     orch,
-		emitFunc: emitFunc,
-		stopChan: make(chan struct{}),
+		checkFunc: checkFunc,
+		stopChan:  make(chan struct{}),
 	}
+}
+
+// SetTickerUnitOverride sets a custom base unit for testing (e.g. 20ms instead of 1 minute).
+func (s *Scheduler) SetTickerUnitOverride(unit time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tickerDuration = unit
 }
 
 // Start initiates the periodic ticker based on checkIntervalMinutes.
@@ -47,22 +44,31 @@ func (s *Scheduler) Start(intervalMinutes int) {
 	if s.isRunning {
 		close(s.stopChan)
 		s.stopChan = make(chan struct{})
+		s.isRunning = false
 	}
-	s.isRunning = true
-	s.mu.Unlock()
 
 	if intervalMinutes <= 0 {
+		s.mu.Unlock()
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(intervalMinutes) * time.Minute)
+	unit := time.Minute
+	if s.tickerDuration > 0 {
+		unit = s.tickerDuration
+	}
+	dur := time.Duration(intervalMinutes) * unit
+	stopCh := s.stopChan
+	s.isRunning = true
+	s.mu.Unlock()
+
+	ticker := time.NewTicker(dur)
 	go func() {
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				s.RunCheck(false)
-			case <-s.stopChan:
+			case <-stopCh:
 				return
 			}
 		}
@@ -76,58 +82,36 @@ func (s *Scheduler) Stop() {
 
 	if s.isRunning {
 		close(s.stopChan)
+		s.stopChan = make(chan struct{})
 		s.isRunning = false
 	}
 }
 
-// TriggerNow executes an immediate check, bypassing the debounce limit if forced.
-func (s *Scheduler) TriggerNow(force bool) {
-	s.RunCheck(force)
+// IsRunning returns whether the scheduler ticker is currently active.
+func (s *Scheduler) IsRunning() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.isRunning
 }
 
-// RunCheck executes PlanSync if not debounced and if no sync operation is actively running.
-func (s *Scheduler) RunCheck(force bool) {
+// TriggerNow executes an immediate check, bypassing the debounce limit if forced.
+func (s *Scheduler) TriggerNow(force bool) bool {
+	return s.RunCheck(force)
+}
+
+// RunCheck executes the checkFunc if not debounced and if no sync operation is actively running.
+func (s *Scheduler) RunCheck(force bool) bool {
 	s.mu.Lock()
 	now := time.Now()
-	if !force && now.Sub(s.lastCheck) < MinCheckDebounce {
+	if !force && !s.lastCheck.IsZero() && now.Sub(s.lastCheck) < MinCheckDebounce {
 		s.mu.Unlock()
-		return
+		return false
 	}
 	s.lastCheck = now
 	s.mu.Unlock()
 
-	// Try to acquire the orchestrator mutex without blocking. If busy, skip check.
-	if !s.orch.TryLock() {
-		return
+	if s.checkFunc == nil {
+		return false
 	}
-	defer s.orch.Unlock()
-
-	cfg, err := config.Load()
-	if err != nil || cfg.RootPath == "" {
-		return
-	}
-
-	st, err := state.Load()
-	if err != nil {
-		return
-	}
-
-	plan, err := s.orch.PlanSync(cfg, st)
-	if err != nil {
-		return
-	}
-
-	nowStr := config.FormatRFC3339(now)
-	st.SetTimestamps("", nowStr)
-	_ = st.Save()
-
-	if s.emitFunc != nil {
-		s.emitFunc("status:changed", StatusEventPayload{
-			Direction:   plan.Direction,
-			Ahead:       plan.Ahead,
-			Behind:      plan.Behind,
-			Connections: plan.Connections,
-			LastCheckAt: nowStr,
-		})
-	}
+	return s.checkFunc()
 }
