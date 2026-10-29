@@ -1,6 +1,9 @@
 package orchestrator
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -51,17 +54,20 @@ type ConflictResolution struct {
 
 // SyncPlan holds the calculated sync operations without side-effects.
 type SyncPlan struct {
-	Direction     string                    `json:"direction"`
-	Downloads     []SyncItem                `json:"downloads"`
-	Uploads       []SyncItem                `json:"uploads"`
-	Conflicts     []ConflictItem            `json:"conflicts"`
-	CommitPreview []string                  `json:"commitPreview"`
-	Ahead         int                       `json:"ahead"`
-	Behind        int                       `json:"behind"`
-	HasRemote     bool                      `json:"hasRemote"`
-	IsOffline     bool                      `json:"isOffline"`
-	DirtyOutside  []string                  `json:"dirtyOutside"`
-	Connections   []syncer.ConnectionStatus `json:"connections"`
+	Fingerprint        string                    `json:"fingerprint"`
+	Direction          string                    `json:"direction"`
+	Downloads          []SyncItem                `json:"downloads"`
+	Uploads            []SyncItem                `json:"uploads"`
+	Conflicts          []ConflictItem            `json:"conflicts"`
+	CommitPreview      []string                  `json:"commitPreview"`
+	Ahead              int                       `json:"ahead"`
+	Behind             int                       `json:"behind"`
+	HasRemote          bool                      `json:"hasRemote"`
+	IsOffline          bool                      `json:"isOffline"`
+	DirtyOutside       []string                  `json:"dirtyOutside"`
+	DirtyOverlapExists bool                      `json:"dirtyOverlapExists"`
+	Connections        []syncer.ConnectionStatus `json:"connections"`
+	LastCheckAt        string                    `json:"lastCheckAt,omitempty"`
 }
 
 // SyncResult summarizes the outcome of ExecuteSync.
@@ -75,12 +81,18 @@ type SyncResult struct {
 
 // Orchestrator coordinates the end-to-end sync workflow.
 type Orchestrator struct {
-	mu sync.Mutex
+	mu           sync.Mutex
+	OnBeforePush func()
 }
 
 // New creates a new Orchestrator instance.
 func New() *Orchestrator {
 	return &Orchestrator{}
+}
+
+// Lock acquires the orchestrator mutex.
+func (o *Orchestrator) Lock() {
+	o.mu.Lock()
 }
 
 // TryLock attempts to acquire the sync mutex without blocking.
@@ -93,8 +105,56 @@ func (o *Orchestrator) Unlock() {
 	o.mu.Unlock()
 }
 
-// PlanSync calculates the required synchronization actions without performing mutations.
+// computeFingerprint calculates a deterministic SHA-256 hash of the plan's actionable state.
+func computeFingerprint(plan *SyncPlan) string {
+	h := sha256.New()
+
+	dls := make([]string, len(plan.Downloads))
+	for i, d := range plan.Downloads {
+		dls[i] = d.FullPath
+	}
+	sort.Strings(dls)
+
+	ups := make([]string, len(plan.Uploads))
+	for i, u := range plan.Uploads {
+		ups[i] = u.FullPath
+	}
+	sort.Strings(ups)
+
+	confs := make([]string, len(plan.Conflicts))
+	for i, c := range plan.Conflicts {
+		confs[i] = fmt.Sprintf("%s:%s:%s", c.Profile, c.RelPath, c.Reason)
+	}
+	sort.Strings(confs)
+
+	commits := make([]string, len(plan.CommitPreview))
+	copy(commits, plan.CommitPreview)
+	sort.Strings(commits)
+
+	dirty := make([]string, len(plan.DirtyOutside))
+	copy(dirty, plan.DirtyOutside)
+	sort.Strings(dirty)
+
+	fmt.Fprintf(h, "dl:%s|up:%s|cf:%s|cp:%s|do:%s|a:%d|b:%d",
+		strings.Join(dls, ","),
+		strings.Join(ups, ","),
+		strings.Join(confs, ","),
+		strings.Join(commits, ","),
+		strings.Join(dirty, ","),
+		plan.Ahead,
+		plan.Behind,
+	)
+
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// PlanSync calculates the required synchronization actions without performing mutations (with remote fetch).
 func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan, error) {
+	return o.PlanSyncWithOptions(cfg, st, true)
+}
+
+// PlanSyncWithOptions calculates the synchronization plan, optionally fetching from the remote.
+func (o *Orchestrator) PlanSyncWithOptions(cfg *config.Config, st *state.State, fetch bool) (*SyncPlan, error) {
 	if cfg.RootPath == "" {
 		return nil, apperr.New(apperr.RootNotFound)
 	}
@@ -108,6 +168,9 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 		DirtyOutside:  make([]string, 0),
 		Connections:   make([]syncer.ConnectionStatus, 0),
 	}
+	if st != nil {
+		plan.LastCheckAt = st.LastCheckAt
+	}
 
 	isRepo := gitops.IsRepo(cfg.RootPath)
 	var runner *gitops.GitRunner
@@ -116,7 +179,7 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 		remoteURL, _ := runner.RemoteURL()
 		plan.HasRemote = remoteURL != ""
 
-		if plan.HasRemote {
+		if plan.HasRemote && fetch {
 			if err := runner.Fetch(); err != nil {
 				plan.IsOffline = true
 			}
@@ -128,9 +191,8 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 	}
 
 	// 1. Inspect each connection and collect file statuses
-	connMap := make(map[string]config.Connection)
+	conflictSeen := make(map[string]bool)
 	for _, conn := range cfg.Connections {
-		connMap[conn.ID] = conn
 		status, err := syncer.ComputeStatus(cfg.RootPath, conn, st)
 		if err != nil {
 			continue
@@ -141,12 +203,14 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 			fullPath := filepath.ToSlash(filepath.Join(conn.Profile, file.RelPath))
 			switch file.Status {
 			case syncer.FileConflict:
+				conflictSeen[fullPath] = true
 				plan.Conflicts = append(plan.Conflicts, ConflictItem{
 					Profile: conn.Profile,
 					RelPath: file.RelPath,
 					Reason:  "conflict",
 				})
 			case syncer.FileUntrackedDiff:
+				conflictSeen[fullPath] = true
 				plan.Conflicts = append(plan.Conflicts, ConflictItem{
 					Profile: conn.Profile,
 					RelPath: file.RelPath,
@@ -176,7 +240,6 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 				if ch.Path == ".gitignore" {
 					continue
 				}
-				// Check if this path is within one of the profiles
 				inProfile := false
 				for _, conn := range cfg.Connections {
 					prefix := conn.Profile + "/"
@@ -193,21 +256,34 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 			}
 		}
 
-		// Detect overlaps between incoming remote changes and local uploads
+		// Detect overlaps between incoming remote changes and local uploads, CommitPreview, and DirtyOutside (H2)
 		incoming, err := runner.IncomingChangedFiles()
 		if err == nil && len(incoming) > 0 {
-			uploadMap := make(map[string]bool)
+			uploadOrCommitMap := make(map[string]bool)
 			for _, up := range plan.Uploads {
-				uploadMap[up.FullPath] = true
+				uploadOrCommitMap[up.FullPath] = true
 			}
+			for _, cp := range plan.CommitPreview {
+				uploadOrCommitMap[cp] = true
+			}
+
+			dirtyOutsideMap := make(map[string]bool)
+			for _, do := range plan.DirtyOutside {
+				dirtyOutsideMap[do] = true
+			}
+
 			for _, inPath := range incoming {
-				if uploadMap[inPath] {
+				if dirtyOutsideMap[inPath] {
+					plan.DirtyOverlapExists = true
+				}
+				if uploadOrCommitMap[inPath] && !conflictSeen[inPath] {
 					parts := strings.SplitN(inPath, "/", 2)
 					profile := parts[0]
 					rel := ""
 					if len(parts) > 1 {
 						rel = parts[1]
 					}
+					conflictSeen[inPath] = true
 					plan.Conflicts = append(plan.Conflicts, ConflictItem{
 						Profile: profile,
 						RelPath: rel,
@@ -238,17 +314,55 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 		plan.Direction = DirectionIdle
 	}
 
+	plan.Fingerprint = computeFingerprint(plan)
 	return plan, nil
 }
 
-// ExecuteSync performs the full synchronization workflow.
+// ExecuteSync performs the full synchronization workflow using the A.1 algorithm.
 func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *SyncPlan, resolutions []ConflictResolution) (*SyncResult, error) {
+	expectedFP := ""
+	if plan != nil {
+		expectedFP = plan.Fingerprint
+	}
+	return o.ExecuteSyncWithFingerprint(cfg, st, expectedFP, resolutions)
+}
+
+// ExecuteSyncWithFingerprint re-plans under lock, validates the fingerprint (if non-empty), and executes A.1.
+func (o *Orchestrator) ExecuteSyncWithFingerprint(cfg *config.Config, st *state.State, expectedFingerprint string, resolutions []ConflictResolution) (*SyncResult, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	return o.ExecuteSyncLocked(cfg, st, expectedFingerprint, resolutions)
+}
 
-	// 1. Validate and apply conflict resolutions
+// ExecuteSyncLocked executes the A.1 synchronization algorithm assuming the caller already holds the lock.
+func (o *Orchestrator) ExecuteSyncLocked(cfg *config.Config, st *state.State, expectedFingerprint string, resolutions []ConflictResolution) (*SyncResult, error) {
+	// Reconcile baselines before planning
+	if st != nil {
+		mutated := false
+		for _, conn := range cfg.Connections {
+			if syncer.ReconcileBaselines(cfg.RootPath, conn, st) {
+				mutated = true
+			}
+		}
+		if mutated {
+			_ = st.Save()
+		}
+	}
+
+	// Step 1: Revalidate plan with fetch=true
+	plan, err := o.PlanSyncWithOptions(cfg, st, true)
+	if err != nil {
+		return nil, err
+	}
+	if expectedFingerprint != "" && plan.Fingerprint != expectedFingerprint {
+		return nil, apperr.New(apperr.PlanChanged)
+	}
+
+	// Step 2: Validate conflict resolutions
 	resolvedDownloads := make([]SyncItem, 0)
 	resolvedUploads := make([]SyncItem, 0)
+	keepRepoSet := make(map[string]bool)
+	keepLocalSet := make(map[string]bool)
 
 	if len(plan.Conflicts) > 0 {
 		resolutionMap := make(map[string]string)
@@ -273,13 +387,15 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 
 			if res == syncer.ResolutionKeepRepo {
 				resolvedDownloads = append(resolvedDownloads, item)
+				keepRepoSet[fullPath] = true
 			} else {
 				resolvedUploads = append(resolvedUploads, item)
+				keepLocalSet[fullPath] = true
 			}
 		}
 	}
 
-	// Filter out any items in plan.Uploads or plan.Downloads that are in plan.Conflicts
+	// Filter out conflicts from initial Downloads/Uploads
 	conflictSet := make(map[string]bool)
 	for _, c := range plan.Conflicts {
 		conflictSet[filepath.ToSlash(filepath.Join(c.Profile, c.RelPath))] = true
@@ -292,18 +408,116 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 		}
 	}
 
-	filteredDownloads := make([]SyncItem, 0)
-	for _, dl := range plan.Downloads {
-		if !conflictSet[dl.FullPath] {
-			filteredDownloads = append(filteredDownloads, dl)
+	isRepo := gitops.IsRepo(cfg.RootPath)
+	var runner *gitops.GitRunner
+
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		hostname = "local"
+	}
+
+	// Step 3: Git preflight
+	if isRepo {
+		runner = gitops.NewRunner(cfg.RootPath)
+		runner.OnBeforePush = o.OnBeforePush
+
+		if plan.DirtyOverlapExists {
+			return nil, apperr.New(apperr.GitDirtyWorktree)
+		}
+
+		willCommit := len(plan.CommitPreview) > 0 || len(filteredUploads) > 0 || len(resolvedUploads) > 0
+		if willCommit {
+			if err := runner.EnsureIdentity(); err != nil {
+				return nil, err
+			}
+		}
+
+		// Step 4: Commit pending manual edits inside profiles (CommitPreview)
+		if len(plan.CommitPreview) > 0 {
+			var pendingToCommit []string
+			for _, cp := range plan.CommitPreview {
+				if keepRepoSet[cp] {
+					// Revert uncommitted manual edit in profile so pull won't conflict
+					_, _ = runner.DiscardPath(cp)
+				} else {
+					pendingToCommit = append(pendingToCommit, cp)
+				}
+			}
+			if len(pendingToCommit) > 0 {
+				msg := fmt.Sprintf("chore(sync): commit pending changes from %s", hostname)
+				if err := runner.CommitPaths(pendingToCommit, msg); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 
-	allUploads := append(filteredUploads, resolvedUploads...)
-	allDownloads := append(filteredDownloads, resolvedDownloads...)
-
 	result := &SyncResult{
 		BackupSessions: make([]string, 0),
+	}
+
+	// Step 5: Pull first (if behind > 0)
+	if isRepo && runner != nil && runner.HasUpstream() {
+		ahead, behind, _ := runner.AheadBehind()
+		if behind > 0 {
+			if ahead == 0 {
+				if err := runner.PullFastForward(); err != nil {
+					return nil, err
+				}
+			} else {
+				if err := runner.PullRebase(); err != nil {
+					return nil, err
+				}
+			}
+			result.Pulled = behind
+		}
+	}
+
+	// Step 6: Recalculate status after pull
+	allDownloads := append([]SyncItem{}, resolvedDownloads...)
+	downloadSet := make(map[string]bool)
+	for _, dl := range allDownloads {
+		downloadSet[dl.FullPath] = true
+	}
+
+	allUploads := append([]SyncItem{}, resolvedUploads...)
+	uploadSet := make(map[string]bool)
+	for _, up := range allUploads {
+		uploadSet[up.FullPath] = true
+	}
+
+	for _, conn := range cfg.Connections {
+		statusAfterPull, err := syncer.ComputeStatus(cfg.RootPath, conn, st)
+		if err != nil {
+			continue
+		}
+		for _, file := range statusAfterPull.Files {
+			fullPath := filepath.ToSlash(filepath.Join(conn.Profile, file.RelPath))
+			if keepRepoSet[fullPath] || keepLocalSet[fullPath] {
+				continue
+			}
+
+			switch file.Status {
+			case syncer.FileSourceChanged, syncer.FileNewInSource, syncer.FileTargetMissing:
+				if !downloadSet[fullPath] {
+					downloadSet[fullPath] = true
+					allDownloads = append(allDownloads, SyncItem{
+						Profile:  conn.Profile,
+						RelPath:  file.RelPath,
+						FullPath: fullPath,
+					})
+				}
+			case syncer.FileTargetChanged:
+				if !uploadSet[fullPath] {
+					uploadSet[fullPath] = true
+					allUploads = append(allUploads, SyncItem{
+						Profile:  conn.Profile,
+						RelPath:  file.RelPath,
+						FullPath: fullPath,
+					})
+				}
+			}
+		}
 	}
 
 	connByProfile := make(map[string]config.Connection)
@@ -311,7 +525,28 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 		connByProfile[c.Profile] = c
 	}
 
-	// 2. Local Upload Phase: Capture target files to source
+	// Step 7: Download (Apply) with mandatory backup (C1) and BackupInfo.ID recording (M5)
+	downloadsByProfile := make(map[string][]string)
+	for _, dl := range allDownloads {
+		downloadsByProfile[dl.Profile] = append(downloadsByProfile[dl.Profile], dl.RelPath)
+	}
+
+	for prof, files := range downloadsByProfile {
+		conn, ok := connByProfile[prof]
+		if !ok {
+			continue
+		}
+		bInfo, err := syncer.Apply(cfg.RootPath, conn, cfg.Connections, cfg.BackupPath, files, st, cfg.BackupRetention, backup.ReasonSync)
+		if err != nil {
+			return nil, err
+		}
+		result.Applied += len(files)
+		if bInfo != nil && bInfo.ID != "" {
+			result.BackupSessions = append(result.BackupSessions, bInfo.ID)
+		}
+	}
+
+	// Step 8: Upload (Capture) of target_changed + keep_local conflicts
 	uploadsByProfile := make(map[string][]string)
 	for _, up := range allUploads {
 		uploadsByProfile[up.Profile] = append(uploadsByProfile[up.Profile], up.RelPath)
@@ -330,106 +565,52 @@ func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *Sy
 		committedProfiles = append(committedProfiles, prof)
 	}
 
-	// 3. Git commit of uploaded changes and uncommitted profile files
-	isRepo := gitops.IsRepo(cfg.RootPath)
-	var runner *gitops.GitRunner
-	if isRepo {
-		runner = gitops.NewRunner(cfg.RootPath)
+	// Step 9: Commit of captures (propagate error, C2)
+	if isRepo && runner != nil && len(allUploads) > 0 {
 		var filesToCommit []string
 		for _, up := range allUploads {
 			filesToCommit = append(filesToCommit, up.FullPath)
 		}
-		filesToCommit = append(filesToCommit, plan.CommitPreview...)
-
-		if len(filesToCommit) > 0 {
-			hostname, err := os.Hostname()
-			if err != nil || hostname == "" {
-				hostname = "local"
-			}
-			sort.Strings(committedProfiles)
-			profList := strings.Join(committedProfiles, ", ")
-			if profList == "" {
-				profList = "profiles"
-			}
-			msg := fmt.Sprintf("chore(sync): update %s from %s", profList, hostname)
-			_ = runner.CommitPaths(filesToCommit, msg)
+		sort.Strings(committedProfiles)
+		profList := strings.Join(committedProfiles, ", ")
+		if profList == "" {
+			profList = "profiles"
 		}
-
-		// 4. Remote Pull Phase
-		ahead, behind, _ := runner.AheadBehind()
-		if behind > 0 && runner.HasUpstream() {
-			if ahead == 0 {
-				if err := runner.PullFastForward(); err != nil {
-					return nil, err
-				}
-			} else {
-				if err := runner.PullRebase(); err != nil {
-					return nil, err
-				}
-			}
-			result.Pulled = behind
-
-			// Step 4 from spec: Recalculate status after pull as source files changed
-			allDownloads = append([]SyncItem{}, resolvedDownloads...)
-			downloadSet := make(map[string]bool)
-			for _, dl := range allDownloads {
-				downloadSet[dl.FullPath] = true
-			}
-			for _, conn := range cfg.Connections {
-				statusAfterPull, err := syncer.ComputeStatus(cfg.RootPath, conn, st)
-				if err != nil {
-					continue
-				}
-				for _, file := range statusAfterPull.Files {
-					if file.Status == syncer.FileSourceChanged || file.Status == syncer.FileNewInSource || file.Status == syncer.FileTargetMissing {
-						fullPath := filepath.ToSlash(filepath.Join(conn.Profile, file.RelPath))
-						if !downloadSet[fullPath] {
-							downloadSet[fullPath] = true
-							allDownloads = append(allDownloads, SyncItem{
-								Profile:  conn.Profile,
-								RelPath:  file.RelPath,
-								FullPath: fullPath,
-							})
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 5. Local Apply Phase: Download source files to targets with backup
-	downloadsByProfile := make(map[string][]string)
-	for _, dl := range allDownloads {
-		downloadsByProfile[dl.Profile] = append(downloadsByProfile[dl.Profile], dl.RelPath)
-	}
-
-	for prof, files := range downloadsByProfile {
-		conn, ok := connByProfile[prof]
-		if !ok {
-			continue
-		}
-		if err := syncer.Apply(cfg.RootPath, conn, cfg.Connections, cfg.BackupPath, files, st, cfg.BackupRetention, backup.ReasonSync); err != nil {
+		msg := fmt.Sprintf("chore(sync): update %s from %s", profList, hostname)
+		if err := runner.CommitPaths(filesToCommit, msg); err != nil {
 			return nil, err
 		}
-		result.Applied += len(files)
-		result.BackupSessions = append(result.BackupSessions, conn.ID)
 	}
 
-	// 6. Git Push Phase
+	// Step 10: Push with one retry on GitPushRejected (H3)
 	if isRepo && runner != nil && runner.HasUpstream() {
 		ahead, _, _ := runner.AheadBehind()
 		if ahead > 0 {
 			if err := runner.Push(); err != nil {
-				return nil, err
+				var appErr *apperr.Error
+				if errors.As(err, &appErr) && appErr.Code == apperr.GitPushRejected {
+					if rbErr := runner.PullRebase(); rbErr != nil {
+						return nil, rbErr
+					}
+					if retryErr := runner.Push(); retryErr != nil {
+						return nil, retryErr
+					}
+				} else {
+					return nil, err
+				}
 			}
 			result.Pushed = ahead
 		}
 	}
 
-	// 7. Update state timestamps
-	now := config.FormatRFC3339(time.Now())
-	st.SetTimestamps(now, now)
-	_ = st.Save()
+	// Step 11: Persist state timestamps
+	if st != nil {
+		now := config.FormatRFC3339(time.Now())
+		st.SetTimestamps(now, now)
+		if err := st.Save(); err != nil {
+			return nil, err
+		}
+	}
 
 	return result, nil
 }
