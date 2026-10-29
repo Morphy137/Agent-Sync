@@ -23,9 +23,9 @@
 ## 3. Phase progress
 | Phase | Status (✅/⚠️/❌) | Commit hash | Notes |
 |---|---|---|---|
-| Phase 0: Environment | ✅ | Pending commit | Go 1.27.3, Wails v2.17.0, staticcheck installed, git on `feature/agent-sync-app` |
-| Phase 1: Scaffold | ✅ | Pending commit | Wails v2 + Svelte 5 + TS initialized, Vitest, ESLint, Prettier, wails build passes |
-| Phase 2: Core Files | ⏳ | - | Not started |
+| Phase 0: Environment | ✅ | ea9aac6 | Go 1.27.3, Wails v2.17.0, staticcheck installed, git on `feature/agent-sync-app` |
+| Phase 1: Scaffold | ✅ | ea9aac6 | Wails v2 + Svelte 5 + TS initialized, Vitest, ESLint, Prettier, wails build passes |
+| Phase 2: Core Files | ✅ | Pending commit | apperr, config, state, fsops, profiles with unit tests |
 | Phase 3: Backups | ⏳ | - | Not started |
 | Phase 4: Sync Engine | ⏳ | - | Not started |
 | Phase 5: Git Operations | ⏳ | - | Not started |
