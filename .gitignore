@@ -1,0 +1,7 @@
+build/bin/
+frontend/node_modules/
+node_modules/
+frontend/dist/
+sandbox/
+*.agentsync.tmp
+.env*
