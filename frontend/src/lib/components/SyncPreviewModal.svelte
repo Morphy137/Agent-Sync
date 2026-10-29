@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, AlertTriangle, ShieldCheck } from "@lucide/svelte";
+  import { ShieldCheck } from "@lucide/svelte";
   import type { orchestrator } from "../../../wailsjs/go/models";
   import { t } from "../i18n";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
+  import SegmentedControl from "./SegmentedControl.svelte";
 
   interface Props {
     open: boolean;
@@ -55,57 +56,46 @@
 <Modal {open} title={t("preview.title")} {onclose}>
   <div class="preview-container">
     {#if plan?.conflicts && plan.conflicts.length > 0}
-      <section class="section conflicts-box">
-        <div class="section-header danger">
+      <section class="group-section">
+        <div class="section-header">
           <div class="section-title">
-            <AlertTriangle size={16} />
+            <span class="status-dot dot-conflict"></span>
             <span>{t("preview.conflicts_section", { count: plan.conflicts.length })}</span>
           </div>
           <div class="quick-actions">
-            <button
-              type="button"
-              class="link-btn"
+            <Button
+              size="sm"
+              variant="ghost"
               onclick={() => setAllResolutions("keep_repo")}
             >
               {t("conflicts.apply_all_repo")}
-            </button>
-            <span class="sep">|</span>
-            <button
-              type="button"
-              class="link-btn"
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
               onclick={() => setAllResolutions("keep_local")}
             >
               {t("conflicts.apply_all_local")}
-            </button>
+            </Button>
           </div>
         </div>
 
-        <div class="conflicts-list">
+        <div class="sunken-panel conflicts-list">
           {#each plan.conflicts as conflict (`${conflict.profile}:${conflict.relPath}`)}
             {@const key = `${conflict.profile}:${conflict.relPath}`}
-            <div class="conflict-item">
+            <div class="conflict-row">
               <span class="file-path">{conflict.profile}/{conflict.relPath}</span>
-              <div class="radio-group">
-                <label class="radio-label">
-                  <input
-                    type="radio"
-                    name={key}
-                    value="keep_repo"
-                    checked={resolutions[key] === "keep_repo"}
-                    onchange={() => (resolutions[key] = "keep_repo")}
-                  />
-                  <span>{t("conflicts.keep_repo")}</span>
-                </label>
-                <label class="radio-label">
-                  <input
-                    type="radio"
-                    name={key}
-                    value="keep_local"
-                    checked={resolutions[key] === "keep_local"}
-                    onchange={() => (resolutions[key] = "keep_local")}
-                  />
-                  <span>{t("conflicts.keep_local")}</span>
-                </label>
+              <div class="conflict-control">
+                <SegmentedControl
+                  size="sm"
+                  value={resolutions[key] || "keep_repo"}
+                  options={[
+                    { value: "keep_repo", label: t("conflicts.keep_repo") },
+                    { value: "keep_local", label: t("conflicts.keep_local") },
+                  ]}
+                  onchange={(val) =>
+                    (resolutions[key] = val as "keep_repo" | "keep_local")}
+                />
               </div>
             </div>
           {/each}
@@ -114,35 +104,43 @@
     {/if}
 
     {#if plan?.downloads && plan.downloads.length > 0}
-      <section class="section">
-        <div class="section-title">
-          <span class="icon-down"><ArrowDown size={16} /></span>
-          <span>{t("preview.downloads_section", { count: plan.downloads.length })}</span>
+      <section class="group-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="status-dot dot-down"></span>
+            <span>{t("preview.downloads_section", { count: plan.downloads.length })}</span>
+          </div>
         </div>
-        <ul class="file-list">
+        <div class="sunken-panel file-list">
           {#each plan.downloads as dl (dl.fullPath)}
-            <li><code>{dl.fullPath}</code></li>
+            <div class="file-item">
+              <span class="file-path">{dl.fullPath}</span>
+            </div>
           {/each}
-        </ul>
+        </div>
       </section>
     {/if}
 
     {#if plan?.uploads && plan.uploads.length > 0}
-      <section class="section">
-        <div class="section-title">
-          <span class="icon-up"><ArrowUp size={16} /></span>
-          <span>{t("preview.uploads_section", { count: plan.uploads.length })}</span>
+      <section class="group-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="status-dot dot-up"></span>
+            <span>{t("preview.uploads_section", { count: plan.uploads.length })}</span>
+          </div>
         </div>
-        <ul class="file-list">
+        <div class="sunken-panel file-list">
           {#each plan.uploads as up (up.fullPath)}
-            <li><code>{up.fullPath}</code></li>
+            <div class="file-item">
+              <span class="file-path">{up.fullPath}</span>
+            </div>
           {/each}
-        </ul>
+        </div>
       </section>
     {/if}
 
     <div class="notice-bar">
-      <span class="shield-icon"><ShieldCheck size={16} /></span>
+      <ShieldCheck size={15} />
       <span>{t("preview.backups_notice")}</span>
     </div>
 
@@ -164,17 +162,17 @@
     gap: var(--space-5);
   }
 
-  .section {
-    background-color: var(--surface-raised);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
+  .group-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
   .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-3);
+    gap: var(--space-2);
   }
 
   .section-title {
@@ -183,85 +181,80 @@
     gap: var(--space-2);
     font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
-    color: var(--text);
+    color: var(--ink);
   }
 
-  .danger .section-title {
-    color: var(--danger-fg);
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
   }
 
-  .icon-down {
-    color: var(--info-fg);
+  .dot-down {
+    background-color: var(--dot-down);
   }
 
-  .icon-up {
-    color: var(--accent);
+  .dot-up {
+    background-color: var(--dot-up);
+  }
+
+  .dot-conflict {
+    background-color: var(--dot-conflict);
   }
 
   .quick-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    font-size: var(--text-xs);
+    gap: var(--space-1);
   }
 
-  .link-btn {
-    background: none;
-    border: none;
-    color: var(--accent);
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-  }
-
-  .sep {
-    color: var(--text-subtle);
+  .sunken-panel {
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
   }
 
   .conflicts-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 
-  .conflict-item {
-    background-color: var(--surface);
-    padding: var(--space-3);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
+  .conflict-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+  }
+
+  .conflict-control {
+    width: 210px;
+    flex-shrink: 0;
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  .file-item {
+    height: 28px;
+    display: flex;
+    align-items: center;
   }
 
   .file-path {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    font-weight: var(--weight-medium);
-    display: block;
-    margin-bottom: var(--space-2);
-  }
-
-  .radio-group {
-    display: flex;
-    gap: var(--space-4);
-  }
-
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--text-xs);
-    cursor: pointer;
-  }
-
-  .file-list {
-    margin: var(--space-2) 0 0 0;
-    padding: 0 0 0 var(--space-5);
-    font-size: var(--text-xs);
-    color: var(--text);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    max-height: 120px;
-    overflow-y: auto;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .notice-bar {
@@ -270,11 +263,6 @@
     gap: var(--space-2);
     font-size: var(--text-xs);
     color: var(--text-muted);
-    padding: var(--space-2) 0;
-  }
-
-  .shield-icon {
-    color: var(--success-fg);
   }
 
   .footer-actions {
@@ -282,6 +270,5 @@
     align-items: center;
     justify-content: flex-end;
     gap: var(--space-3);
-    margin-top: var(--space-2);
   }
 </style>

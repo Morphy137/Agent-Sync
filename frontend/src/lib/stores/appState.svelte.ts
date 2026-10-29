@@ -1,12 +1,12 @@
 import { api, parseError } from "../api";
-import type { config, main, orchestrator, profiles } from "../../../wailsjs/go/models";
+import type { config, service, orchestrator, profiles } from "../../../wailsjs/go/models";
 import { initTheme } from "../theme/theme";
 import { setLocale, t } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
 class AppState {
   config = $state<config.Config | null>(null);
-  gitInfo = $state<main.GitInfoPayload | null>(null);
+  gitInfo = $state<service.GitInfoPayload | null>(null);
   profiles = $state<profiles.Profile[]>([]);
   statusPlan = $state<orchestrator.SyncPlan | null>(null);
   isChecking = $state(false);
@@ -20,8 +20,9 @@ class AppState {
   activeBackupProfileName = $state<string>("");
   previewModalOpen = $state(false);
   initialLinkModalOpen = $state(false);
-  initialLinkData = $state<main.InitialLinkResult | null>(null);
+  initialLinkData = $state<service.InitialLinkResult | null>(null);
   addRemoteModalOpen = $state(false);
+  gitIdentityModalOpen = $state(false);
 
   addToast(type: "success" | "error" | "info", message: string) {
     const id = Math.random().toString(36).slice(2, 9);
@@ -35,7 +36,7 @@ class AppState {
     this.toasts = this.toasts.filter((t) => t.id !== id);
   }
 
-  showError(err: unknown) {
+  showError(err: unknown): string {
     const parsed = parseError(err);
     const translationKey = `errors.${parsed.code}`;
     let msg = t(translationKey, parsed.params);
@@ -43,6 +44,10 @@ class AppState {
       msg = parsed.message || t("errors.unknown");
     }
     this.addToast("error", msg);
+    if (parsed.code === "git_identity_missing") {
+      this.gitIdentityModalOpen = true;
+    }
+    return parsed.code;
   }
 
   async loadInitialData() {
@@ -68,15 +73,30 @@ class AppState {
 
   async refreshAll() {
     try {
-      this.isChecking = true;
-      const [profilesList, git, plan] = await Promise.all([
+      const [cfg, profilesList, git, plan] = await Promise.all([
+        api.getConfig(),
         api.listProfiles(),
         api.getGitInfo(),
         api.getStatus(),
       ]);
+      this.config = cfg;
       this.profiles = profilesList;
       this.gitInfo = git;
       this.statusPlan = plan;
+    } catch (err) {
+      this.showError(err);
+    }
+  }
+
+  async checkRemote() {
+    try {
+      this.isChecking = true;
+      const [plan, git] = await Promise.all([
+        api.checkRemote(),
+        api.getGitInfo(),
+      ]);
+      this.statusPlan = plan;
+      this.gitInfo = git;
     } catch (err) {
       this.showError(err);
     } finally {
@@ -84,16 +104,13 @@ class AppState {
     }
   }
 
-  handleStatusChanged(payload: any) {
-    if (this.statusPlan) {
-      this.statusPlan.direction = payload.direction;
-      this.statusPlan.ahead = payload.ahead;
-      this.statusPlan.behind = payload.behind;
-      this.statusPlan.connections = payload.connections;
-    }
+  // H5: Replace the entire statusPlan store when status:changed event arrives
+  handleStatusChanged(plan: orchestrator.SyncPlan) {
+    if (!plan) return;
+    this.statusPlan = plan;
     if (this.gitInfo) {
-      this.gitInfo.ahead = payload.ahead;
-      this.gitInfo.behind = payload.behind;
+      this.gitInfo.ahead = plan.ahead;
+      this.gitInfo.behind = plan.behind;
     }
   }
 }

@@ -1,16 +1,10 @@
 <script lang="ts">
   import {
-    Folder,
     ChevronDown,
     ChevronRight,
-    MoreVertical,
-    FileText,
-    ArrowDown,
-    ArrowUp,
-    AlertCircle,
-    Check,
-    FolderSync,
+    MoreHorizontal,
     ExternalLink,
+    FolderSync,
     Unlink,
   } from "@lucide/svelte";
   import type { profiles, config, syncer } from "../../../wailsjs/go/models";
@@ -27,7 +21,7 @@
     onconnect: (prof: string) => void;
     onupdate: (connId: string) => void;
     onbackups: (connId: string, prof: string) => void;
-    onchangeTarget: (prof: string) => void;
+    onchangeTarget: (connId: string, prof: string) => void;
     onopenExplorer: (path: string) => void;
     ondisconnect: (connId: string) => void;
   }
@@ -48,15 +42,20 @@
   let menuOpen = $state(false);
 
   const isConnected = $derived(!!connection);
-  const aggregateStatus = $derived(status?.status || (isConnected ? "in_sync" : "not_connected"));
+  const aggregateStatus = $derived(
+    status?.status || (isConnected ? "in_sync" : "not_connected")
+  );
+  const initialLetter = $derived(
+    (profile.name || "P").trim().charAt(0).toUpperCase()
+  );
 
   const targetTruncated = $derived.by(() => {
     if (!connection) return "";
     const p = connection.targetPath;
-    if (p.length > 35) {
-      return "..." + p.slice(-32);
-    }
-    return p;
+    if (p.length <= 42) return p;
+    const head = p.slice(0, 18);
+    const tail = p.slice(-21);
+    return `${head}…${tail}`;
   });
 
   const canUpdate = $derived.by(() => {
@@ -68,16 +67,36 @@
         f.status === "target_missing"
     );
   });
+
+  function getFileDotClass(fileStatus: string): string {
+    switch (fileStatus) {
+      case "in_sync":
+        return "dot-ok";
+      case "source_changed":
+      case "new_in_source":
+      case "target_missing":
+        return "dot-down";
+      case "target_changed":
+      case "untracked_diff":
+        return "dot-up";
+      case "conflict":
+      case "unreadable":
+        return "dot-conflict";
+      default:
+        return "dot-idle";
+    }
+  }
 </script>
 
-<div class="profile-card">
-  <div class="card-main">
-    <!-- Row 1: Icon + Profile Name + Status Pill -->
-    <div class="row-header">
-      <div class="title-group">
-        <span class="folder-icon">
-          <Folder size={18} />
-        </span>
+<div class="profile-card" class:disconnected={!isConnected}>
+  <!-- Top section: Tile + Info + StatusPill -->
+  <div class="card-top">
+    <div class="tile" class:tile-muted={!isConnected} aria-hidden="true">
+      {initialLetter}
+    </div>
+
+    <div class="info-col">
+      <div class="header-row">
         <span class="profile-name">{profile.name}</span>
         <StatusPill
           status={aggregateStatus}
@@ -85,201 +104,251 @@
         />
       </div>
 
-      <div class="actions-group">
-        {#if !connection}
-          <Button
-            variant="secondary"
-            size="sm"
-            onclick={() => onconnect(profile.name)}
-          >
-            {t("connections.card.button_connect")}
-          </Button>
-        {:else}
-          {#if canUpdate}
-            <Button
-              variant="secondary"
-              size="sm"
-              onclick={() => onupdate(connection.id)}
-            >
-              <FolderSync size={14} />
-              {t("connections.card.button_update")}
-            </Button>
-          {/if}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onclick={() => onbackups(connection.id, profile.name)}
-          >
-            {t("connections.card.button_backups")}
-          </Button>
-
-          <div class="menu-container">
-            <IconButton
-              label={t("connections.card.menu_toggle")}
-              variant="ghost"
-              size="sm"
-              onclick={() => (menuOpen = !menuOpen)}
-            >
-              <MoreVertical size={16} />
-            </IconButton>
-
-            {#if menuOpen}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <div
-                class="dropdown-menu"
-                onclick={() => (menuOpen = false)}
-                role="menu"
-                tabindex="-1"
-              >
-                <button
-                  type="button"
-                  class="dropdown-item"
-                  role="menuitem"
-                  onclick={() => onchangeTarget(profile.name)}
-                >
-                  <FolderSync size={14} />
-                  <span>{t("connections.card.menu_change_target")}</span>
-                </button>
-                <button
-                  type="button"
-                  class="dropdown-item"
-                  role="menuitem"
-                  onclick={() => onopenExplorer(connection.targetPath)}
-                >
-                  <ExternalLink size={14} />
-                  <span>{t("connections.card.menu_open_explorer")}</span>
-                </button>
-                <button
-                  type="button"
-                  class="dropdown-item danger"
-                  role="menuitem"
-                  onclick={() => ondisconnect(connection.id)}
-                >
-                  <Unlink size={14} />
-                  <span>{t("connections.card.menu_disconnect")}</span>
-                </button>
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Row 2: Target Path + Managed Files Count + Expand Toggle -->
-    <div class="row-details">
       {#if connection}
-        <div class="target-info">
+        <div class="target-line">
           <span class="arrow">→</span>
           <Tooltip text={connection.targetPath}>
             <span class="target-path">{targetTruncated}</span>
           </Tooltip>
-          <span class="dot-separator">•</span>
-          <span class="files-count">
-            {t("connections.card.managed_files_count", { count: profile.fileCount })}
-          </span>
         </div>
       {:else}
-        <div class="target-info muted">
+        <div class="target-line muted">
           <span>{t("connections.card.not_connected")}</span>
-          <span class="dot-separator">•</span>
-          <span>
-            {t("connections.card.managed_files_count", { count: profile.fileCount })}
-          </span>
         </div>
       {/if}
 
-      {#if connection && status?.files && status.files.length > 0}
-        <button
-          type="button"
-          class="expand-btn"
-          onclick={() => (expanded = !expanded)}
-          aria-expanded={expanded}
-        >
-          {#if expanded}
-            <ChevronDown size={14} />
-          {:else}
-            <ChevronRight size={14} />
-          {/if}
-          <span>{expanded ? t("common.close") : `${status.files.length} files`}</span>
-        </button>
-      {/if}
+      <div class="files-count">
+        {t("connections.card.managed_files_count", { count: profile.fileCount })}
+      </div>
     </div>
   </div>
 
-  <!-- Expandable File List -->
-  {#if expanded && status?.files}
-    <div class="files-expansion">
-      {#each status.files as file (file.relPath)}
-        <div class="file-row">
-          <div class="file-left">
-            <FileText size={14} class="file-icon" />
-            <span class="file-path">{file.relPath}</span>
+  <div class="hairline" aria-hidden="true"></div>
+
+  <!-- Actions footer -->
+  <div class="card-actions">
+    {#if !connection}
+      <div class="actions-left">
+        <Button
+          variant="primary"
+          size="sm"
+          onclick={() => onconnect(profile.name)}
+        >
+          {t("connections.card.button_connect")}
+        </Button>
+      </div>
+    {:else}
+      <div class="actions-left">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={!canUpdate}
+          onclick={() => onupdate(connection.id)}
+        >
+          {t("connections.card.button_update")}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onclick={() => onbackups(connection.id, profile.name)}
+        >
+          {t("connections.card.button_backups")}
+        </Button>
+      </div>
+
+      <div class="menu-container">
+        <IconButton
+          label={t("connections.card.menu_toggle")}
+          onclick={() => (menuOpen = !menuOpen)}
+        >
+          <MoreHorizontal size={16} />
+        </IconButton>
+
+        {#if menuOpen}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            class="dropdown-menu"
+            onclick={() => (menuOpen = false)}
+            role="menu"
+            tabindex="-1"
+          >
+            <button
+              type="button"
+              class="dropdown-item"
+              role="menuitem"
+              onclick={() => onchangeTarget(connection.id, profile.name)}
+            >
+              <FolderSync size={14} />
+              <span>{t("connections.card.menu_change_target")}</span>
+            </button>
+            <button
+              type="button"
+              class="dropdown-item"
+              role="menuitem"
+              onclick={() => onopenExplorer(connection.targetPath)}
+            >
+              <ExternalLink size={14} />
+              <span>{t("connections.card.menu_open_explorer")}</span>
+            </button>
+            <button
+              type="button"
+              class="dropdown-item"
+              role="menuitem"
+              onclick={() => ondisconnect(connection.id)}
+            >
+              <Unlink size={14} />
+              <span>{t("connections.card.menu_disconnect")}</span>
+            </button>
           </div>
-          <div class="file-right">
-            <span class="file-status status-{file.status}">
-              {#if file.status === "in_sync"}
-                <Check size={12} />
-              {:else if file.status === "target_changed"}
-                <ArrowUp size={12} />
-              {:else if file.status === "conflict"}
-                <AlertCircle size={12} />
-              {:else}
-                <ArrowDown size={12} />
-              {/if}
-              <span>{t(`status.${file.status}`)}</span>
-            </span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Expandable Files Section -->
+  {#if connection && status?.files && status.files.length > 0}
+    <button
+      type="button"
+      class="expand-toggle"
+      onclick={() => (expanded = !expanded)}
+      aria-expanded={expanded}
+    >
+      {#if expanded}
+        <ChevronDown size={14} />
+        <span>{t("connections.card.hide_files")}</span>
+      {:else}
+        <ChevronRight size={14} />
+        <span>{t("connections.card.view_files", { count: status.files.length })}</span>
+      {/if}
+    </button>
+
+    {#if expanded}
+      <div class="files-panel">
+        {#each status.files as file (file.relPath)}
+          <div class="file-row">
+            <div class="file-left">
+              <span class="file-dot {getFileDotClass(file.status)}"></span>
+              <span class="file-path">{file.relPath}</span>
+            </div>
+            <span class="file-status-text">{t(`status.${file.status}`)}</span>
           </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
 
 <style>
   .profile-card {
     background-color: var(--surface);
-    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    transition: border-color var(--duration-fast) var(--easing);
-    overflow: visible;
+    box-shadow: var(--elev-1);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    transition: box-shadow var(--duration-fast) var(--easing-out);
   }
 
   .profile-card:hover {
-    border-color: var(--border-strong);
+    box-shadow: var(--elev-2);
   }
 
-  .card-main {
-    padding: var(--space-5);
-  }
-
-  .row-header {
+  .card-top {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: flex-start;
     gap: var(--space-4);
   }
 
-  .title-group {
+  .tile {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background-color: var(--surface);
+    box-shadow: var(--elev-1);
+    color: var(--ink);
+    font-size: var(--text-md);
+    font-weight: var(--weight-bold);
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    justify-content: center;
+    flex-shrink: 0;
+    user-select: none;
   }
 
-  .folder-icon {
-    color: var(--accent);
+  .tile.tile-muted {
+    opacity: 0.6;
+  }
+
+  .info-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .header-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
   }
 
   .profile-name {
     font-size: var(--text-md);
     font-weight: var(--weight-semibold);
-    color: var(--text);
+    color: var(--ink);
+    letter-spacing: -0.01em;
   }
 
-  .actions-group {
+  .target-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    min-width: 0;
+  }
+
+  .target-line.muted {
+    opacity: 0.6;
+  }
+
+  .arrow {
+    color: var(--text-subtle);
+    flex-shrink: 0;
+  }
+
+  .target-path {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .files-count {
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hairline {
+    height: 1px;
+    background-color: var(--hairline);
+    width: 100%;
+  }
+
+  .card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .actions-left {
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -295,9 +364,8 @@
     right: 0;
     margin-top: var(--space-1);
     background-color: var(--surface);
-    border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--elev-3);
     min-width: 180px;
     padding: var(--space-1);
     z-index: 50;
@@ -311,63 +379,20 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     font-size: var(--text-xs);
-    color: var(--text);
+    color: var(--ink);
     background: none;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     cursor: pointer;
     text-align: left;
-    transition: background-color var(--duration-fast) var(--easing);
+    transition: background-color var(--duration-fast) var(--easing-out);
   }
 
   .dropdown-item:hover {
-    background-color: var(--surface-raised);
+    background-color: var(--surface-sunken);
   }
 
-  .dropdown-item.danger {
-    color: var(--danger-fg);
-  }
-
-  .dropdown-item.danger:hover {
-    background-color: var(--danger-bg);
-  }
-
-  .row-details {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: var(--space-3);
-    font-size: var(--text-xs);
-  }
-
-  .target-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    color: var(--text-muted);
-  }
-
-  .target-info.muted {
-    opacity: 0.8;
-  }
-
-  .arrow {
-    color: var(--text-subtle);
-  }
-
-  .target-path {
-    font-family: var(--font-mono);
-    color: var(--text);
-    background-color: var(--surface-raised);
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-  }
-
-  .dot-separator {
-    color: var(--text-subtle);
-  }
-
-  .expand-btn {
+  .expand-toggle {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
@@ -375,74 +400,78 @@
     border: none;
     color: var(--text-muted);
     font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
     cursor: pointer;
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-sm);
+    padding: 0;
+    align-self: flex-start;
   }
 
-  .expand-btn:hover {
-    color: var(--text);
-    background-color: var(--surface-raised);
+  .expand-toggle:hover {
+    color: var(--ink);
   }
 
-  .files-expansion {
-    border-top: 1px solid var(--border);
-    padding: var(--space-3) var(--space-5);
-    background-color: var(--surface-raised);
-    border-bottom-left-radius: var(--radius-lg);
-    border-bottom-right-radius: var(--radius-lg);
+  .files-panel {
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
   }
 
   .file-row {
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--space-3);
     font-size: var(--text-xs);
-    padding: var(--space-1) 0;
   }
 
   .file-left {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0;
   }
 
-  .file-icon {
-    color: var(--text-subtle);
+  .file-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .dot-ok {
+    background-color: var(--dot-ok);
+  }
+
+  .dot-down {
+    background-color: var(--dot-down);
+  }
+
+  .dot-up {
+    background-color: var(--dot-up);
+  }
+
+  .dot-conflict {
+    background-color: var(--dot-conflict);
+  }
+
+  .dot-idle {
+    background-color: var(--dot-idle);
   }
 
   .file-path {
     font-family: var(--font-mono);
-    color: var(--text);
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .file-status {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-size: var(--text-xs);
-    font-weight: var(--weight-medium);
-  }
-
-  .status-in_sync {
-    color: var(--success-fg);
-  }
-
-  .status-source_changed,
-  .status-new_in_source,
-  .status-target_missing {
-    color: var(--info-fg);
-  }
-
-  .status-target_changed {
-    color: var(--accent);
-  }
-
-  .status-conflict,
-  .status-untracked_diff {
-    color: var(--danger-fg);
+  .file-status-text {
+    color: var(--text-muted);
+    flex-shrink: 0;
   }
 </style>

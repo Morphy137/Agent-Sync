@@ -1,28 +1,30 @@
 <script lang="ts">
-  import { GitBranch, ArrowUp, ArrowDown } from "@lucide/svelte";
+  import { GitBranch } from "@lucide/svelte";
   import { appState } from "../stores/appState.svelte";
   import { t, formatDate } from "../i18n";
   import Spinner from "./Spinner.svelte";
 
   const branch = $derived(appState.gitInfo?.branch || t("statusbar.no_branch"));
-  const ahead = $derived(appState.gitInfo?.ahead || 0);
-  const behind = $derived(appState.gitInfo?.behind || 0);
-  const lastCheck = $derived(appState.statusPlan ? formatDate(new Date().toISOString()) : "");
+  const ahead = $derived(appState.statusPlan?.ahead ?? appState.gitInfo?.ahead ?? 0);
+  const behind = $derived(appState.statusPlan?.behind ?? appState.gitInfo?.behind ?? 0);
+  const lastCheck = $derived(
+    appState.statusPlan?.lastCheckAt
+      ? formatDate(appState.statusPlan.lastCheckAt)
+      : ""
+  );
 </script>
 
 <footer class="status-bar">
   <div class="bar-left">
-    <span class="branch-icon"><GitBranch size={13} /></span>
-    <span class="branch-name">{t("statusbar.branch", { branch })}</span>
-  </div>
+    <span class="branch-item">
+      <GitBranch size={12} />
+      <span>{branch}</span>
+    </span>
 
-  <div class="bar-center">
     {#if appState.gitInfo?.isRepo && appState.gitInfo?.hasUpstream}
+      <span class="sep">·</span>
       <span class="ahead-behind">
-        <ArrowUp size={12} />
-        <span>{ahead}</span>
-        <ArrowDown size={12} />
-        <span>{behind}</span>
+        {t("statusbar.ahead_behind", { ahead, behind })}
       </span>
     {/if}
   </div>
@@ -41,10 +43,9 @@
 
 <style>
   .status-bar {
-    height: 32px;
+    height: var(--statusbar-height);
     padding: 0 var(--space-6);
-    background-color: var(--surface);
-    border-top: 1px solid var(--border);
+    background-color: var(--canvas);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -52,31 +53,38 @@
     color: var(--text-muted);
     user-select: none;
     z-index: 10;
+    font-variant-numeric: tabular-nums;
   }
 
   .bar-left,
-  .bar-center,
   .bar-right {
     display: flex;
     align-items: center;
     gap: var(--space-2);
   }
 
-  .branch-icon {
+  .branch-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
+
+  .sep {
     color: var(--text-subtle);
   }
 
   .ahead-behind {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
     font-family: var(--font-mono);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
   }
 
   .checking-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    color: var(--accent);
+    color: var(--ink);
   }
 </style>

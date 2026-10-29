@@ -24,10 +24,11 @@
     onopenFolder,
   }: Props = $props();
 
-  function handleRestore(b: backup.BackupInfo) {
-    if (confirm(t("backups.confirm_restore"))) {
-      onrestore(b.id);
-    }
+  let confirmingBackupId = $state<string | null>(null);
+
+  function confirmRestore(b: backup.BackupInfo) {
+    onrestore(b.id);
+    confirmingBackupId = null;
   }
 </script>
 
@@ -35,7 +36,7 @@
   <div class="backups-container">
     {#if backups.length === 0}
       <div class="empty-backups">
-        <span class="history-icon"><History size={36} /></span>
+        <span class="history-icon"><History size={32} /></span>
         <p>{t("backups.empty")}</p>
       </div>
     {:else}
@@ -45,7 +46,7 @@
             <div class="card-header">
               <span class="backup-date">{formatDate(b.createdAt)}</span>
               <StatusPill
-                status="neutral"
+                status="idle"
                 text={t(`backups.reason_${b.reason}`)}
               />
             </div>
@@ -56,24 +57,46 @@
               </span>
             </div>
 
-            <div class="card-actions">
-              <Button
-                size="sm"
-                variant="ghost"
-                onclick={() => onopenFolder(b.path)}
-              >
-                <FolderOpen size={14} />
-                <span>{t("backups.button_open_folder")}</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onclick={() => handleRestore(b)}
-              >
-                <RotateCcw size={14} />
-                <span>{t("backups.button_restore")}</span>
-              </Button>
-            </div>
+            {#if confirmingBackupId === b.id}
+              <div class="restore-confirm-box">
+                <p class="confirm-notice">{t("backups.confirm_restore")}</p>
+                <div class="confirm-actions">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onclick={() => (confirmingBackupId = null)}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onclick={() => confirmRestore(b)}
+                  >
+                    {t("common.confirm")}
+                  </Button>
+                </div>
+              </div>
+            {:else}
+              <div class="card-actions">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onclick={() => onopenFolder(b.path)}
+                >
+                  <FolderOpen size={14} />
+                  <span>{t("backups.button_open_folder")}</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onclick={() => (confirmingBackupId = b.id)}
+                >
+                  <RotateCcw size={14} />
+                  <span>{t("backups.button_restore")}</span>
+                </Button>
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
@@ -111,9 +134,9 @@
   }
 
   .backup-card {
-    background-color: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    background-color: var(--surface);
+    box-shadow: var(--elev-1);
+    border-radius: var(--radius-lg);
     padding: var(--space-4);
     display: flex;
     flex-direction: column;
@@ -129,7 +152,7 @@
   .backup-date {
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
-    color: var(--text);
+    color: var(--ink);
   }
 
   .card-body {
@@ -141,7 +164,30 @@
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2);
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--hairline);
     padding-top: var(--space-3);
+  }
+
+  .restore-confirm-box {
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .confirm-notice {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--ink);
+    line-height: 1.4;
+  }
+
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
   }
 </style>

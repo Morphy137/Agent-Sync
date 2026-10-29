@@ -10,6 +10,14 @@ export function ApplyConnection(arg1) {
   return window['go']['main']['App']['ApplyConnection'](arg1);
 }
 
+export function ChangeTarget(arg1, arg2) {
+  return window['go']['main']['App']['ChangeTarget'](arg1, arg2);
+}
+
+export function CheckRemote() {
+  return window['go']['main']['App']['CheckRemote']();
+}
+
 export function ConnectProfile(arg1, arg2) {
   return window['go']['main']['App']['ConnectProfile'](arg1, arg2);
 }
@@ -18,8 +26,8 @@ export function DisconnectProfile(arg1) {
   return window['go']['main']['App']['DisconnectProfile'](arg1);
 }
 
-export function ExecuteSync(arg1) {
-  return window['go']['main']['App']['ExecuteSync'](arg1);
+export function ExecuteSync(arg1, arg2) {
+  return window['go']['main']['App']['ExecuteSync'](arg1, arg2);
 }
 
 export function GetConfig() {
@@ -62,12 +70,16 @@ export function RestoreBackup(arg1, arg2) {
   return window['go']['main']['App']['RestoreBackup'](arg1, arg2);
 }
 
-export function SelectRootFolder() {
-  return window['go']['main']['App']['SelectRootFolder']();
+export function SelectRootFolder(arg1) {
+  return window['go']['main']['App']['SelectRootFolder'](arg1);
 }
 
 export function SelectTargetFolder(arg1) {
   return window['go']['main']['App']['SelectTargetFolder'](arg1);
+}
+
+export function SetGitIdentity(arg1, arg2) {
+  return window['go']['main']['App']['SetGitIdentity'](arg1, arg2);
 }
 
 export function SetRootPath(arg1) {

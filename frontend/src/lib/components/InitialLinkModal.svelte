@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { main } from "../../../wailsjs/go/models";
+  import type { service } from "../../../wailsjs/go/models";
   import { t } from "../i18n";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
 
   interface Props {
     open: boolean;
-    data: main.InitialLinkResult | null;
+    data: service.InitialLinkResult | null;
     onclose: () => void;
     onconfirm: (choice: string) => void;
   }
@@ -98,16 +98,18 @@
   }
 
   .diff-files {
-    background-color: var(--surface-raised);
-    padding: var(--space-3);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
-    border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
     max-height: 100px;
     overflow-y: auto;
     font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    color: var(--ink);
   }
 
   .options-list {
@@ -121,19 +123,22 @@
     align-items: flex-start;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--border);
+    background-color: var(--surface);
+    box-shadow: var(--elev-1);
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all var(--duration-fast) var(--easing);
+    transition:
+      box-shadow var(--duration-fast) var(--easing-out),
+      background-color var(--duration-fast) var(--easing-out);
   }
 
   .option-card:hover {
-    background-color: var(--surface-raised);
+    box-shadow: var(--elev-2);
   }
 
   .option-card.selected {
-    border-color: var(--accent);
-    background-color: var(--surface-raised);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--pressed);
   }
 
   .option-content {
@@ -145,7 +150,7 @@
   .option-title {
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
-    color: var(--text);
+    color: var(--ink);
   }
 
   .option-desc {
