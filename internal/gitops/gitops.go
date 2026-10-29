@@ -27,7 +27,8 @@ type ChangedPath struct {
 
 // GitRunner wraps execution of git commands in a repository root.
 type GitRunner struct {
-	Root string
+	Root         string
+	OnBeforePush func()
 }
 
 // NewRunner creates a GitRunner for the given repository root directory.
@@ -62,7 +63,11 @@ func (g *GitRunner) runCmd(args ...string) (string, error) {
 	errStr := strings.TrimSpace(stderr.String())
 
 	if err != nil {
-		return outStr, mapGitError(err, errStr)
+		combined := errStr
+		if combined == "" {
+			combined = outStr
+		}
+		return outStr, mapGitError(err, combined)
 	}
 
 	return outStr, nil
@@ -74,6 +79,11 @@ func mapGitError(cause error, stderr string) error {
 
 	if strings.Contains(lower, "not a git repository") {
 		return apperr.Wrap(apperr.RootNotRepo, cause)
+	}
+	if strings.Contains(lower, "author identity unknown") ||
+		strings.Contains(lower, "unable to auto-detect email address") ||
+		strings.Contains(lower, "please tell me who you are") {
+		return apperr.Wrap(apperr.GitIdentityMissing, cause)
 	}
 	if strings.Contains(lower, "terminal prompts disabled") ||
 		strings.Contains(lower, "authentication failed") ||
@@ -94,7 +104,22 @@ func mapGitError(cause error, stderr string) error {
 	if strings.Contains(lower, "not possible to fast-forward, aborting") {
 		return apperr.Wrap(apperr.GitNotFastForward, cause)
 	}
-	if strings.Contains(lower, "conflict") || strings.Contains(lower, "could not apply") {
+	if strings.Contains(lower, "local changes to the following files would be overwritten") ||
+		strings.Contains(lower, "cannot pull with rebase: you have unstaged changes") ||
+		strings.Contains(lower, "please commit or stash them") ||
+		strings.Contains(lower, "untracked working tree files would be overwritten") {
+		return apperr.Wrap(apperr.GitDirtyWorktree, cause)
+	}
+	if strings.Contains(lower, "non-fast-forward") ||
+		strings.Contains(lower, "[rejected]") ||
+		strings.Contains(lower, "fetch first") ||
+		strings.Contains(lower, "failed to push some refs") {
+		return apperr.Wrap(apperr.GitPushRejected, cause)
+	}
+	if strings.Contains(lower, "conflict (content)") ||
+		strings.Contains(lower, "conflict (add/add)") ||
+		strings.Contains(lower, "conflict (modify/delete)") ||
+		strings.Contains(lower, "could not apply") {
 		return apperr.Wrap(apperr.GitRebaseConflict, cause)
 	}
 
@@ -122,7 +147,7 @@ func IsRepo(root string) bool {
 	return err == nil
 }
 
-// Init initializes a new git repository in the root, writes a standard .gitignore, and creates the initial commit.
+// Init initializes a new git repository in the root, writes a standard .gitignore, and creates the initial commit if identity exists.
 func Init(root string) error {
 	if err := os.MkdirAll(root, fsops.DefaultDirPerms); err != nil {
 		return apperr.Wrap(apperr.WriteFailed, err)
@@ -136,10 +161,6 @@ func Init(root string) error {
 		}
 	}
 
-	// Ensure git identity exists in this repo so commits won't fail
-	_, _ = runner.runCmd("config", "user.name", "AgentSync")
-	_, _ = runner.runCmd("config", "user.email", "agentsync@local")
-
 	gitignorePath := filepath.Join(root, ".gitignore")
 	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
 		content := ".DS_Store\nThumbs.db\ndesktop.ini\n*.agentsync.tmp\n"
@@ -150,8 +171,48 @@ func Init(root string) error {
 		return err
 	}
 
-	_, err := runner.runCmd("commit", "-m", "chore: initialize agent configs repository")
-	return err
+	// Only create the initial commit if git identity is already configured; never overwrite user identity
+	if err := runner.EnsureIdentity(); err == nil {
+		_, _ = runner.runCmd("commit", "-m", "chore: initialize agent configs repository")
+	}
+
+	return nil
+}
+
+// EnsureIdentity checks if git user.email (effective, including global) is configured.
+// If missing or empty, returns GitIdentityMissing. Never overwrites existing identity.
+func (g *GitRunner) EnsureIdentity() error {
+	email, err := g.runCmd("config", "--get", "user.email")
+	if err != nil || strings.TrimSpace(email) == "" {
+		return apperr.New(apperr.GitIdentityMissing)
+	}
+	return nil
+}
+
+// GetIdentity returns the effective git user.name and user.email for this repository.
+func (g *GitRunner) GetIdentity() (name, email string) {
+	name, _ = g.runCmd("config", "--get", "user.name")
+	email, _ = g.runCmd("config", "--get", "user.email")
+	return strings.TrimSpace(name), strings.TrimSpace(email)
+}
+
+// SetLocalIdentity sets user.name and user.email locally in this repository.
+func (g *GitRunner) SetLocalIdentity(name, email string) error {
+	name = strings.TrimSpace(name)
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return apperr.New(apperr.GitIdentityMissing)
+	}
+	if name == "" {
+		name = email
+	}
+	if _, err := g.runCmd("config", "--local", "user.name", name); err != nil {
+		return err
+	}
+	if _, err := g.runCmd("config", "--local", "user.email", email); err != nil {
+		return err
+	}
+	return nil
 }
 
 // CurrentBranch returns the name of the active branch.
@@ -249,11 +310,21 @@ func (g *GitRunner) StatusPorcelain() ([]ChangedPath, error) {
 			continue
 		}
 
-		statusCode := entry[:2]
-		pathPart := strings.TrimSpace(entry[3:])
+		// Handle cases where Leading spaces in XY status (e.g. " M path") were trimmed on first entry
+		var statusCode, pathPart string
+		if len(entry) >= 3 && entry[2] == ' ' {
+			statusCode = entry[:2]
+			pathPart = entry[3:]
+		} else if len(entry) >= 2 && entry[1] == ' ' {
+			statusCode = " " + entry[:1]
+			pathPart = entry[2:]
+		} else {
+			statusCode = entry[:2]
+			pathPart = strings.TrimSpace(entry[2:])
+		}
 
 		// If rename (starts with R), the next entry in -z output is the new path
-		if strings.HasPrefix(statusCode, "R") && i+1 < len(entries) {
+		if strings.HasPrefix(strings.TrimSpace(statusCode), "R") && i+1 < len(entries) {
 			i++
 			pathPart = entries[i]
 		}
@@ -306,12 +377,16 @@ func (g *GitRunner) PullRebase() error {
 	if err != nil {
 		// If rebase fails, abort cleanly
 		_, _ = g.runCmd("rebase", "--abort")
+		if appErr, ok := err.(*apperr.Error); ok && appErr.Code == apperr.GitDirtyWorktree {
+			return err
+		}
 		return apperr.Wrap(apperr.GitRebaseConflict, err)
 	}
 	return nil
 }
 
 // CommitPaths stages the specified paths and creates a commit.
+// If there is nothing to commit, it returns nil without error.
 func (g *GitRunner) CommitPaths(paths []string, message string) error {
 	if len(paths) == 0 {
 		return nil
@@ -322,12 +397,33 @@ func (g *GitRunner) CommitPaths(paths []string, message string) error {
 		return err
 	}
 
-	_, err := g.runCmd("commit", "-m", message)
-	return err
+	// Check if anything is actually staged
+	if _, err := g.runCmd("diff", "--cached", "--quiet"); err == nil {
+		// Exit code 0 means no staged changes
+		return nil
+	}
+
+	out, err := g.runCmd("commit", "-m", message)
+	if err != nil {
+		lower := strings.ToLower(out + " " + err.Error())
+		if strings.Contains(lower, "nothing to commit") || strings.Contains(lower, "nothing added to commit") {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// DiscardPath restores a tracked file to HEAD or removes an untracked file.
+func (g *GitRunner) DiscardPath(relPath string) (string, error) {
+	return g.runCmd("checkout", "--", relPath)
 }
 
 // Push pushes commits to upstream.
 func (g *GitRunner) Push() error {
+	if g.OnBeforePush != nil {
+		g.OnBeforePush()
+	}
 	_, err := g.runCmd("push")
 	return err
 }

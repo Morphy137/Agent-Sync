@@ -34,6 +34,8 @@ func TestGitOpsWithLocalBareRemote(t *testing.T) {
 	}
 
 	runnerA := gitops.NewRunner(clientADir)
+	_ = runnerA.SetLocalIdentity("ClientA", "clienta@test.local")
+	_ = runnerA.CommitPaths([]string{".gitignore"}, "chore: init")
 
 	// Add remote and push upstream
 	if err := runnerA.AddRemote(bareRemote); err != nil {

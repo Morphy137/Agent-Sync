@@ -21,6 +21,7 @@ const (
 	FileTargetChanged = "target_changed"
 	FileTargetMissing = "target_missing"
 	FileConflict      = "conflict"
+	FileUnreadable    = "unreadable"
 )
 
 // Connection-level aggregated status constants.
@@ -32,6 +33,7 @@ const (
 	ConnUntrackedDiff     = "untracked_diff"
 	ConnConflict          = "conflict"
 	ConnTargetUnavailable = "target_unavailable"
+	ConnUnreadable        = "unreadable"
 )
 
 // Resolution choices.
@@ -90,6 +92,11 @@ func EvaluateFileStatus(sourceHash, targetHash, baselineHash string) string {
 		return FileTargetMissing
 	}
 
+	// Rule 6b: S != B and T absent -> source_changed (restore from updated source)
+	if baselineHash != "" && sourceHash != baselineHash && targetHash == "" {
+		return FileSourceChanged
+	}
+
 	// Rule 7: S != B and T != B and S != T -> conflict
 	if baselineHash != "" && sourceHash != baselineHash && targetHash != baselineHash && sourceHash != targetHash {
 		return FileConflict
@@ -99,7 +106,58 @@ func EvaluateFileStatus(sourceHash, targetHash, baselineHash string) string {
 	return FileConflict
 }
 
-// ComputeStatus inspects the files in a connection's profile and target directory.
+// ReconcileBaselines cleans up baselines for deleted profile files and auto-updates baselines when source and target match.
+// Returns true if any baseline was mutated. Must be called under the service lock.
+func ReconcileBaselines(rootPath string, conn config.Connection, st *state.State) bool {
+	if st == nil {
+		return false
+	}
+
+	targetInfo, err := os.Stat(conn.TargetPath)
+	if err != nil || !targetInfo.IsDir() {
+		return false
+	}
+
+	profileDir := filepath.Join(rootPath, conn.Profile)
+	managed, err := fsops.WalkManaged(profileDir)
+	if err != nil {
+		return false
+	}
+
+	mutated := false
+	currentBaselines := st.GetConnectionBaselines(conn.ID)
+	for bRel := range currentBaselines {
+		if _, ok := managed[bRel]; !ok {
+			st.RemoveBaseline(conn.ID, bRel)
+			mutated = true
+		}
+	}
+
+	for relPath, absSource := range managed {
+		sourceHash, err := fsops.HashFile(absSource)
+		if err != nil {
+			continue
+		}
+		targetFile := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
+		fi, err := os.Stat(targetFile)
+		if err != nil || fi.IsDir() {
+			continue
+		}
+		targetHash, err := fsops.HashFile(targetFile)
+		if err != nil {
+			continue
+		}
+		baselineHash := st.GetBaseline(conn.ID, relPath)
+		if sourceHash == targetHash && sourceHash != "" && baselineHash != sourceHash {
+			st.SetBaseline(conn.ID, relPath, sourceHash)
+			mutated = true
+		}
+	}
+
+	return mutated
+}
+
+// ComputeStatus inspects the files in a connection's profile and target directory without mutating state.
 func ComputeStatus(rootPath string, conn config.Connection, st *state.State) (ConnectionStatus, error) {
 	status := ConnectionStatus{
 		ConnectionID: conn.ID,
@@ -126,41 +184,35 @@ func ComputeStatus(rootPath string, conn config.Connection, st *state.State) (Co
 	hasUntrackedDiff := false
 	hasUpload := false
 	hasDownload := false
-
-	// Cleanup baselines for files that no longer exist in profile
-	if st != nil {
-		currentBaselines := st.GetConnectionBaselines(conn.ID)
-		for bRel := range currentBaselines {
-			if _, ok := managed[bRel]; !ok {
-				st.RemoveBaseline(conn.ID, bRel)
-			}
-		}
-	}
+	hasUnreadable := false
 
 	for relPath, absSource := range managed {
-		sourceHash, err := fsops.HashFile(absSource)
-		if err != nil {
-			continue
-		}
-
-		targetFile := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
-		var targetHash string
-		if fi, err := os.Stat(targetFile); err == nil && !fi.IsDir() {
-			targetHash, _ = fsops.HashFile(targetFile)
-		}
-
 		var baselineHash string
 		if st != nil {
 			baselineHash = st.GetBaseline(conn.ID, relPath)
 		}
 
-		fileState := EvaluateFileStatus(sourceHash, targetHash, baselineHash)
-
-		// Auto-update baseline if in_sync and baseline was missing or outdated
-		if fileState == FileInSync && st != nil && baselineHash != sourceHash {
-			st.SetBaseline(conn.ID, relPath, sourceHash)
-			baselineHash = sourceHash
+		sourceHash, srcErr := fsops.HashFile(absSource)
+		targetFile := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
+		var targetHash string
+		var tgtErr error
+		if fi, statErr := os.Stat(targetFile); statErr == nil && !fi.IsDir() {
+			targetHash, tgtErr = fsops.HashFile(targetFile)
 		}
+
+		if srcErr != nil || tgtErr != nil {
+			hasUnreadable = true
+			fileStatuses = append(fileStatuses, FileStatus{
+				RelPath:      relPath,
+				Status:       FileUnreadable,
+				SourceHash:   sourceHash,
+				TargetHash:   targetHash,
+				BaselineHash: baselineHash,
+			})
+			continue
+		}
+
+		fileState := EvaluateFileStatus(sourceHash, targetHash, baselineHash)
 
 		fileStatuses = append(fileStatuses, FileStatus{
 			RelPath:      relPath,
@@ -193,6 +245,8 @@ func ComputeStatus(rootPath string, conn config.Connection, st *state.State) (Co
 		status.Status = ConnConflict
 	} else if hasUntrackedDiff {
 		status.Status = ConnUntrackedDiff
+	} else if hasUnreadable {
+		status.Status = ConnUnreadable
 	} else if hasUpload && hasDownload {
 		status.Status = ConnDiverged
 	} else if hasUpload {
@@ -207,15 +261,20 @@ func ComputeStatus(rootPath string, conn config.Connection, st *state.State) (Co
 }
 
 // Apply applies source files to targetPath with backup and atomic copy.
-func Apply(rootPath string, conn config.Connection, allConnections []config.Connection, backupRoot string, files []string, st *state.State, retention int, reason string) error {
+// It returns the created BackupInfo (if any target files existed and were backed up) or an error.
+func Apply(rootPath string, conn config.Connection, allConnections []config.Connection, backupRoot string, files []string, st *state.State, retention int, reason string) (*backup.BackupInfo, error) {
 	profileDir := filepath.Join(rootPath, conn.Profile)
 	if err := os.MkdirAll(conn.TargetPath, fsops.DefaultDirPerms); err != nil {
-		return apperr.Wrap(apperr.WriteFailed, err)
+		return nil, apperr.Wrap(apperr.WriteFailed, err)
 	}
 
-	// 1. Take backup of existing target files to be overwritten
-	if backupRoot != "" {
-		_, _ = backup.CreateBackup(backupRoot, conn, allConnections, files, reason, retention)
+	// 1. Take mandatory backup of existing target files to be overwritten
+	if backupRoot == "" {
+		return nil, apperr.New(apperr.BackupFailed)
+	}
+	backupInfo, err := backup.CreateBackup(backupRoot, conn, allConnections, files, reason, retention)
+	if err != nil {
+		return nil, err
 	}
 
 	// 2. Atomically copy files from source to destination
@@ -224,7 +283,7 @@ func Apply(rootPath string, conn config.Connection, allConnections []config.Conn
 		dst := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
 
 		if err := fsops.AtomicCopy(src, dst); err != nil {
-			return apperr.Wrap(apperr.WriteFailed, err)
+			return backupInfo, apperr.Wrap(apperr.WriteFailed, err)
 		}
 
 		if st != nil {
@@ -236,10 +295,12 @@ func Apply(rootPath string, conn config.Connection, allConnections []config.Conn
 	}
 
 	if st != nil {
-		_ = st.Save()
+		if err := st.Save(); err != nil {
+			return backupInfo, err
+		}
 	}
 
-	return nil
+	return backupInfo, nil
 }
 
 // Capture uploads files from targetPath into the profile directory.
