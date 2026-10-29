@@ -31,8 +31,8 @@
 | Phase 5: Git Operations | ✅ | d44908c | git CLI wrapper, Windows CREATE_NO_WINDOW, bare remote integration tests |
 | Phase 6: Orchestrator & Scheduler | ✅ | 62fa74c | PlanSync, ExecuteSync, 2-client integration test, 83.4% coverage, scheduler |
 | Phase 7: Bindings | ✅ | 2793ec4 | app.go 19 methods implemented, wails generate module, typed api wrapper |
-| Phase 8: Design System & i18n | ✅ | Pending commit | Tokens, theme switcher, 14 base components, en/es parity test passed |
-| Phase 9: UI Views | ⏳ | - | Not started |
+| Phase 8: Design System & i18n | ✅ | 63378bb | Tokens, theme switcher, 14 base components, en/es parity test passed |
+| Phase 9: UI Views | ✅ | Pending commit | Header, banners, ProfileCard, WelcomeView, preview/initial/remote modals, backups/settings drawers, toasts, statusbar |
 | Phase 10: Sandbox & E2E | ⏳ | - | Not started |
 | Phase 11: Polish & Completion | ⏳ | - | Not started |
 
