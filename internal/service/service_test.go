@@ -1,0 +1,272 @@
+package service_test
+
+import (
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+	"testing"
+
+	"agentsync/internal/apperr"
+	"agentsync/internal/config"
+	"agentsync/internal/gitops"
+	"agentsync/internal/orchestrator"
+	"agentsync/internal/service"
+)
+
+func TestServiceValidationAndPendingLinks(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "config")
+	rootDir := filepath.Join(tempDir, "root")
+	claudeDir := filepath.Join(rootDir, "CLAUDE")
+	target1 := filepath.Join(tempDir, "target1")
+	target2 := filepath.Join(tempDir, "target2")
+
+	t.Setenv(config.ConfigEnvVar, configDir)
+
+	_ = os.MkdirAll(claudeDir, 0o755)
+	_ = os.MkdirAll(target1, 0o755)
+	_ = os.MkdirAll(target2, 0o755)
+
+	_ = os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("repo content"), 0o644)
+	_ = os.WriteFile(filepath.Join(target1, "CLAUDE.md"), []byte("local diff content"), 0o644)
+
+	var lastEmittedPlan *orchestrator.SyncPlan
+	svc := service.New(func(eventName string, data any) {
+		if eventName == "status:changed" {
+			if p, ok := data.(*orchestrator.SyncPlan); ok {
+				lastEmittedPlan = p
+			}
+		}
+	})
+
+	// SetRootPath
+	if _, err := svc.SetRootPath(rootDir); err != nil {
+		t.Fatalf("SetRootPath failed: %v", err)
+	}
+	if lastEmittedPlan == nil {
+		t.Errorf("expected SetRootPath to emit full SyncPlan (H5)")
+	}
+
+	// M1: Connect non-existent profile -> profile_not_found
+	if _, err := svc.ConnectProfile("NONEXISTENT", target1); err == nil {
+		t.Fatalf("expected profile_not_found error")
+	} else {
+		var appErr *apperr.Error
+		if !errors.As(err, &appErr) || appErr.Code != apperr.ProfileNotFound {
+			t.Errorf("expected error code %s, got %v", apperr.ProfileNotFound, err)
+		}
+	}
+
+	// M2: Connect CLAUDE to target1 with untracked diff -> returns pendingId without persisting yet
+	res, err := svc.ConnectProfile("CLAUDE", target1)
+	if err != nil {
+		t.Fatalf("ConnectProfile failed: %v", err)
+	}
+	if !res.NeedsDecision || res.PendingID == "" {
+		t.Fatalf("expected NeedsDecision=true and non-empty PendingID, got %+v", res)
+	}
+
+	// M2: Resolve with bogus pendingId fails
+	if err := svc.ResolveInitialLink("bogus-id", "keep_repo"); err == nil {
+		t.Errorf("expected error for unknown pendingId")
+	}
+
+	// Resolve with valid pendingId
+	if err := svc.ResolveInitialLink(res.PendingID, "keep_repo"); err != nil {
+		t.Fatalf("ResolveInitialLink failed: %v", err)
+	}
+
+	// M1: Attempt to connect CLAUDE a second time -> profile_already_connected
+	if _, err := svc.ConnectProfile("CLAUDE", target2); err == nil {
+		t.Fatalf("expected profile_already_connected error on duplicate profile")
+	} else {
+		var appErr *apperr.Error
+		if !errors.As(err, &appErr) || appErr.Code != apperr.ProfileAlreadyConnected {
+			t.Errorf("expected error code %s, got %v", apperr.ProfileAlreadyConnected, err)
+		}
+	}
+
+	// Test ChangeTarget
+	if _, err := svc.ChangeTarget(res.Connection.ID, target2); err != nil {
+		t.Fatalf("ChangeTarget failed: %v", err)
+	}
+
+	// Test UpdateSettings, GetStatus, ListBackups, RestoreBackup
+	cfg, changed, err := svc.UpdateSettings(service.SettingsPayload{
+		Language:             "es",
+		Theme:                "dark",
+		BackupRetention:      15,
+		CheckIntervalMinutes: 10,
+		ConfirmBeforeSync:    false,
+	})
+	if err != nil || !changed || cfg.Language != "es" {
+		t.Errorf("UpdateSettings failed: cfg=%+v, changed=%v, err=%v", cfg, changed, err)
+	}
+
+	// Test InitRepository and SetGitIdentity
+	if err := svc.InitRepository(); err != nil {
+		t.Fatalf("InitRepository failed: %v", err)
+	}
+	if err := svc.SetGitIdentity("Morphy Test", "morphy@example.com"); err != nil {
+		t.Fatalf("SetGitIdentity failed: %v", err)
+	}
+	gitInfo, err := svc.GetGitInfo()
+	if err != nil || !gitInfo.IsRepo || gitInfo.UserEmail != "morphy@example.com" {
+		t.Errorf("expected gitInfo UserEmail=morphy@example.com, got %+v (err=%v)", gitInfo, err)
+	}
+
+	// Test ReloadFromDisk, GetConfig, ListProfiles, CheckRemote, ListBackups, RestoreBackup, AddRemote, ResolveInitialLink (keep_local & decide_later)
+	if err := svc.ReloadFromDisk(); err != nil {
+		t.Fatalf("ReloadFromDisk failed: %v", err)
+	}
+	if _, err := svc.GetConfig(); err != nil {
+		t.Fatalf("GetConfig failed: %v", err)
+	}
+	profs, err := svc.ListProfiles()
+	if err != nil || len(profs) == 0 {
+		t.Errorf("ListProfiles failed: %v", err)
+	}
+
+	// Modify repo file and test ApplyConnection + RestoreBackup
+	_ = os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("repo updated v2"), 0o644)
+	connsCfg, _ := svc.GetConfig()
+	activeConnID := connsCfg.Connections[0].ID
+	if err := svc.ApplyConnection(activeConnID); err != nil {
+		t.Fatalf("ApplyConnection failed: %v", err)
+	}
+
+	backups, err := svc.ListBackups(activeConnID)
+	if err != nil || len(backups) == 0 {
+		t.Fatalf("ListBackups failed or empty: %v", err)
+	}
+	if err := svc.RestoreBackup(activeConnID, backups[0].ID); err != nil {
+		t.Fatalf("RestoreBackup failed: %v", err)
+	}
+
+	// Test ResolveInitialLink with keep_local and decide_later
+	geminiDir := filepath.Join(rootDir, "GEMINI")
+	_ = os.MkdirAll(geminiDir, 0o755)
+	_ = os.WriteFile(filepath.Join(geminiDir, "GEMINI.md"), []byte("gemini repo"), 0o644)
+	targetGemini := filepath.Join(tempDir, "target-gemini")
+	_ = os.MkdirAll(targetGemini, 0o755)
+	_ = os.WriteFile(filepath.Join(targetGemini, "GEMINI.md"), []byte("gemini local"), 0o644)
+
+	linkRes, err := svc.ConnectProfile("GEMINI", targetGemini)
+	if err != nil || !linkRes.NeedsDecision {
+		t.Fatalf("expected NeedsDecision for GEMINI: %v", err)
+	}
+	if err := svc.ResolveInitialLink(linkRes.PendingID, "keep_local"); err != nil {
+		t.Fatalf("ResolveInitialLink keep_local failed: %v", err)
+	}
+
+	codexDir := filepath.Join(rootDir, "CODEX")
+	_ = os.MkdirAll(codexDir, 0o755)
+	_ = os.WriteFile(filepath.Join(codexDir, "AGENTS.md"), []byte("codex repo"), 0o644)
+	targetCodex := filepath.Join(tempDir, "target-codex")
+	_ = os.MkdirAll(targetCodex, 0o755)
+	_ = os.WriteFile(filepath.Join(targetCodex, "AGENTS.md"), []byte("codex local"), 0o644)
+
+	linkResCodex, err := svc.ConnectProfile("CODEX", targetCodex)
+	if err != nil || !linkResCodex.NeedsDecision {
+		t.Fatalf("expected NeedsDecision for CODEX: %v", err)
+	}
+	if err := svc.ResolveInitialLink(linkResCodex.PendingID, "decide_later"); err != nil {
+		t.Fatalf("ResolveInitialLink decide_later failed: %v", err)
+	}
+
+	// Test CheckRemote and AddRemote
+	bareRemote := filepath.Join(tempDir, "bare.git")
+	_ = exec.Command("git", "init", "--bare", bareRemote).Run()
+	runner := gitops.NewRunner(rootDir)
+	_ = runner.CommitPaths([]string{"."}, "chore: commit before remote")
+	if err := svc.AddRemote(bareRemote); err != nil {
+		t.Fatalf("AddRemote failed: %v", err)
+	}
+	if _, err := svc.CheckRemote(); err != nil {
+		t.Fatalf("CheckRemote failed: %v", err)
+	}
+	if svc.Orchestrator() == nil {
+		t.Errorf("expected non-nil Orchestrator")
+	}
+
+	// Test DisconnectProfile and error branches (empty rootPath, nonexistent connectionId)
+	_, err = svc.DisconnectProfile(activeConnID)
+	if err != nil {
+		t.Fatalf("DisconnectProfile failed: %v", err)
+	}
+	if err := svc.ApplyConnection("non-existent-id"); err == nil {
+		t.Errorf("expected error for ApplyConnection on non-existent id")
+	}
+	if err := svc.RestoreBackup("non-existent-id", "b-id"); err == nil {
+		t.Errorf("expected error for RestoreBackup on non-existent id")
+	}
+	if list, err := svc.ListBackups("non-existent-id"); err != nil || len(list) != 0 {
+		t.Errorf("expected empty list for non-existent id")
+	}
+	if _, err := svc.ChangeTarget("non-existent-id", target1); err == nil {
+		t.Errorf("expected error for ChangeTarget on non-existent id")
+	}
+}
+
+func TestServiceConcurrentOperations(t *testing.T) {
+	if !gitops.IsInstalled() {
+		t.Skip("git is not installed")
+	}
+
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "config")
+	rootDir := filepath.Join(tempDir, "root")
+	bareRemote := filepath.Join(tempDir, "remote.git")
+	claudeDir := filepath.Join(rootDir, "CLAUDE")
+	targetDir := filepath.Join(tempDir, "target")
+
+	t.Setenv(config.ConfigEnvVar, configDir)
+
+	_ = exec.Command("git", "init", "--bare", bareRemote).Run()
+	_ = os.MkdirAll(claudeDir, 0o755)
+	_ = os.MkdirAll(targetDir, 0o755)
+	_ = os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("v1"), 0o644)
+
+	svc := service.New(nil)
+	_, _ = svc.SetRootPath(rootDir)
+	_ = svc.InitRepository()
+	_ = svc.SetGitIdentity("Tester", "tester@local")
+	runner := gitops.NewRunner(rootDir)
+	_ = runner.CommitPaths([]string{"."}, "chore: init")
+	_ = runner.AddRemote(bareRemote)
+	_ = runner.PushSetUpstream()
+
+	res, err := svc.ConnectProfile("CLAUDE", targetDir)
+	if err != nil {
+		t.Fatalf("ConnectProfile failed: %v", err)
+	}
+	connID := res.Connection.ID
+
+	// C3: Spawn concurrent goroutines calling PlanSync, GetStatus, ApplyConnection, ExecuteSync, TryBackgroundCheck
+	var wg sync.WaitGroup
+	for i := 0; i < 6; i++ {
+		wg.Add(4)
+		go func() {
+			defer wg.Done()
+			_, _ = svc.GetStatus()
+		}()
+		go func() {
+			defer wg.Done()
+			_, _ = svc.TryBackgroundCheck()
+		}()
+		go func() {
+			defer wg.Done()
+			_ = svc.ApplyConnection(connID)
+		}()
+		go func() {
+			defer wg.Done()
+			plan, err := svc.PlanSync()
+			if err == nil && plan != nil {
+				_, _ = svc.ExecuteSync(plan.Fingerprint, nil)
+			}
+		}()
+	}
+	wg.Wait()
+}

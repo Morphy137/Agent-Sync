@@ -69,6 +69,13 @@ func TestEvaluateFileStatusTableRows(t *testing.T) {
 			expected:     syncer.FileTargetMissing,
 		},
 		{
+			name:         "Row 6b (M6): S != B, T absent -> source_changed",
+			sourceHash:   "hashNewSource",
+			targetHash:   "",
+			baselineHash: "hashOldBaseline",
+			expected:     syncer.FileSourceChanged,
+		},
+		{
 			name:         "Row 7: S != B, T != B, S != T -> conflict",
 			sourceHash:   "hashSourceNew",
 			targetHash:   "hashTargetNew",
@@ -137,7 +144,7 @@ func TestComputeStatusAndAggregates(t *testing.T) {
 		t.Errorf("expected ConnUntrackedDiff, got %s", status.Status)
 	}
 
-	// 3. In sync (update target to match source, baseline auto-syncs)
+	// 3. In sync (update target to match source, then reconcile baselines explicitly)
 	_ = os.WriteFile(targetFile, []byte("source v1"), 0o644)
 	status, err = syncer.ComputeStatus(rootDir, conn, st)
 	if err != nil {
@@ -145,6 +152,13 @@ func TestComputeStatusAndAggregates(t *testing.T) {
 	}
 	if status.Status != syncer.ConnInSync {
 		t.Errorf("expected ConnInSync, got %s", status.Status)
+	}
+	// M8: ComputeStatus must be pure (baseline not yet mutated until ReconcileBaselines)
+	if st.GetBaseline(conn.ID, "CLAUDE.md") != "" {
+		t.Errorf("expected ComputeStatus to not mutate baseline")
+	}
+	if !syncer.ReconcileBaselines(rootDir, conn, st) {
+		t.Errorf("expected ReconcileBaselines to update baseline")
 	}
 
 	// 4. Target changed (edit target locally)
@@ -198,10 +212,24 @@ func TestApplyAndCapture(t *testing.T) {
 	targetFile := filepath.Join(targetDir, "CLAUDE.md")
 	_ = os.WriteFile(targetFile, []byte("pre-existing target"), 0o644)
 
-	// Apply
-	err := syncer.Apply(rootDir, conn, allConns, backupDir, []string{"CLAUDE.md"}, st, 20, "apply")
+	// C1: Apply with invalid backupRoot (a file instead of directory) must abort BEFORE overwriting target
+	invalidBackupRoot := filepath.Join(tempDir, "file-as-backup-root")
+	_ = os.WriteFile(invalidBackupRoot, []byte("bloqueo"), 0o644)
+	if _, err := syncer.Apply(rootDir, conn, allConns, invalidBackupRoot, []string{"CLAUDE.md"}, st, 20, "apply"); err == nil {
+		t.Fatalf("expected Apply to fail when backup fails (C1)")
+	}
+	contentAfterFailedBackup, _ := os.ReadFile(targetFile)
+	if string(contentAfterFailedBackup) != "pre-existing target" {
+		t.Fatalf("expected target to remain intact ('pre-existing target') after backup failure, got '%s'", contentAfterFailedBackup)
+	}
+
+	// Apply with valid backupDir
+	bInfo, err := syncer.Apply(rootDir, conn, allConns, backupDir, []string{"CLAUDE.md"}, st, 20, "apply")
 	if err != nil {
 		t.Fatalf("Apply failed: %v", err)
+	}
+	if bInfo == nil || bInfo.ID == "" {
+		t.Errorf("expected non-empty BackupInfo.ID on Apply (M5)")
 	}
 
 	// Verify target now has source content
@@ -262,10 +290,17 @@ func TestDeleteFileFromProfileBaselineCleanup(t *testing.T) {
 	targetOld := filepath.Join(targetDir, "OLD.md")
 	_ = os.WriteFile(targetOld, []byte("file2"), 0o644)
 
+	// Pure ComputeStatus should NOT mutate state
 	_, err := syncer.ComputeStatus(rootDir, conn, st)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if st.GetBaseline(conn.ID, "OLD.md") == "" {
+		t.Errorf("ComputeStatus should be pure and not delete baseline directly (M8)")
+	}
+
+	// ReconcileBaselines cleans up deleted file baseline
+	syncer.ReconcileBaselines(rootDir, conn, st)
 
 	// Target OLD.md MUST still exist (rule 4: never delete)
 	if _, err := os.Stat(targetOld); os.IsNotExist(err) {

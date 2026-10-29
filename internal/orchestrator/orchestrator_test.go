@@ -1,12 +1,16 @@
 package orchestrator_test
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"agentsync/internal/apperr"
+	"agentsync/internal/backup"
 	"agentsync/internal/config"
 	"agentsync/internal/fsops"
 	"agentsync/internal/gitops"
@@ -15,30 +19,39 @@ import (
 	"agentsync/internal/state"
 )
 
-func TestTwoClientSyncIntegration(t *testing.T) {
+func setupTwoClonesWithBareRemote(t *testing.T) (
+	bareRemote string,
+	cfgA *config.Config, stA *state.State, orchA *orchestrator.Orchestrator,
+	cfgB *config.Config, stB *state.State, orchB *orchestrator.Orchestrator,
+) {
+	t.Helper()
 	if !gitops.IsInstalled() {
 		t.Skip("git is not installed")
 	}
 
 	tempDir := t.TempDir()
-	bareRemote := filepath.Join(tempDir, "remote.git")
-
-	// 1. Bare remote
+	bareRemote = filepath.Join(tempDir, "remote.git")
 	if err := exec.Command("git", "init", "--bare", bareRemote).Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	// 2. Setup PC-A
+	// Setup PC-A
 	pcADir := filepath.Join(tempDir, "pc-a")
 	repoA := filepath.Join(pcADir, "agent-configs")
 	targetA := filepath.Join(pcADir, "home", ".claude")
 	backupA := filepath.Join(pcADir, "backups")
 	_ = os.MkdirAll(targetA, 0o755)
+	_ = os.MkdirAll(filepath.Join(repoA, "CLAUDE"), 0o755)
 
 	if err := gitops.Init(repoA); err != nil {
 		t.Fatal(err)
 	}
 	runnerA := gitops.NewRunner(repoA)
+	_ = runnerA.SetLocalIdentity("PC-A", "pca@local")
+	_ = os.WriteFile(filepath.Join(repoA, "CLAUDE", "CLAUDE.md"), []byte("# Initial v1\n"), 0o644)
+	if err := runnerA.CommitPaths([]string{"."}, "chore: initial commit"); err != nil {
+		t.Fatal(err)
+	}
 	if err := runnerA.AddRemote(bareRemote); err != nil {
 		t.Fatal(err)
 	}
@@ -46,13 +59,16 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_ = os.WriteFile(filepath.Join(targetA, "CLAUDE.md"), []byte("# Initial v1\n"), 0o644)
+	initHash, _ := fsops.HashFile(filepath.Join(repoA, "CLAUDE", "CLAUDE.md"))
+
 	connA := config.Connection{
 		ID:         "conn-a",
 		Profile:    "CLAUDE",
 		TargetPath: targetA,
 		CreatedAt:  config.FormatRFC3339(time.Now()),
 	}
-	cfgA := &config.Config{
+	cfgA = &config.Config{
 		Version:           1,
 		RootPath:          repoA,
 		BackupPath:        backupA,
@@ -60,9 +76,10 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 		ConfirmBeforeSync: false,
 		Connections:       []config.Connection{connA},
 	}
-	stA := state.NewState()
+	stA = state.NewState()
+	stA.SetBaseline(connA.ID, "CLAUDE.md", initHash)
 
-	// 3. Setup PC-B (clone bare remote)
+	// Setup PC-B
 	pcBDir := filepath.Join(tempDir, "pc-b")
 	repoB := filepath.Join(pcBDir, "agent-configs")
 	targetB := filepath.Join(pcBDir, "home", ".claude")
@@ -72,8 +89,11 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 	if err := exec.Command("git", "clone", bareRemote, repoB).Run(); err != nil {
 		t.Fatal(err)
 	}
-	_ = exec.Command("git", "-C", repoB, "config", "user.name", "PC-B").Run()
-	_ = exec.Command("git", "-C", repoB, "config", "user.email", "pcb@local").Run()
+	runnerB := gitops.NewRunner(repoB)
+	_ = runnerB.SetLocalIdentity("PC-B", "pcb@local")
+	clonedContentB, _ := os.ReadFile(filepath.Join(repoB, "CLAUDE", "CLAUDE.md"))
+	_ = os.WriteFile(filepath.Join(targetB, "CLAUDE.md"), clonedContentB, 0o644)
+	initHashB, _ := fsops.HashFile(filepath.Join(repoB, "CLAUDE", "CLAUDE.md"))
 
 	connB := config.Connection{
 		ID:         "conn-b",
@@ -81,7 +101,7 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 		TargetPath: targetB,
 		CreatedAt:  config.FormatRFC3339(time.Now()),
 	}
-	cfgB := &config.Config{
+	cfgB = &config.Config{
 		Version:           1,
 		RootPath:          repoB,
 		BackupPath:        backupB,
@@ -89,43 +109,38 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 		ConfirmBeforeSync: false,
 		Connections:       []config.Connection{connB},
 	}
-	stB := state.NewState()
+	stB = state.NewState()
+	stB.SetBaseline(connB.ID, "CLAUDE.md", initHashB)
 
-	orchA := orchestrator.New()
-	orchB := orchestrator.New()
+	orchA = orchestrator.New()
+	orchB = orchestrator.New()
+	return
+}
 
-	// 4. PC-A modifies file in target
-	fileInTargetA := filepath.Join(targetA, "CLAUDE.md")
+func TestTwoClientSyncIntegration(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, stB, orchB := setupTwoClonesWithBareRemote(t)
+
+	// PC-A modifies file in target
+	fileInTargetA := filepath.Join(cfgA.Connections[0].TargetPath, "CLAUDE.md")
 	_ = os.WriteFile(fileInTargetA, []byte("# Config from PC-A"), 0o644)
 
-	// Create profile folder in repoA so WalkManaged finds the profile
-	_ = os.MkdirAll(filepath.Join(repoA, "CLAUDE"), 0o755)
-	fileInRepoA := filepath.Join(repoA, "CLAUDE", "CLAUDE.md")
-	_ = os.WriteFile(fileInRepoA, []byte("# Initial in repo"), 0o644)
-	// Baseline matches repo (source), so target being different is a clean target_changed (upload)
-	initHash, _ := fsops.HashFile(fileInRepoA)
-	stA.SetBaseline(connA.ID, "CLAUDE.md", initHash)
-
-	// Plan on PC-A
 	planA, err := orchA.PlanSync(cfgA, stA)
 	if err != nil {
 		t.Fatalf("PlanSync on PC-A failed: %v", err)
 	}
-	if planA.Direction != orchestrator.DirectionUp && planA.Direction != orchestrator.DirectionBoth {
-		t.Errorf("expected Up or Both direction on PC-A, got %s", planA.Direction)
+	if planA.Direction != orchestrator.DirectionUp {
+		t.Errorf("expected Up direction on PC-A, got %s", planA.Direction)
 	}
 
-	// Execute on PC-A
 	resA, err := orchA.ExecuteSync(cfgA, stA, planA, nil)
 	if err != nil {
 		t.Fatalf("ExecuteSync on PC-A failed: %v", err)
 	}
-	if resA.Captured == 0 && len(planA.Uploads) > 0 {
-		t.Errorf("expected captured files on PC-A")
+	if resA.Captured != 1 || resA.Pushed == 0 {
+		t.Errorf("expected 1 captured file and push on PC-A, got %+v", resA)
 	}
 
-	// 5. PC-B Plans and Executes Sync
-	// Also ensure CLAUDE profile exists in repoB after pull
+	// PC-B Plans and Executes Sync
 	planB, err := orchB.PlanSync(cfgB, stB)
 	if err != nil {
 		t.Fatalf("PlanSync on PC-B failed: %v", err)
@@ -138,88 +153,115 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ExecuteSync on PC-B failed: %v", err)
 	}
-	if resB.Pulled == 0 {
-		t.Errorf("expected pulled commits on PC-B")
+	if resB.Pulled == 0 || resB.Applied != 1 {
+		t.Errorf("expected pulled commits and 1 applied file on PC-B, got %+v", resB)
+	}
+	// M5: BackupSessions must contain actual BackupInfo.ID, not connection ID
+	if len(resB.BackupSessions) != 1 || resB.BackupSessions[0] == cfgB.Connections[0].ID {
+		t.Errorf("expected BackupSessions to contain BackupInfo.ID (not conn.ID), got %v", resB.BackupSessions)
 	}
 
-	// Verify target on PC-B received the file
-	fileInTargetB := filepath.Join(targetB, "CLAUDE.md")
+	fileInTargetB := filepath.Join(cfgB.Connections[0].TargetPath, "CLAUDE.md")
 	contentB, err := os.ReadFile(fileInTargetB)
 	if err != nil || string(contentB) != "# Config from PC-A" {
 		t.Fatalf("expected PC-B target to have '# Config from PC-A', got '%s'", string(contentB))
 	}
 
-	// 6. Test Scheduler event emission
-	var eventFired bool
-	var payloadReceived scheduler.StatusEventPayload
-	sched := scheduler.NewScheduler(orchB, func(eventName string, data any) {
-		if eventName == "status:changed" {
-			eventFired = true
-			if payload, ok := data.(scheduler.StatusEventPayload); ok {
-				payloadReceived = payload
-			}
-		}
+	// Test Scheduler callback
+	var checkExecuted bool
+	sched := scheduler.NewScheduler(func() bool {
+		checkExecuted = true
+		return true
 	})
-
-	t.Setenv(config.ConfigEnvVar, filepath.Join(pcBDir, "config"))
-	_ = config.Save(cfgB)
-	_ = stB.Save()
-
 	sched.RunCheck(true)
-	if !eventFired {
-		t.Errorf("expected scheduler to emit status:changed")
-	}
-	if payloadReceived.Direction == "" {
-		t.Errorf("expected non-empty direction in payload")
+	if !checkExecuted {
+		t.Errorf("expected scheduler check to run")
 	}
 }
 
-func TestOrchestratorConflictResolution(t *testing.T) {
-	tempDir := t.TempDir()
-	rootDir := filepath.Join(tempDir, "root")
-	targetDir := filepath.Join(tempDir, "target")
-	profileDir := filepath.Join(rootDir, "CLAUDE")
+// A.1 Test 1 (C5): keep_local with remote overlap -> succeeds without rebase conflict, remote receives local version, PC-A target unchanged.
+func TestKeepLocalWithRemoteOverlap(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, stB, orchB := setupTwoClonesWithBareRemote(t)
 
-	_ = os.MkdirAll(profileDir, 0o755)
-	_ = os.MkdirAll(targetDir, 0o755)
-
-	sourceFile := filepath.Join(profileDir, "CLAUDE.md")
-	targetFile := filepath.Join(targetDir, "CLAUDE.md")
-	_ = os.WriteFile(sourceFile, []byte("source v2"), 0o644)
-	_ = os.WriteFile(targetFile, []byte("target v2"), 0o644)
-
-	conn := config.Connection{
-		ID:         "conn-conflict",
-		Profile:    "CLAUDE",
-		TargetPath: targetDir,
+	// PC-B edits CLAUDE.md and pushes to remote
+	targetFileB := filepath.Join(cfgB.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileB, []byte("# Version from PC-B\n"), 0o644)
+	planB, err := orchB.PlanSync(cfgB, stB)
+	if err != nil {
+		t.Fatal(err)
 	}
-	cfg := &config.Config{
-		RootPath:    rootDir,
-		BackupPath:  filepath.Join(tempDir, "backups"),
-		Connections: []config.Connection{conn},
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+		t.Fatalf("PC-B sync failed: %v", err)
 	}
 
-	st := state.NewState()
-	st.SetBaseline(conn.ID, "CLAUDE.md", "oldhash")
+	// PC-A also edits CLAUDE.md locally in target
+	targetFileA := filepath.Join(cfgA.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileA, []byte("# Version kept on PC-A\n"), 0o644)
 
-	orch := orchestrator.New()
-	plan, err := orch.PlanSync(cfg, st)
+	planA, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if planA.Direction != orchestrator.DirectionConflict {
+		t.Fatalf("expected conflict direction on PC-A, got %s", planA.Direction)
+	}
+
+	resolutions := []orchestrator.ConflictResolution{
+		{
+			Profile:    "CLAUDE",
+			RelPath:    "CLAUDE.md",
+			Resolution: "keep_local",
+		},
+	}
+
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA, resolutions)
+	if err != nil {
+		t.Fatalf("ExecuteSync with keep_local on remote overlap failed (C5): %v", err)
+	}
+	if resA.Captured != 1 || resA.Pushed == 0 {
+		t.Errorf("expected 1 captured and pushed commit with keep_local, got %+v", resA)
+	}
+
+	// Verify PC-A target was NOT overwritten
+	contentA, _ := os.ReadFile(targetFileA)
+	if string(contentA) != "# Version kept on PC-A\n" {
+		t.Errorf("expected PC-A target to remain '# Version kept on PC-A\\n', got '%s'", contentA)
+	}
+
+	// Verify PC-B pulls and receives PC-A's version from remote
+	planB2, err := orchB.PlanSync(cfgB, stB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB2, nil); err != nil {
+		t.Fatalf("PC-B second sync failed: %v", err)
+	}
+	contentB, _ := os.ReadFile(targetFileB)
+	if strings.TrimSpace(string(contentB)) != "# Version kept on PC-A" {
+		t.Errorf("expected remote / PC-B to have '# Version kept on PC-A', got '%s'", contentB)
+	}
+}
+
+// A.1 Test 2: keep_repo with remote overlap -> target receives remote version and a backup of local version is created.
+func TestKeepRepoWithRemoteOverlap(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, stB, orchB := setupTwoClonesWithBareRemote(t)
+
+	targetFileB := filepath.Join(cfgB.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileB, []byte("# Remote version from PC-B\n"), 0o644)
+	planB, _ := orchB.PlanSync(cfgB, stB)
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	targetFileA := filepath.Join(cfgA.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileA, []byte("# Local version on PC-A to be backed up\n"), 0o644)
+
+	planA, err := orchA.PlanSync(cfgA, stA)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if plan.Direction != orchestrator.DirectionConflict {
-		t.Errorf("expected conflict direction, got %s", plan.Direction)
-	}
-
-	// 1. Execute without resolution should fail
-	_, err = orch.ExecuteSync(cfg, st, plan, nil)
-	if err == nil {
-		t.Errorf("expected error when unresolved conflicts exist")
-	}
-
-	// 2. Execute with keep_repo resolution
-	res := []orchestrator.ConflictResolution{
+	resolutions := []orchestrator.ConflictResolution{
 		{
 			Profile:    "CLAUDE",
 			RelPath:    "CLAUDE.md",
@@ -227,16 +269,214 @@ func TestOrchestratorConflictResolution(t *testing.T) {
 		},
 	}
 
-	result, err := orch.ExecuteSync(cfg, st, plan, res)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA, resolutions)
 	if err != nil {
 		t.Fatalf("ExecuteSync with keep_repo failed: %v", err)
 	}
-	if result.Applied != 1 {
-		t.Errorf("expected 1 applied file with keep_repo, got %d", result.Applied)
+	if resA.Applied != 1 || len(resA.BackupSessions) != 1 {
+		t.Errorf("expected 1 applied file and 1 backup session, got %+v", resA)
 	}
 
-	targetContent, _ := os.ReadFile(targetFile)
-	if string(targetContent) != "source v2" {
-		t.Errorf("expected target to have 'source v2', got '%s'", targetContent)
+	contentA, _ := os.ReadFile(targetFileA)
+	if strings.TrimSpace(string(contentA)) != "# Remote version from PC-B" {
+		t.Errorf("expected PC-A target to receive remote version, got '%s'", contentA)
+	}
+
+	backups, _ := backup.ListBackups(cfgA.BackupPath, cfgA.Connections[0], cfgA.Connections)
+	if len(backups) != 1 || backups[0].ID != resA.BackupSessions[0] {
+		t.Errorf("expected backup ID %v to match BackupSessions, got %+v", resA.BackupSessions, backups)
+	}
+}
+
+// A.1 Test 3: Manual uncommitted edit in PC-A repo + remote change on another file -> sync OK.
+func TestManualRepoEditPlusRemoteChangeInAnotherFile(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, stB, orchB := setupTwoClonesWithBareRemote(t)
+
+	// PC-B adds a new file commands/review.md and pushes
+	reviewRepoB := filepath.Join(cfgB.RootPath, "CLAUDE", "commands", "review.md")
+	_ = os.MkdirAll(filepath.Dir(reviewRepoB), 0o755)
+	_ = os.WriteFile(reviewRepoB, []byte("# Review from PC-B\n"), 0o644)
+	planB, _ := orchB.PlanSync(cfgB, stB)
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+		t.Fatalf("PC-B sync failed: %v", err)
+	}
+
+	// PC-A makes a manual uncommitted edit directly inside repoA/CLAUDE/CLAUDE.md
+	repoFileA := filepath.Join(cfgA.RootPath, "CLAUDE", "CLAUDE.md")
+	_ = os.WriteFile(repoFileA, []byte("# Manual edit inside repoA\n"), 0o644)
+
+	planA, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(planA.CommitPreview) == 0 {
+		t.Errorf("expected CommitPreview to contain manual repo edit")
+	}
+
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA, nil)
+	if err != nil {
+		t.Fatalf("ExecuteSync with manual repo edit + remote change failed: %v", err)
+	}
+	if resA.Pulled == 0 || resA.Pushed == 0 {
+		t.Errorf("expected both pull and push to succeed, got %+v", resA)
+	}
+
+	// Verify PC-A target received both the manual repo edit and PC-B's review.md
+	targetReviewA := filepath.Join(cfgA.Connections[0].TargetPath, "commands", "review.md")
+	if _, err := os.Stat(targetReviewA); os.IsNotExist(err) {
+		t.Errorf("expected PC-A target to receive commands/review.md")
+	}
+}
+
+// A.1 Test 4 (H3): Push rejected (PC-B pushes between PC-A's fetch/pull and push) -> retry with pull --rebase + push succeeds.
+func TestPushRejectedRetrySuccess(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, _, _ := setupTwoClonesWithBareRemote(t)
+
+	// PC-A modifies CLAUDE.md in target
+	targetFileA := filepath.Join(cfgA.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileA, []byte("# PC-A update\n"), 0o644)
+
+	planA, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Inject hook: right before PC-A's first push, PC-B commits and pushes a different file to bareRemote
+	fired := false
+	orchA.OnBeforePush = func() {
+		if fired {
+			return
+		}
+		fired = true
+		extraB := filepath.Join(cfgB.RootPath, "CLAUDE", "extra.md")
+		_ = os.WriteFile(extraB, []byte("# Concurrent push from PC-B\n"), 0o644)
+		runnerB := gitops.NewRunner(cfgB.RootPath)
+		_ = runnerB.CommitPaths([]string{"CLAUDE/extra.md"}, "feat: concurrent commit from B")
+		_ = runnerB.Push()
+	}
+
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA, nil)
+	if err != nil {
+		t.Fatalf("expected push rejected retry (H3) to succeed, got error: %v", err)
+	}
+	if !fired || resA.Pushed == 0 {
+		t.Errorf("expected OnBeforePush hook to fire and push to succeed after rebase retry")
+	}
+}
+
+// A.1 Test 5 (H1): Changing state between PlanSync and ExecuteSync returns plan_changed.
+func TestExecuteSyncFingerprintMismatchReturnsPlanChanged(t *testing.T) {
+	_, cfgA, stA, orchA, _, _, _ := setupTwoClonesWithBareRemote(t)
+
+	targetFileA := filepath.Join(cfgA.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileA, []byte("# Edit 1\n"), 0o644)
+
+	planA, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a new file in repo before calling ExecuteSync so the re-planned fingerprint differs
+	_ = os.WriteFile(filepath.Join(cfgA.RootPath, "CLAUDE", "unexpected.md"), []byte("new"), 0o644)
+
+	_, err = orchA.ExecuteSync(cfgA, stA, planA, nil)
+	if err == nil {
+		t.Fatalf("expected plan_changed error when files change between PlanSync and ExecuteSync (H1)")
+	}
+	var appErr *apperr.Error
+	if !errors.As(err, &appErr) || appErr.Code != apperr.PlanChanged {
+		t.Errorf("expected error code %s, got %v", apperr.PlanChanged, err)
+	}
+}
+
+// C2 & C6 Test: Repo without user.email returns git_identity_missing on ExecuteSync.
+func TestMissingGitIdentityReturnsError(t *testing.T) {
+	if !gitops.IsInstalled() {
+		t.Skip("git is not installed")
+	}
+
+	tempDir := t.TempDir()
+	// Override HOME and USERPROFILE so global .gitconfig is not found
+	emptyHome := filepath.Join(tempDir, "empty-home")
+	_ = os.MkdirAll(emptyHome, 0o755)
+	t.Setenv("HOME", emptyHome)
+	t.Setenv("USERPROFILE", emptyHome)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(emptyHome, ".gitconfig"))
+
+	repoDir := filepath.Join(tempDir, "repo")
+	targetDir := filepath.Join(tempDir, "target")
+	_ = os.MkdirAll(filepath.Join(repoDir, "CLAUDE"), 0o755)
+	_ = os.MkdirAll(targetDir, 0o755)
+
+	if err := gitops.Init(repoDir); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	_ = os.WriteFile(filepath.Join(repoDir, "CLAUDE", "CLAUDE.md"), []byte("v1"), 0o644)
+	_ = os.WriteFile(filepath.Join(targetDir, "CLAUDE.md"), []byte("v2-modified"), 0o644)
+
+	conn := config.Connection{
+		ID:         "conn-no-id",
+		Profile:    "CLAUDE",
+		TargetPath: targetDir,
+	}
+	cfg := &config.Config{
+		RootPath:    repoDir,
+		BackupPath:  filepath.Join(tempDir, "backups"),
+		Connections: []config.Connection{conn},
+	}
+	st := state.NewState()
+	h1, _ := fsops.HashFile(filepath.Join(repoDir, "CLAUDE", "CLAUDE.md"))
+	st.SetBaseline(conn.ID, "CLAUDE.md", h1)
+
+	orch := orchestrator.New()
+	plan, err := orch.PlanSync(cfg, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = orch.ExecuteSync(cfg, st, plan, nil)
+	if err == nil {
+		t.Fatalf("expected git_identity_missing when user.email is not configured (C2, C6)")
+	}
+	var appErr *apperr.Error
+	if !errors.As(err, &appErr) || appErr.Code != apperr.GitIdentityMissing {
+		t.Errorf("expected error code %s, got %v", apperr.GitIdentityMissing, err)
+	}
+}
+
+// H2 Test: DirtyOutside overlapping with incoming remote changes returns git_dirty_worktree.
+func TestDirtyOutsideOverlapBlocksSync(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, _, _ := setupTwoClonesWithBareRemote(t)
+
+	// PC-B commits a root-level file README.md outside profiles and pushes
+	readmeB := filepath.Join(cfgB.RootPath, "README.md")
+	_ = os.WriteFile(readmeB, []byte("# Remote README\n"), 0o644)
+	runnerB := gitops.NewRunner(cfgB.RootPath)
+	_ = runnerB.CommitPaths([]string{"README.md"}, "docs: add readme")
+	_ = runnerB.Push()
+
+	// PC-A also has an uncommitted local README.md outside profiles
+	readmeA := filepath.Join(cfgA.RootPath, "README.md")
+	_ = os.WriteFile(readmeA, []byte("# Dirty local README\n"), 0o644)
+
+	planA, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !planA.DirtyOverlapExists {
+		t.Errorf("expected DirtyOverlapExists to be true (H2)")
+	}
+
+	_, err = orchA.ExecuteSync(cfgA, stA, planA, nil)
+	if err == nil {
+		t.Fatalf("expected git_dirty_worktree error when DirtyOutside overlaps incoming changes (H2)")
+	}
+	var appErr *apperr.Error
+	if !errors.As(err, &appErr) || appErr.Code != apperr.GitDirtyWorktree {
+		if !strings.Contains(err.Error(), apperr.GitDirtyWorktree) {
+			t.Errorf("expected %s, got %v", apperr.GitDirtyWorktree, err)
+		}
 	}
 }

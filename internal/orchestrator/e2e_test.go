@@ -55,6 +55,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 		t.Fatal(err)
 	}
 	runnerA := gitops.NewRunner(pcARepo)
+	_ = runnerA.SetLocalIdentity("PC-A", "pca@local")
 	if err := runnerA.AddRemote(bareRemote); err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +184,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	}
 
 	// User selects "Use repo version"
-	err = syncer.Apply(pcARepo, connClaudeA, []config.Connection{connClaudeA}, pcABackup, []string{"CLAUDE.md", "commands/review.md", "agents/planner.md"}, stA, 20, backup.ReasonInitialLink)
+	_, err = syncer.Apply(pcARepo, connClaudeA, []config.Connection{connClaudeA}, pcABackup, []string{"CLAUDE.md", "commands/review.md", "agents/planner.md"}, stA, 20, backup.ReasonInitialLink)
 	if err != nil {
 		t.Fatalf("[E2] Apply on initial link failed: %v", err)
 	}
@@ -226,7 +227,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 		CreatedAt:  config.FormatRFC3339(time.Now()),
 	}
 	cfgA.Connections = append(cfgA.Connections, connCodexA)
-	err = syncer.Apply(pcARepo, connCodexA, cfgA.Connections, pcABackup, []string{"AGENTS.md"}, stA, 20, backup.ReasonApply)
+	_, err = syncer.Apply(pcARepo, connCodexA, cfgA.Connections, pcABackup, []string{"AGENTS.md"}, stA, 20, backup.ReasonApply)
 	if err != nil {
 		t.Fatalf("[E4] Apply CODEX failed: %v", err)
 	}
@@ -347,7 +348,8 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	}
 
 	// ==========================================
-	// E10: Restore a backup -> creates previous backup reason: restore and restores content
+	// E10 (C4, M10): Restore a backup -> creates previous backup reason: restore,
+	// restores content, leaves file as target_changed, and ExecuteSync uploads it to repo!
 	// ==========================================
 	time.Sleep(20 * time.Millisecond)
 	backupsAList, _ := backup.ListBackups(pcABackup, connClaudeA, cfgA.Connections)
@@ -364,17 +366,51 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 		t.Errorf("[E10] expected top backup reason 'restore', got %s", backupsAfterRestore[0].Reason)
 	}
 
+	// Verify restored content equals the initial pre-existing content ("# CLAUDE local - pre-existing\n")
+	restoredBytes, _ := os.ReadFile(filepath.Join(claudeHomeA, "CLAUDE.md"))
+	if !strings.Contains(string(restoredBytes), "CLAUDE local - pre-existing") {
+		t.Errorf("[E10] expected restored content to be 'CLAUDE local - pre-existing', got '%s'", restoredBytes)
+	}
+
+	// Verify status after restore is target_changed (C4)
+	statusAfterRestore, err := syncer.ComputeStatus(pcARepo, connClaudeA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusAfterRestore.Status != syncer.ConnTargetChanged {
+		t.Errorf("[E10] expected status after restore to be target_changed (C4), got %s", statusAfterRestore.Status)
+	}
+
+	// Verify ExecuteSync uploads the restored version to the repository (C4)
+	planAfterRestore, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resAfterRestore, err := orchA.ExecuteSync(cfgA, stA, planAfterRestore, nil)
+	if err != nil {
+		t.Fatalf("[E10] ExecuteSync after restore failed: %v", err)
+	}
+	if resAfterRestore.Captured == 0 || resAfterRestore.Pushed == 0 {
+		t.Errorf("[E10] expected restored file to be captured and pushed, got %+v", resAfterRestore)
+	}
+	repoBytesAfterSync, _ := os.ReadFile(filepath.Join(pcARepo, "CLAUDE", "CLAUDE.md"))
+	if !strings.Contains(string(repoBytesAfterSync), "CLAUDE local - pre-existing") {
+		t.Errorf("[E10] expected repo file to contain restored content after sync, got '%s'", repoBytesAfterSync)
+	}
+
 	// ==========================================
-	// E11: Retention = 3, perform 5 updates -> exactly 3 backups remain
+	// E11 (M10): Retention = 3, perform 5 updates via syncer.Apply -> exactly 3 backups remain
 	// ==========================================
 	for i := 1; i <= 5; i++ {
-		_ = os.WriteFile(filepath.Join(claudeHomeA, "CLAUDE.md"), []byte("v"+string(rune('0'+i))), 0o644)
+		_ = os.WriteFile(filepath.Join(pcARepo, "CLAUDE", "CLAUDE.md"), []byte("repo-v"+string(rune('0'+i))), 0o644)
 		time.Sleep(10 * time.Millisecond)
-		_, _ = backup.CreateBackup(pcABackup, connClaudeA, cfgA.Connections, []string{"CLAUDE.md"}, backup.ReasonSync, 3)
+		if _, err := syncer.Apply(pcARepo, connClaudeA, cfgA.Connections, pcABackup, []string{"CLAUDE.md"}, stA, 3, backup.ReasonApply); err != nil {
+			t.Fatalf("[E11] Apply iteration %d failed: %v", i, err)
+		}
 	}
 	backupsPruned, _ := backup.ListBackups(pcABackup, connClaudeA, cfgA.Connections)
 	if len(backupsPruned) != 3 {
-		t.Errorf("[E11] expected exactly 3 backups with retention=3, got %d", len(backupsPruned))
+		t.Errorf("[E11] expected exactly 3 backups with retention=3 via Apply, got %d", len(backupsPruned))
 	}
 
 	// ==========================================
@@ -417,6 +453,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	// ==========================================
 	// E14: Change language and theme -> configuration validated
 	// ==========================================
+	t.Setenv(config.ConfigEnvVar, pcAConfig)
 	cfgA.Language = "es"
 	cfgA.Theme = "dark"
 	if err := config.Save(cfgA); err != nil {
@@ -442,11 +479,8 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	// Now delete from profile
 	_ = os.Remove(extraProfileFile)
 
-	// Sync or ComputeStatus
-	_, err = syncer.ComputeStatus(pcARepo, connClaudeA, stA)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// ReconcileBaselines (called during sync/status operations under lock)
+	syncer.ReconcileBaselines(pcARepo, connClaudeA, stA)
 
 	// File MUST still exist in target (rule 4: never delete target files)
 	if _, err := os.Stat(extraTargetFile); os.IsNotExist(err) {
