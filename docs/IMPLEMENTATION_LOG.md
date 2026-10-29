@@ -29,8 +29,8 @@
 | Phase 3: Backups | ✅ | 453aa56 | Snapshot creation, manifest, pruning, restore, coverage 81.6% |
 | Phase 4: Sync Engine | ✅ | be2c2ec | Complete 5.3 status matrix, Apply/Capture, 92.2% coverage |
 | Phase 5: Git Operations | ✅ | d44908c | git CLI wrapper, Windows CREATE_NO_WINDOW, bare remote integration tests |
-| Phase 6: Orchestrator & Scheduler | ✅ | Pending commit | PlanSync, ExecuteSync, 2-client integration test, 83.4% coverage, scheduler |
-| Phase 7: Bindings | ⏳ | - | Not started |
+| Phase 6: Orchestrator & Scheduler | ✅ | 62fa74c | PlanSync, ExecuteSync, 2-client integration test, 83.4% coverage, scheduler |
+| Phase 7: Bindings | ✅ | Pending commit | app.go 19 methods implemented, wails generate module, typed api wrapper |
 | Phase 8: Design System & i18n | ⏳ | - | Not started |
 | Phase 9: UI Views | ⏳ | - | Not started |
 | Phase 10: Sandbox & E2E | ⏳ | - | Not started |
