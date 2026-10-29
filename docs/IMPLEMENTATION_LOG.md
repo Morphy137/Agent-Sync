@@ -27,8 +27,8 @@
 | Phase 1: Scaffold | ✅ | ea9aac6 | Wails v2 + Svelte 5 + TS initialized, Vitest, ESLint, Prettier, wails build passes |
 | Phase 2: Core Files | ✅ | a516493 | apperr, config, state, fsops, profiles with unit tests |
 | Phase 3: Backups | ✅ | 453aa56 | Snapshot creation, manifest, pruning, restore, coverage 81.6% |
-| Phase 4: Sync Engine | ✅ | Pending commit | Complete 5.3 status matrix, Apply/Capture, 92.2% coverage |
-| Phase 5: Git Operations | ⏳ | - | Not started |
+| Phase 4: Sync Engine | ✅ | be2c2ec | Complete 5.3 status matrix, Apply/Capture, 92.2% coverage |
+| Phase 5: Git Operations | ✅ | Pending commit | git CLI wrapper, Windows CREATE_NO_WINDOW, bare remote integration tests |
 | Phase 6: Orchestrator & Scheduler | ⏳ | - | Not started |
 | Phase 7: Bindings | ⏳ | - | Not started |
 | Phase 8: Design System & i18n | ⏳ | - | Not started |
