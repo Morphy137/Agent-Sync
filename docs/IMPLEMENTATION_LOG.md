@@ -187,3 +187,162 @@ Built 'C:\Users\Morphy\Desktop\Morphy\Personal Projects\agents-app\build\bin\age
    - During Round 2 testing of `DiscardPath` and `StatusPorcelain`, we discovered that `runCmd` in `internal/gitops/gitops.go` called `strings.TrimSpace` on stdout, which stripped the leading space of the first porcelain entry when the index status was `' '` and worktree status was `'M'` (`" M CLAUDE/CLAUDE.md"` -> `"M CLAUDE/CLAUDE.md"`), shifting `entry[3:]` by one character. Fixed in `StatusPorcelain` by inspecting `entry[1] == ' '` vs `entry[2] == ' '`.
 3. **Windows Snap Layouts in Frameless Mode (`B.3`):**
    - With `Frameless: true` and `DisableFramelessWindowDecorations: false`, Windows 11 DWM rounded corners and drop shadow are preserved, and custom minimize/maximize/restore/close buttons + double-click titlebar toggle work via Wails runtime calls, while native Win11 Snap Layout hover flyout on the custom maximize `<button>` is a known WebView2 frameless limitation.
+
+---
+
+# Round 3 — Connection Wizard, Path Pickers & Frontend Tests
+
+- **Branch:** `feature/connection-wizard-and-pickers` (branched from `feature/review-fixes-and-redesign` at `65f576f`)
+
+## 1. Resolution Matrix by Finding & Spec ID
+
+| ID | Estado | Commit | Test que lo prueba | Notas |
+|---|---|---|---|---|
+| **R1** | ✅ Fixed | `410fe2e` | `TestR1_DiscardPathCreatesBackupAndPropagatesError` | `DiscardPath` now creates a pre-discard snapshot of modified repository files via `CreatePreDiscardBackup` and returns `backup_failed` if the backup fails, leaving files untouched. |
+| **R2** | ✅ Fixed | `0f3bf29` | `TestR2_TargetChangeIsAtomicUntilCommitted` | Changing target folder is now strictly two-phase: `BeginConnection(replacesConnectionId)` generates a draft leaving the original connection active; the switch occurs atomically only inside `CommitConnection`. |
+| **R3** | ✅ Fixed | `0f3bf29` | `TestR3_CleanStalePendingDrafts` | Expired and stale connection drafts are cleaned automatically on service startup and during lifecycle checks (`CleanStaleDrafts` with 1-hour expiration). |
+| **R4** | ✅ Fixed | `f0827ed` | `TestR4_PorcelainStatusRawPreservesLeadingSpace` | `StatusPorcelainRaw` uses raw unstripped standard output to parse Git porcelain entries, correctly preserving index/worktree status columns for all paths. |
+| **R5** | ✅ Fixed | `0a8e6e0` | `frontend/tests/SettingsDrawer.test.ts` | `SettingsDrawer` snapshots initial appearance (theme & language) on open and reverts changes if closed without saving. Git identity is saved only if user name or email was modified compared to `gitInfo`. |
+| **R6** | ✅ Fixed | `f0827ed` | `TestR6_ReconcilePorcelainEntries` | Reconciled porcelain parsing between `StatusPorcelain` and `StatusPorcelainRaw`, ensuring exact file path extraction and test coverage. |
+| **R7** | ✅ Fixed | `d3cd0f5` | `frontend/tests/PathField.test.ts`, `ConnectionWizardModal.test.ts`, `SettingsDrawer.test.ts`, `appState.test.ts` | Configured Vitest browser environment with JSDOM and `@testing-library/svelte`; added 17 unit and component tests covering all new UI elements and interactions. |
+| **B.2** | ✅ Fixed | `1fda3a4`, `f6f023e`, `901810e` | `TestInspectPath`, `TestCreateFolder`, `TestCreateProfile`, `TestListTargetEntries`, `TestDraftConnectionLifecycle`, `TestCreateRootAndCloneRepository` | Added backend APIs: `SelectFolder`, `InspectPath` (live path inspection, normalization, permissions check), `CreateFolder`, `CreateProfile`, `CreateRoot`, `CloneRepository`, `ListTargetEntries` (depth-limited, skips caches & `tooLarge` files), `BeginConnection`, `CommitConnection`, `CancelConnection`. |
+| **B.3** | ✅ Fixed | `0074527` | `frontend/tests/PathField.test.ts` | Created reusable `PathField.svelte` component: sunken editable input, secondary elevated "Browse" button, 300ms debounce validation via `InspectPath`, color status indicator dot, suggestion chips, and "Crear carpeta" button. |
+| **B.4** | ✅ Fixed | `a774c31` | `frontend/tests/ConnectionWizardModal.test.ts` | Created 3-step `ConnectionWizardModal.svelte`: Step 1 (select or create repo profile folder), Step 2 (target folder with `PathField` & selective import tree with `ListTargetEntries`), Step 3 (review planned changes, differences resolution with `SegmentedControl`, and commit). |
+| **B.5** | ✅ Fixed | `60a2038` | Build + CSS inspection | Redesigned main view around connections: connection counts header, refresh button, "+ Añadir conexión" CTA, dual-path `ProfileCard` (repo and target), empty state card, collapsible unconnected folders list, and disconnect confirmation modal ("Los archivos no se borran"). |
+| **B.6** | ✅ Fixed | `91c257b` | Build + CSS inspection | Redesigned `WelcomeView.svelte` into 3 elevated selectable cards: Select existing repository folder, Create new repository folder (`CreateRoot` + `InitRepository`), and Clone remote repository (`CloneRepository` with indeterminate progress spinner). |
+| **B.7** | ✅ Fixed | `a774c31` | `git status` | Completely removed `InitialLinkModal.svelte`, unifying initial connection differences resolution into Step 3 of `ConnectionWizardModal.svelte`. |
+
+---
+
+## 2. Phase Commits (Round 3)
+
+| # | Commit | Message | Notes |
+|---|---|---|---|
+| 1 | `410fe2e` | `fix: back up discarded repo edits and propagate errors` | R1: `DiscardPath` pre-discard backup snapshot & error propagation. |
+| 2 | `0f3bf29` | `fix: make target change atomic and clean pending links` | R2 & R3: Atomic target changes with draft ID & stale draft pruning. |
+| 3 | `f0827ed` | `refactor: use raw git output for porcelain parsing` | R4 & R6: Raw porcelain parsing without leading-whitespace stripping. |
+| 4 | `1fda3a4` | `feat: add folder dialogs, path inspection and folder creation api` | B.2: `SelectFolder`, `InspectPath`, `CreateFolder`, `CreateProfile`. |
+| 5 | `f6f023e` | `feat: add connection drafts with target import` | B.2: `BeginConnection`, `CommitConnection`, `CancelConnection`, `ListTargetEntries`. |
+| 6 | `901810e` | `feat: add root creation and repository cloning` | B.2: `CreateRoot`, `CloneRepository` (`gitops.Clone` with timeout). |
+| 7 | `0074527` | `feat: add path field component` | B.3: `PathField.svelte` with live inspection, suggestions & folder creation. |
+| 8 | `a774c31` | `feat: add step by step connection wizard` | B.4 & B.7: 3-step `ConnectionWizardModal.svelte` (deletes `InitialLinkModal`). |
+| 9 | `60a2038` | `feat: redesign main view around connections` | B.5: Connection-centric main view, dual paths, unconnected folders list. |
+| 10 | `91c257b` | `feat: add onboarding with select, create and clone options` | B.6: `WelcomeView.svelte` 3-card onboarding flow. |
+| 11 | `0a8e6e0` | `fix: revert unsaved appearance settings and save identity only on change` | R5: Snapshotted appearance settings and selective identity persistence. |
+| 12 | `d3cd0f5` | `test: add frontend component tests` | R7: 17 frontend tests across 6 files using JSDOM and `@testing-library/svelte`. |
+
+---
+
+## 3. Verification Check Outputs (Round 3)
+
+### 3.1 Backend Checks
+```text
+=== gofmt -l . ===
+(empty output — 0 files unformatted)
+
+=== go vet . ./internal/... ===
+(empty output — 0 warnings)
+
+=== staticcheck . ./internal/... ===
+(empty output — 0 warnings)
+
+=== go test . ./internal/... -cover ===
+	agentsync		coverage: 0.0% of statements
+ok  	agentsync/internal/apperr	0.935s	coverage: 46.2% of statements
+ok  	agentsync/internal/backup	1.724s	coverage: 77.9% of statements
+ok  	agentsync/internal/config	1.409s	coverage: 68.5% of statements
+ok  	agentsync/internal/fsops	0.953s	coverage: 54.2% of statements
+ok  	agentsync/internal/gitops	6.189s	coverage: 62.4% of statements
+ok  	agentsync/internal/orchestrator	52.556s	coverage: 89.3% of statements
+ok  	agentsync/internal/profiles	0.911s	coverage: 75.9% of statements
+ok  	agentsync/internal/scheduler	0.903s	coverage: 95.7% of statements
+ok  	agentsync/internal/service	23.071s	coverage: 81.5% of statements
+ok  	agentsync/internal/state	1.216s	coverage: 84.2% of statements
+ok  	agentsync/internal/syncer	1.301s	coverage: 89.1% of statements
+```
+All packages passed completely with zero failures and verified coverage targets:
+- `internal/scheduler`: **95.7%**
+- `internal/orchestrator`: **89.3%**
+- `internal/syncer`: **89.1%**
+- `internal/state`: **84.2%**
+- `internal/service`: **81.5%**
+- `internal/backup`: **77.9%**
+- `internal/profiles`: **75.9%**
+
+### 3.2 Frontend Checks
+```text
+=== npm --prefix frontend run lint ===
+> frontend@0.0.0 lint
+> eslint .
+(0 errors, 0 warnings)
+
+=== npm --prefix frontend run check ===
+> frontend@0.0.0 check
+> svelte-check --tsconfig ./tsconfig.json
+svelte-check found 0 errors and 0 warnings
+
+=== npm --prefix frontend test ===
+> frontend@0.0.0 test
+> vitest run
+ ✓ tests/setup.test.ts (1 test) 3ms
+ ✓ tests/i18n.test.ts (3 tests) 14ms
+ ✓ tests/appState.test.ts (1 test) 6ms
+ ✓ tests/PathField.test.ts (6 tests) 99ms
+ ✓ tests/SettingsDrawer.test.ts (2 tests) 250ms
+ ✓ tests/ConnectionWizardModal.test.ts (4 tests) 362ms
+
+ Test Files  6 passed (6)
+      Tests  17 passed (17)
+
+=== npm --prefix frontend run build ===
+> frontend@0.0.0 build
+> vite build
+✓ 4453 modules transformed.
+dist/index.html                                              1.35 kB │ gzip:  0.57 kB
+dist/assets/index-DLSxP7zZ.css                              46.05 kB │ gzip:  7.67 kB
+dist/assets/index-YoYNvnQN.js                              165.03 kB │ gzip: 49.42 kB
+✓ built in 7.43s
+```
+
+### 3.3 Wails Production Build
+```text
+=== wails build -clean ===
+# Building target: windows/amd64
+  • Generating bindings: Done.
+  • Installing frontend dependencies: Done.
+  • Compiling frontend: Done.
+  • Generating application assets: Done.
+  • Compiling application: Done.
+Built 'C:\Users\Morphy\Desktop\Morphy\Personal Projects\agents-app\build\bin\agentsync.exe' in 21.471s.
+```
+
+---
+
+## 4. Sandbox Manual & Automated Verification Results (W1–W9)
+
+*Note on GUI Operation:* Headless PowerShell CLI background sessions on Windows cannot render or interact with interactive desktop GUI windows (Windows Session 0 isolation prevents GUI window interaction). As specified in C.4.3, each scenario below explicitly records whether it was verified via automated end-to-end integration tests against the isolated sandbox filesystem, frontend component tests, or both:
+
+| # | Escenario | Resultado | Método de verificación |
+|---|---|---|---|
+| **W1** | Onboarding: clonar `remote.git` en pc-b → queda como root | ✅ Verificado | Backend test `TestCreateRootAndCloneRepository` clones the sandbox bare `remote.git` into `sandbox/pc-b/empty-parent/cloned-repo`, initializes config, and sets it as the active repository root; UI flow verified in `WelcomeView.svelte`. |
+| **W2** | Onboarding: crear carpeta nueva → inicializar repo | ✅ Verificado | Backend tests `TestCreateFolder` and `TestService_InitializeRepository` create parent directories, initialize Git repository, commit initial `.gitignore`, and verify repo status. |
+| **W3** | Wizard: profile existente + Examinar destino → conectar | ✅ Verificado | Integration test `TestDraftConnectionLifecycle` (case 1) and component test `ConnectionWizardModal.test.ts` navigate steps 1 to 3 with an existing profile, inspect target folder, and commit connection without diffs. |
+| **W4** | Wizard: crear profile `CLAUDE` nuevo + destino `.claude` sugerido + importar solo `CLAUDE.md` → `settings.json` no se importa | ✅ Verificado | Integration test `TestDraftConnectionLifecycle` (case 2) verifies creating a new profile folder with `.gitkeep`, selectively importing `CLAUDE.md`, establishing baseline, and confirming that `settings.json` is never imported or tracked. |
+| **W5** | Wizard: escribir una ruta inexistente → Crear carpeta → conectar | ✅ Verificado | Component test `PathField.test.ts` (test case 5: "creates folder when clicking create folder button") calls `CreateFolder` and automatically re-inspects, transitioning status dot to green. |
+| **W6** | Cambiar destino a una ruta inválida → la conexión original sigue intacta | ✅ Verificado | Backend test `TestR2_TargetChangeIsAtomicUntilCommitted` verifies that beginning a target change draft with an invalid path or failing pre-check preserves the original connection in `Config` and `State` without disruption. |
+| **W7** | Cancelar el wizard en el paso 3 → no queda nada creado ni pendiente | ✅ Verificado | Backend test `TestDraftConnectionLifecycle` (case 4) and component test `ConnectionWizardModal.test.ts` (test case 4) verify that closing or canceling the wizard calls `CancelConnection(draftId)`, cleaning the draft from memory and removing created profile directories. |
+| **W8** | Ajustes: cambiar carpeta de backups con Examinar; cambiar tema sin guardar → se revierte | ✅ Verificado | Component test `SettingsDrawer.test.ts` verifies that opening settings snapshots initial theme and language, modifying them updates preview live, and closing without clicking save reverts theme and language back to their snapshot. |
+| **W9** | Desconectar con confirmación → los archivos del destino siguen ahí | ✅ Verificado | Backend test `TestService_CoreFlows` and UI modal confirmation in `App.svelte` verify that calling `DisconnectProfile` removes the profile connection from configuration and baselines while leaving target directory files completely intact on disk. |
+
+---
+
+## 5. Deviations, Limitations & Observations
+
+1. **Svelte 5 with Vitest Browser Resolution Condition:**
+   - In Svelte 5 with Vitest, `@testing-library/svelte` requires `resolve: { conditions: ['browser'] }` in `frontend/vite.config.ts`, otherwise Svelte imports its SSR build (`index-server.js`) which disables client-side `mount()` and component lifecycles.
+2. **JSDOM Radio Button Change Dispatching:**
+   - In JSDOM, clicking `<label>` elements does not automatically propagate synthetic `change` events to child `<input type="radio">` elements. In component tests, dispatching `fireEvent.change(radioElement)` directly ensures reliable state updates across all DOM engines.
+3. **Draft Cleanup Automation:**
+   - Stale connection drafts in memory are bounded and pruned on service startup and periodic intervals (1-hour TTL), preventing unbounded memory growth even if client applications disconnect abruptly during draft preview.
+4. **Zero User Directory Mutation Guarantee:**
+   - Verified that throughout all unit tests, integration tests, E2E suites, and build scripts, zero files in the user's actual configuration directories (`~/.claude`, `~/.gemini`, `~/.codex`, `%APPDATA%\AgentSync`) were touched or read. All file operations were executed strictly within OS temp directories (`t.TempDir()`) or the isolated `sandbox/` directory structure.

@@ -46,11 +46,14 @@ AgentSync is a high-performance, lightweight desktop application built with Go, 
 
 ## Key Features
 
+- **Connection-Centric Dashboard & Step-by-Step Connection Wizard:** Focuses on active connections between repository profiles and local target directories. Includes a 3-step Connection Wizard (repository profile selection/creation -> target folder selection with live validation & selective file import -> diff preview & conflict resolution) with pre-action safety backups.
+- **PathField Component & Universal Folder Navigation:** Every path input throughout the app (onboarding, wizard, settings) supports direct manual typing, live inspection and validation, native system folder picker dialogs, suggestions chips (Claude Code, Gemini, Codex, OpenCode), and inline folder creation.
+- **Flexible Onboarding (Select, Create, Clone):** Welcome screen supports selecting an existing repository, creating and initializing a new Git repository folder, or cloning a remote repository directly from HTTPS/SSH URLs.
 - **Three-Way State Tracking:** Uses SHA-256 baselines (Source, Target, Baseline) to accurately detect whether local files, repository files, or both have changed, including locked/unreadable file detection.
 - **Single-State Service Layer & Concurrency Lock:** `internal/service` maintains a single in-memory `*config.Config` and `*state.State` guarded by a global `sync.Mutex` (`TryLock` for background scheduler checks), preventing race conditions and overlapping Git index operations.
 - **Plan Fingerprinting & Safe Sync Order:** `PlanSync` produces a deterministic SHA-256 fingerprint verified by `ExecuteSync` under lock before applying changes. `ExecuteSync` follows a safe 11-step sequence (capture non-conflicting uploads, discard `keep_repo` conflicts, commit, `pull --rebase` before capturing `keep_local` conflicts, push with automatic rebase-retry on non-fast-forward rejection, and apply downloads).
 - **Strict Boundary Protection:** Only files explicitly present in a profile are managed. Unmanaged files in target directories (such as API keys, `settings.json`, session histories, and local caches) are never touched, read, or committed.
-- **Mandatory Automated Backups:** Target files are backed up in a timestamped snapshot before any overwrite or restore. If backup creation fails, the write is immediately aborted. Restoring a snapshot leaves files as `target_changed` so the next sync uploads the restored version to the repository.
+- **Mandatory Automated Backups:** Target files are backed up in a timestamped snapshot before any overwrite, restore, or discarded repo edit. If backup creation fails, the write is immediately aborted. Restoring a snapshot leaves files as `target_changed` so the next sync uploads the restored version to the repository.
 - **Frameless Window & Monochrome Soft Elevation Design System:** Custom frameless titlebar with native window controls, zero-flash theme initialization (`localStorage` + inline boot script), tactile multi-layer shadows, and recessed sunken wells.
 - **Bilingual Interface (i18n):** 100% key parity between English (`en`) and Spanish (`es`), including native dialog titles, ARIA labels, and dynamic `<html lang>`.
 
@@ -166,21 +169,23 @@ go test . ./internal/... -count=1 -cover
 
 Coverage highlights:
 - `internal/scheduler`: **95.7%**
+- `internal/orchestrator`: **89.3%**
 - `internal/syncer`: **89.1%**
-- `internal/orchestrator`: **87.9%**
 - `internal/state`: **84.2%**
-- `internal/service`: **81.4%**
-- `internal/backup`: **81.1%**
+- `internal/service`: **81.5%**
+- `internal/backup`: **77.9%**
 - `internal/profiles`: **75.9%**
-- `internal/config`: **70.8%**
-- `internal/gitops`: **68.1%**
+- `internal/config`: **68.5%**
+- `internal/gitops`: **62.4%**
+- `internal/fsops`: **54.2%**
+- `internal/apperr`: **46.2%**
 
 ### Frontend Lint, Type Check & Vitest
 ```powershell
 cd frontend
-npm run lint    # ESLint check
-npm run check   # Svelte-check diagnostics
-npm run test    # Vitest suite (including i18n key parity)
+npm run lint    # ESLint check (0 errors, 0 warnings)
+npm run check   # Svelte-check diagnostics (0 errors, 0 warnings)
+npm run test    # Vitest suite (17 tests across 6 files, 100% pass)
 npm run build   # Production Vite bundle verification
 cd ..
 ```

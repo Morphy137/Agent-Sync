@@ -99,10 +99,15 @@ if (!(Test-Path (Join-Path $pcBConfigs ".git"))) {
     git -C $pcBConfigs config user.email "pcb@test.local"
 }
 
-# Setup PC-B fake target homes
+# Setup PC-B fake target homes and clone parent folder
 New-Item -ItemType Directory -Path (Join-Path $pcBHome ".claude") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $pcBHome ".gemini") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $pcBHome ".codex") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $pcBHome ".config\opencode") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $pcBDir "empty-parent") -Force | Out-Null
 
 Write-Host "AgentSync sandbox setup completed successfully."
+Write-Host "To run in sandbox mode with isolated home:"
+Write-Host '  $env:AGENTSYNC_HOME_OVERRIDE = "' + (Join-Path $pcADir "home") + '"'
+Write-Host '  $env:APPDATA = "' + (Join-Path $pcADir "appdata") + '"'
+Write-Host '  wails dev'
