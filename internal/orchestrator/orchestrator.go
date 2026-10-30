@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"agentsync/internal/apperr"
@@ -81,28 +80,12 @@ type SyncResult struct {
 
 // Orchestrator coordinates the end-to-end sync workflow.
 type Orchestrator struct {
-	mu           sync.Mutex
 	OnBeforePush func()
 }
 
 // New creates a new Orchestrator instance.
 func New() *Orchestrator {
 	return &Orchestrator{}
-}
-
-// Lock acquires the orchestrator mutex.
-func (o *Orchestrator) Lock() {
-	o.mu.Lock()
-}
-
-// TryLock attempts to acquire the sync mutex without blocking.
-func (o *Orchestrator) TryLock() bool {
-	return o.mu.TryLock()
-}
-
-// Unlock releases the sync mutex.
-func (o *Orchestrator) Unlock() {
-	o.mu.Unlock()
 }
 
 // computeFingerprint calculates a deterministic SHA-256 hash of the plan's actionable state.
@@ -318,24 +301,8 @@ func (o *Orchestrator) PlanSyncWithOptions(cfg *config.Config, st *state.State, 
 	return plan, nil
 }
 
-// ExecuteSync performs the full synchronization workflow using the A.1 algorithm.
-func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, plan *SyncPlan, resolutions []ConflictResolution) (*SyncResult, error) {
-	expectedFP := ""
-	if plan != nil {
-		expectedFP = plan.Fingerprint
-	}
-	return o.ExecuteSyncWithFingerprint(cfg, st, expectedFP, resolutions)
-}
-
-// ExecuteSyncWithFingerprint re-plans under lock, validates the fingerprint (if non-empty), and executes A.1.
-func (o *Orchestrator) ExecuteSyncWithFingerprint(cfg *config.Config, st *state.State, expectedFingerprint string, resolutions []ConflictResolution) (*SyncResult, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	return o.ExecuteSyncLocked(cfg, st, expectedFingerprint, resolutions)
-}
-
-// ExecuteSyncLocked executes the A.1 synchronization algorithm assuming the caller already holds the lock.
-func (o *Orchestrator) ExecuteSyncLocked(cfg *config.Config, st *state.State, expectedFingerprint string, resolutions []ConflictResolution) (*SyncResult, error) {
+// ExecuteSync performs the full synchronization workflow using the A.1 algorithm under Service lock (R6).
+func (o *Orchestrator) ExecuteSync(cfg *config.Config, st *state.State, expectedFingerprint string, resolutions []ConflictResolution) (*SyncResult, error) {
 	// Reconcile baselines before planning
 	if st != nil {
 		mutated := false

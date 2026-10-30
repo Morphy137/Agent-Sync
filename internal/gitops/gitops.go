@@ -73,6 +73,43 @@ func (g *GitRunner) runCmd(args ...string) (string, error) {
 	return outStr, nil
 }
 
+// runCmdRaw executes a git command returning raw unmodified stdout without trimming whitespace (R4).
+func (g *GitRunner) runCmdRaw(args ...string) (string, error) {
+	if !IsInstalled() {
+		return "", apperr.New(apperr.GitNotInstalled)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), GitCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = g.Root
+	cmd.SysProcAttr = getSysProcAttr()
+
+	cmd.Env = append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"LC_ALL=C",
+	)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	outStr := stdout.String()
+	errStr := strings.TrimSpace(stderr.String())
+
+	if err != nil {
+		combined := errStr
+		if combined == "" {
+			combined = strings.TrimSpace(outStr)
+		}
+		return outStr, mapGitError(err, combined)
+	}
+
+	return outStr, nil
+}
+
 // mapGitError converts git CLI stderr messages into typed domain errors.
 func mapGitError(cause error, stderr string) error {
 	lower := strings.ToLower(stderr)
@@ -290,9 +327,9 @@ func (g *GitRunner) AheadBehind() (ahead, behind int, err error) {
 	return ahead, behind, nil
 }
 
-// StatusPorcelain lists changed paths in the worktree.
+// StatusPorcelain lists changed paths in the worktree using raw porcelain-v1 -z output (R4).
 func (g *GitRunner) StatusPorcelain() ([]ChangedPath, error) {
-	out, err := g.runCmd("status", "--porcelain=v1", "-z")
+	out, err := g.runCmdRaw("status", "--porcelain=v1", "-z", "-uall")
 	if err != nil {
 		return nil, err
 	}
@@ -310,23 +347,13 @@ func (g *GitRunner) StatusPorcelain() ([]ChangedPath, error) {
 			continue
 		}
 
-		// Handle cases where Leading spaces in XY status (e.g. " M path") were trimmed on first entry
-		var statusCode, pathPart string
-		if len(entry) >= 3 && entry[2] == ' ' {
-			statusCode = entry[:2]
-			pathPart = entry[3:]
-		} else if len(entry) >= 2 && entry[1] == ' ' {
-			statusCode = " " + entry[:1]
-			pathPart = entry[2:]
-		} else {
-			statusCode = entry[:2]
-			pathPart = strings.TrimSpace(entry[2:])
-		}
+		statusCode := entry[:2]
+		pathPart := entry[3:]
 
-		// If rename (starts with R), the next entry in -z output is the new path
-		if strings.HasPrefix(strings.TrimSpace(statusCode), "R") && i+1 < len(entries) {
+		// In -z mode, for renames (R) and copies (C), entry[3:] is the destination (new path)
+		// and the following entry is the source (old path), which we consume and skip.
+		if (statusCode[0] == 'R' || statusCode[0] == 'C' || strings.HasPrefix(statusCode, "R")) && i+1 < len(entries) {
 			i++
-			pathPart = entries[i]
 		}
 
 		results = append(results, ChangedPath{
@@ -344,7 +371,7 @@ func (g *GitRunner) IncomingChangedFiles() ([]string, error) {
 		return []string{}, nil
 	}
 
-	out, err := g.runCmd("diff", "--name-only", "HEAD...@{u}")
+	out, err := g.runCmdRaw("diff", "--name-only", "-z", "HEAD...@{u}")
 	if err != nil {
 		return nil, err
 	}
@@ -353,12 +380,11 @@ func (g *GitRunner) IncomingChangedFiles() ([]string, error) {
 		return []string{}, nil
 	}
 
-	lines := strings.Split(out, "\n")
+	entries := strings.Split(out, "\x00")
 	var results []string
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			results = append(results, filepath.ToSlash(trimmed))
+	for _, entry := range entries {
+		if entry != "" {
+			results = append(results, filepath.ToSlash(entry))
 		}
 	}
 

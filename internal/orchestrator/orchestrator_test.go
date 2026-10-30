@@ -132,7 +132,7 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 		t.Errorf("expected Up direction on PC-A, got %s", planA.Direction)
 	}
 
-	resA, err := orchA.ExecuteSync(cfgA, stA, planA, nil)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("ExecuteSync on PC-A failed: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestTwoClientSyncIntegration(t *testing.T) {
 		t.Errorf("expected PC-B to be behind after PC-A push")
 	}
 
-	resB, err := orchB.ExecuteSync(cfgB, stB, planB, nil)
+	resB, err := orchB.ExecuteSync(cfgB, stB, planB.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("ExecuteSync on PC-B failed: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestKeepLocalWithRemoteOverlap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB.Fingerprint, nil); err != nil {
 		t.Fatalf("PC-B sync failed: %v", err)
 	}
 
@@ -214,7 +214,7 @@ func TestKeepLocalWithRemoteOverlap(t *testing.T) {
 		},
 	}
 
-	resA, err := orchA.ExecuteSync(cfgA, stA, planA, resolutions)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, resolutions)
 	if err != nil {
 		t.Fatalf("ExecuteSync with keep_local on remote overlap failed (C5): %v", err)
 	}
@@ -233,7 +233,7 @@ func TestKeepLocalWithRemoteOverlap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := orchB.ExecuteSync(cfgB, stB, planB2, nil); err != nil {
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB2.Fingerprint, nil); err != nil {
 		t.Fatalf("PC-B second sync failed: %v", err)
 	}
 	contentB, _ := os.ReadFile(targetFileB)
@@ -249,7 +249,7 @@ func TestKeepRepoWithRemoteOverlap(t *testing.T) {
 	targetFileB := filepath.Join(cfgB.Connections[0].TargetPath, "CLAUDE.md")
 	_ = os.WriteFile(targetFileB, []byte("# Remote version from PC-B\n"), 0o644)
 	planB, _ := orchB.PlanSync(cfgB, stB)
-	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB.Fingerprint, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -269,7 +269,7 @@ func TestKeepRepoWithRemoteOverlap(t *testing.T) {
 		},
 	}
 
-	resA, err := orchA.ExecuteSync(cfgA, stA, planA, resolutions)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, resolutions)
 	if err != nil {
 		t.Fatalf("ExecuteSync with keep_repo failed: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestManualRepoEditPlusRemoteChangeInAnotherFile(t *testing.T) {
 	_ = os.MkdirAll(filepath.Dir(reviewRepoB), 0o755)
 	_ = os.WriteFile(reviewRepoB, []byte("# Review from PC-B\n"), 0o644)
 	planB, _ := orchB.PlanSync(cfgB, stB)
-	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB.Fingerprint, nil); err != nil {
 		t.Fatalf("PC-B sync failed: %v", err)
 	}
 
@@ -313,7 +313,7 @@ func TestManualRepoEditPlusRemoteChangeInAnotherFile(t *testing.T) {
 		t.Errorf("expected CommitPreview to contain manual repo edit")
 	}
 
-	resA, err := orchA.ExecuteSync(cfgA, stA, planA, nil)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("ExecuteSync with manual repo edit + remote change failed: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestPushRejectedRetrySuccess(t *testing.T) {
 		_ = runnerB.Push()
 	}
 
-	resA, err := orchA.ExecuteSync(cfgA, stA, planA, nil)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("expected push rejected retry (H3) to succeed, got error: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestExecuteSyncFingerprintMismatchReturnsPlanChanged(t *testing.T) {
 	// Add a new file in repo before calling ExecuteSync so the re-planned fingerprint differs
 	_ = os.WriteFile(filepath.Join(cfgA.RootPath, "CLAUDE", "unexpected.md"), []byte("new"), 0o644)
 
-	_, err = orchA.ExecuteSync(cfgA, stA, planA, nil)
+	_, err = orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, nil)
 	if err == nil {
 		t.Fatalf("expected plan_changed error when files change between PlanSync and ExecuteSync (H1)")
 	}
@@ -436,7 +436,7 @@ func TestMissingGitIdentityReturnsError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = orch.ExecuteSync(cfg, st, plan, nil)
+	_, err = orch.ExecuteSync(cfg, st, plan.Fingerprint, nil)
 	if err == nil {
 		t.Fatalf("expected git_identity_missing when user.email is not configured (C2, C6)")
 	}
@@ -469,7 +469,7 @@ func TestDirtyOutsideOverlapBlocksSync(t *testing.T) {
 		t.Errorf("expected DirtyOverlapExists to be true (H2)")
 	}
 
-	_, err = orchA.ExecuteSync(cfgA, stA, planA, nil)
+	_, err = orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, nil)
 	if err == nil {
 		t.Fatalf("expected git_dirty_worktree error when DirtyOutside overlaps incoming changes (H2)")
 	}
@@ -492,7 +492,7 @@ func TestR1_KeepRepoBacksUpDiscardedRepoEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB.Fingerprint, nil); err != nil {
 		t.Fatalf("PC-B sync failed: %v", err)
 	}
 
@@ -517,7 +517,7 @@ func TestR1_KeepRepoBacksUpDiscardedRepoEdits(t *testing.T) {
 		},
 	}
 
-	resA, err := orchA.ExecuteSync(cfgA, stA, planA, resolutions)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA.Fingerprint, resolutions)
 	if err != nil {
 		t.Fatalf("ExecuteSync with keep_repo failed: %v", err)
 	}

@@ -677,7 +677,7 @@ func (s *Service) ExecuteSync(fingerprint string, resolutions []orchestrator.Con
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	res, err := s.orch.ExecuteSyncLocked(s.cfg, s.st, fingerprint, resolutions)
+	res, err := s.orch.ExecuteSync(s.cfg, s.st, fingerprint, resolutions)
 	if err != nil {
 		return nil, err
 	}

@@ -261,7 +261,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	// ==========================================
 	// E6: Sync on PC-A -> Capture + commit + push
 	// ==========================================
-	resA, err := orchA.ExecuteSync(cfgA, stA, planAfterEdit, nil)
+	resA, err := orchA.ExecuteSync(cfgA, stA, planAfterEdit.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("[E6] ExecuteSync failed: %v", err)
 	}
@@ -289,7 +289,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	// ==========================================
 	// E8: Sync on PC-B -> pull + apply with backup; target = version of PC-A
 	// ==========================================
-	resB, err := orchB.ExecuteSync(cfgB, stB, planB, nil)
+	resB, err := orchB.ExecuteSync(cfgB, stB, planB.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("[E8] ExecuteSync on PC-B failed: %v", err)
 	}
@@ -313,7 +313,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	// PC-B modifies target and syncs (pushes to remote)
 	_ = os.WriteFile(filepath.Join(claudeHomeB, "CLAUDE.md"), []byte("# Conflict line from PC-B\n"), 0o644)
 	planBSync, _ := orchB.PlanSync(cfgB, stB)
-	_, err = orchB.ExecuteSync(cfgB, stB, planBSync, nil)
+	_, err = orchB.ExecuteSync(cfgB, stB, planBSync.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("[E9] PC-B push failed: %v", err)
 	}
@@ -335,7 +335,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 			Resolution: "keep_repo",
 		},
 	}
-	resAConflict, err := orchA.ExecuteSync(cfgA, stA, planAConflict, resolutions)
+	resAConflict, err := orchA.ExecuteSync(cfgA, stA, planAConflict.Fingerprint, resolutions)
 	if err != nil {
 		t.Fatalf("[E9] ExecuteSync with conflict resolution failed: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resAfterRestore, err := orchA.ExecuteSync(cfgA, stA, planAfterRestore, nil)
+	resAfterRestore, err := orchA.ExecuteSync(cfgA, stA, planAfterRestore.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("[E10] ExecuteSync after restore failed: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	if planLocal.HasRemote {
 		t.Errorf("[E13] expected hasRemote false")
 	}
-	_, err = orchLocal.ExecuteSync(cfgLocal, stLocal, planLocal, nil)
+	_, err = orchLocal.ExecuteSync(cfgLocal, stLocal, planLocal.Fingerprint, nil)
 	if err != nil {
 		t.Fatalf("[E13] ExecuteSync on local repo without remote failed: %v", err)
 	}

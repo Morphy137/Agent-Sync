@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"agentsync/internal/gitops"
@@ -118,5 +119,86 @@ func TestGitOpsWithLocalBareRemote(t *testing.T) {
 	contentB, err := os.ReadFile(testFileB)
 	if err != nil || string(contentB) != "# Claude config v1" {
 		t.Fatalf("expected '# Claude config v1', got '%s'", string(contentB))
+	}
+}
+
+// R4 Test: StatusPorcelain handles paths with spaces and renames cleanly via runCmdRaw.
+func TestStatusPorcelainRawWithSpacesAndRename(t *testing.T) {
+	if !gitops.IsInstalled() {
+		t.Skip("git is not installed")
+	}
+
+	tempDir := t.TempDir()
+	if err := gitops.Init(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	runner := gitops.NewRunner(tempDir)
+	_ = runner.SetLocalIdentity("Tester", "tester@test.local")
+	_ = runner.CommitPaths([]string{".gitignore"}, "chore: init")
+
+	// 1. File with space in path
+	spaceDir := filepath.Join(tempDir, "Agent Profile")
+	_ = os.MkdirAll(spaceDir, 0o755)
+	spaceFile := filepath.Join(spaceDir, "custom configuration file.md")
+	_ = os.WriteFile(spaceFile, []byte("rules with spaces"), 0o644)
+
+	changes, err := runner.StatusPorcelain()
+	if err != nil {
+		t.Fatalf("StatusPorcelain failed: %v", err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("expected 1 untracked change, got %d: %+v", len(changes), changes)
+	}
+	expectedPath := "Agent Profile/custom configuration file.md"
+	if changes[0].Path != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, changes[0].Path)
+	}
+	if changes[0].Status != "??" {
+		t.Errorf("expected status '??', got '%s'", changes[0].Status)
+	}
+
+	// Commit the file with spaces
+	if err := runner.CommitPaths([]string{expectedPath}, "feat: add file with spaces"); err != nil {
+		t.Fatalf("CommitPaths failed: %v", err)
+	}
+
+	// 2. Uncommitted modification in worktree: status must be " M" with leading space preserved!
+	_ = os.WriteFile(spaceFile, []byte("rules with spaces - modified"), 0o644)
+	changes, err = runner.StatusPorcelain()
+	if err != nil {
+		t.Fatalf("StatusPorcelain failed: %v", err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("expected 1 change, got %d: %+v", len(changes), changes)
+	}
+	if changes[0].Status != " M" {
+		t.Errorf("expected status ' M' (leading space preserved), got '%s'", changes[0].Status)
+	}
+	if changes[0].Path != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, changes[0].Path)
+	}
+
+	// Commit modification
+	_ = runner.CommitPaths([]string{expectedPath}, "feat: update file")
+
+	// 3. Rename with git mv
+	renamedPath := "Agent Profile/renamed file.md"
+	cmd := exec.Command("git", "-C", tempDir, "mv", expectedPath, renamedPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git mv failed: %v, out: %s", err, string(out))
+	}
+
+	changes, err = runner.StatusPorcelain()
+	if err != nil {
+		t.Fatalf("StatusPorcelain failed: %v", err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("expected 1 rename change, got %d: %+v", len(changes), changes)
+	}
+	if changes[0].Path != renamedPath {
+		t.Errorf("expected renamed path '%s', got '%s'", renamedPath, changes[0].Path)
+	}
+	if !strings.HasPrefix(changes[0].Status, "R") {
+		t.Errorf("expected status starting with 'R', got '%s'", changes[0].Status)
 	}
 }
