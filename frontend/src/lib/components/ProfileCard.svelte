@@ -49,6 +49,12 @@
     (profile.name || "P").trim().charAt(0).toUpperCase()
   );
 
+  const targetFolderName = $derived.by(() => {
+    if (!connection) return "";
+    const parts = connection.targetPath.split(/[/\\]/).filter(Boolean);
+    return parts[parts.length - 1] || connection.targetPath;
+  });
+
   const targetTruncated = $derived.by(() => {
     if (!connection) return "";
     const p = connection.targetPath;
@@ -97,7 +103,9 @@
 
     <div class="info-col">
       <div class="header-row">
-        <span class="profile-name">{profile.name}</span>
+        <span class="profile-name">
+          {profile.name}{#if connection && targetFolderName} ⇄ {targetFolderName}{/if}
+        </span>
         <StatusPill
           status={aggregateStatus}
           text={t(`status.${aggregateStatus}`)}
@@ -105,11 +113,19 @@
       </div>
 
       {#if connection}
-        <div class="target-line">
-          <span class="arrow">→</span>
-          <Tooltip text={connection.targetPath}>
-            <span class="target-path">{targetTruncated}</span>
-          </Tooltip>
+        <div class="paths-block">
+          <div class="path-row">
+            <span class="path-label">repo:</span>
+            <Tooltip text={profile.path || `${profile.name}/`}>
+              <span class="path-val">{profile.name}/</span>
+            </Tooltip>
+          </div>
+          <div class="path-row">
+            <span class="path-label">{t("wizard.step2_name")}:</span>
+            <Tooltip text={connection.targetPath}>
+              <span class="path-val">{targetTruncated}</span>
+            </Tooltip>
+          </div>
         </div>
       {:else}
         <div class="target-line muted">
@@ -173,15 +189,17 @@
             role="menu"
             tabindex="-1"
           >
-            <button
-              type="button"
-              class="dropdown-item"
-              role="menuitem"
-              onclick={() => onchangeTarget(connection.id, profile.name)}
-            >
-              <FolderSync size={14} />
-              <span>{t("connections.card.menu_change_target")}</span>
-            </button>
+            {#if profile.path}
+              <button
+                type="button"
+                class="dropdown-item"
+                role="menuitem"
+                onclick={() => onopenExplorer(profile.path)}
+              >
+                <ExternalLink size={14} />
+                <span>{t("connections.open_repo")}</span>
+              </button>
+            {/if}
             <button
               type="button"
               class="dropdown-item"
@@ -189,7 +207,16 @@
               onclick={() => onopenExplorer(connection.targetPath)}
             >
               <ExternalLink size={14} />
-              <span>{t("connections.card.menu_open_explorer")}</span>
+              <span>{t("connections.open_target")}</span>
+            </button>
+            <button
+              type="button"
+              class="dropdown-item"
+              role="menuitem"
+              onclick={() => onchangeTarget(connection.id, profile.name)}
+            >
+              <FolderSync size={14} />
+              <span>{t("connections.change_target")}</span>
             </button>
             <button
               type="button"
@@ -198,7 +225,7 @@
               onclick={() => ondisconnect(connection.id)}
             >
               <Unlink size={14} />
-              <span>{t("connections.card.menu_disconnect")}</span>
+              <span>{t("connections.disconnect")}</span>
             </button>
           </div>
         {/if}
@@ -301,6 +328,35 @@
     font-weight: var(--weight-semibold);
     color: var(--ink);
     letter-spacing: -0.01em;
+  }
+
+  .paths-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .path-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    min-width: 0;
+  }
+
+  .path-label {
+    color: var(--text-subtle);
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 44px;
+  }
+
+  .path-val {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .target-line {
