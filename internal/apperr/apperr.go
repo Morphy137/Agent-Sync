@@ -29,6 +29,11 @@ const (
 	BackupFailed            = "backup_failed"
 	WriteFailed             = "write_failed"
 	OperationInProgress     = "operation_in_progress"
+	InvalidFolderName       = "invalid_folder_name"
+	FolderExists            = "folder_exists"
+	PathNotAbsolute         = "path_not_absolute"
+	CloneFailed             = "clone_failed"
+	DraftNotFound           = "draft_not_found"
 	Unknown                 = "unknown"
 )
 

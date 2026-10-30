@@ -52,6 +52,11 @@ describe("i18n Parity & Coverage", () => {
       "backup_failed",
       "write_failed",
       "operation_in_progress",
+      "invalid_folder_name",
+      "folder_exists",
+      "path_not_absolute",
+      "clone_failed",
+      "draft_not_found",
       "unknown",
     ];
 

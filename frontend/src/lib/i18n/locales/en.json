@@ -213,6 +213,11 @@
     "backup_failed": "Failed to create or restore safety backup snapshot. Operation aborted.",
     "write_failed": "Failed to write file to disk.",
     "operation_in_progress": "A sync operation is already in progress. Please wait.",
+    "invalid_folder_name": "The folder name contains invalid characters or is a reserved name.",
+    "folder_exists": "The folder already exists.",
+    "path_not_absolute": "The path must be an absolute path.",
+    "clone_failed": "Failed to clone repository from remote.",
+    "draft_not_found": "The connection draft was not found or has expired.",
     "unknown": "An unexpected error occurred."
   }
 }

@@ -213,6 +213,11 @@
     "backup_failed": "Error al crear o restaurar la copia de seguridad previa. Operación abortada.",
     "write_failed": "Error al escribir archivos en el disco.",
     "operation_in_progress": "Ya hay una operación de sincronización en curso. Por favor, espera.",
+    "invalid_folder_name": "El nombre de la carpeta contiene caracteres inválidos o es un nombre reservado.",
+    "folder_exists": "La carpeta ya existe.",
+    "path_not_absolute": "La ruta debe ser una ruta absoluta.",
+    "clone_failed": "Error al clonar el repositorio desde el remoto.",
+    "draft_not_found": "El borrador de conexión no fue encontrado o ha expirado.",
     "unknown": "Ocurrió un error inesperado."
   }
 }

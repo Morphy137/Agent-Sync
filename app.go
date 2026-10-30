@@ -50,6 +50,13 @@ func NewApp() *App {
 // startup is called when Wails initializes.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.svc.SetDialogFunc(func(title, defaultDir string) (string, error) {
+		return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+			Title:                title,
+			DefaultDirectory:     defaultDir,
+			CanCreateDirectories: true,
+		})
+	})
 	cfg, err := a.svc.GetConfig()
 	if err == nil && cfg != nil {
 		a.scheduler.Start(cfg.CheckIntervalMinutes)
@@ -74,11 +81,14 @@ func (a *App) UpdateSettings(payload SettingsPayload) (*config.Config, error) {
 	return cfg, nil
 }
 
+// SelectFolder opens a generic native folder selection dialog (B.2).
+func (a *App) SelectFolder(title string, defaultDir string) (string, error) {
+	return a.svc.SelectFolder(title, defaultDir)
+}
+
 // SelectRootFolder opens a native folder selection dialog with the translated title passed from the frontend (M3).
 func (a *App) SelectRootFolder(title string) (string, error) {
-	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: title,
-	})
+	return a.SelectFolder(title, "")
 }
 
 // SetRootPath updates the root path in the configuration.
@@ -93,9 +103,27 @@ func (a *App) ListProfiles() ([]profiles.Profile, error) {
 
 // SelectTargetFolder opens a native folder selection dialog with the translated title passed from the frontend (M3).
 func (a *App) SelectTargetFolder(title string) (string, error) {
-	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: title,
-	})
+	return a.SelectFolder(title, "")
+}
+
+// InspectPath inspects path properties without side-effects (B.2).
+func (a *App) InspectPath(path string) service.PathInfo {
+	return a.svc.InspectPath(path)
+}
+
+// CreateFolder creates a directory on disk after validation (B.2).
+func (a *App) CreateFolder(path string) (string, error) {
+	return a.svc.CreateFolder(path)
+}
+
+// CreateProfile creates a profile directory with a .gitkeep file inside the configured root (B.2).
+func (a *App) CreateProfile(name string) (profiles.Profile, error) {
+	return a.svc.CreateProfile(name)
+}
+
+// DetectAgentFolders returns detected agent configurations on this system (B.2).
+func (a *App) DetectAgentFolders() []service.AgentFolderSuggestion {
+	return a.svc.DetectAgentFolders()
 }
 
 // ConnectProfile connects a profile to a target directory.

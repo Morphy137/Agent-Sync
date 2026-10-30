@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"agentsync/internal/apperr"
 	"agentsync/internal/backup"
 	"agentsync/internal/config"
+	"agentsync/internal/fsops"
 	"agentsync/internal/gitops"
 	"agentsync/internal/orchestrator"
 	"agentsync/internal/profiles"
@@ -50,6 +52,23 @@ type GitInfoPayload struct {
 	UserEmail   string `json:"userEmail"`
 }
 
+// PathInfo describes the status and attributes of an inspected path (B.2).
+type PathInfo struct {
+	Normalized       string `json:"normalized"`
+	Exists           bool   `json:"exists"`
+	IsDir            bool   `json:"isDir"`
+	Writable         bool   `json:"writable"`
+	IsInsideRoot     bool   `json:"isInsideRoot"`
+	AlreadyConnected bool   `json:"alreadyConnected"`
+}
+
+// AgentFolderSuggestion represents an automatically detected agent config folder (B.2).
+type AgentFolderSuggestion struct {
+	Path             string `json:"path"`
+	Label            string `json:"label"`
+	SuggestedProfile string `json:"suggestedProfile"`
+}
+
 const (
 	PendingLinkTTL = 15 * time.Minute
 )
@@ -70,6 +89,7 @@ type Service struct {
 	orch         *orchestrator.Orchestrator
 	pendingLinks map[string]PendingLink
 	emitFunc     func(eventName string, data any)
+	dialogFunc   func(title, defaultDir string) (string, error)
 }
 
 // New creates a new Service, loading config and state once into memory.
@@ -828,4 +848,248 @@ func (s *Service) GetGitInfo() (*GitInfoPayload, error) {
 		UserName:    userName,
 		UserEmail:   userEmail,
 	}, nil
+}
+
+var windowsReservedNames = map[string]bool{
+	"CON": true, "PRN": true, "AUX": true, "NUL": true,
+	"COM1": true, "COM2": true, "COM3": true, "COM4": true,
+	"COM5": true, "COM6": true, "COM7": true, "COM8": true, "COM9": true,
+	"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true,
+	"LPT5": true, "LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
+}
+
+func isValidWindowsFolderName(name string) bool {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || trimmed != name {
+		return false
+	}
+	if strings.HasSuffix(name, ".") || strings.HasSuffix(name, " ") {
+		return false
+	}
+	for _, ch := range `<>:"/\|?*` {
+		if strings.ContainsRune(name, ch) {
+			return false
+		}
+	}
+	base := strings.ToUpper(name)
+	if idx := strings.IndexByte(base, '.'); idx != -1 {
+		base = base[:idx]
+	}
+	return !windowsReservedNames[base]
+}
+
+func expandPath(path string) string {
+	p := strings.TrimSpace(path)
+	if strings.HasPrefix(p, "~") {
+		home := os.Getenv("AGENTSYNC_HOME_OVERRIDE")
+		if home == "" {
+			home = os.Getenv("USERPROFILE")
+			if home == "" {
+				home = os.Getenv("HOME")
+			}
+		}
+		p = filepath.Join(home, strings.TrimPrefix(p, "~"))
+	}
+	return os.ExpandEnv(p)
+}
+
+// SetDialogFunc configures the folder dialog handler (e.g. Wails runtime OpenDirectoryDialog).
+func (s *Service) SetDialogFunc(fn func(title, defaultDir string) (string, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dialogFunc = fn
+}
+
+// SelectFolder opens a native folder selection dialog (B.2).
+func (s *Service) SelectFolder(title, defaultDir string) (string, error) {
+	s.mu.Lock()
+	fn := s.dialogFunc
+	s.mu.Unlock()
+
+	if fn != nil {
+		return fn(title, defaultDir)
+	}
+	return "", nil
+}
+
+// InspectPath inspects path properties without side-effects (B.2).
+func (s *Service) InspectPath(rawPath string) PathInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	expanded := expandPath(rawPath)
+	cleanPath := filepath.Clean(expanded)
+	if !filepath.IsAbs(cleanPath) {
+		cleanPath, _ = filepath.Abs(cleanPath)
+	}
+
+	fi, err := os.Stat(cleanPath)
+	exists := err == nil
+	isDir := exists && fi.IsDir()
+
+	writable := false
+	if isDir {
+		probePath := filepath.Join(cleanPath, fmt.Sprintf(".agentsync_probe_%d.tmp", time.Now().UnixNano()))
+		if err := os.WriteFile(probePath, []byte(""), 0o600); err == nil {
+			writable = true
+			_ = os.Remove(probePath)
+		}
+	} else if !exists {
+		// Probe parent directory
+		parent := filepath.Dir(cleanPath)
+		for parent != "" && parent != filepath.Dir(parent) {
+			if pfi, perr := os.Stat(parent); perr == nil && pfi.IsDir() {
+				probePath := filepath.Join(parent, fmt.Sprintf(".agentsync_probe_%d.tmp", time.Now().UnixNano()))
+				if err := os.WriteFile(probePath, []byte(""), 0o600); err == nil {
+					writable = true
+					_ = os.Remove(probePath)
+				}
+				break
+			}
+			parent = filepath.Dir(parent)
+		}
+	}
+
+	isInsideRoot := false
+	if s.cfg.RootPath != "" && exists {
+		isInsideRoot = config.IsSubdirectory(cleanPath, s.cfg.RootPath)
+	}
+
+	alreadyConnected := false
+	for _, c := range s.cfg.Connections {
+		if strings.EqualFold(filepath.Clean(c.TargetPath), cleanPath) {
+			alreadyConnected = true
+			break
+		}
+	}
+
+	return PathInfo{
+		Normalized:       cleanPath,
+		Exists:           exists,
+		IsDir:            isDir,
+		Writable:         writable,
+		IsInsideRoot:     isInsideRoot,
+		AlreadyConnected: alreadyConnected,
+	}
+}
+
+// CreateFolder creates a directory on disk after validating Windows folder naming rules (B.2).
+func (s *Service) CreateFolder(rawPath string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	expanded := expandPath(rawPath)
+	cleanPath := filepath.Clean(expanded)
+	if !filepath.IsAbs(cleanPath) {
+		return "", apperr.New(apperr.PathNotAbsolute).WithParam("path", rawPath)
+	}
+
+	vol := filepath.VolumeName(cleanPath)
+	rest := strings.TrimPrefix(cleanPath, vol)
+	parts := strings.Split(rest, string(filepath.Separator))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if !isValidWindowsFolderName(part) {
+			return "", apperr.New(apperr.InvalidFolderName).WithParam("name", part)
+		}
+	}
+
+	if fi, err := os.Stat(cleanPath); err == nil {
+		if fi.IsDir() {
+			return "", apperr.New(apperr.FolderExists).WithParam("path", cleanPath)
+		}
+		return "", apperr.New(apperr.FolderExists).WithParam("path", cleanPath)
+	}
+
+	if err := os.MkdirAll(cleanPath, fsops.DefaultDirPerms); err != nil {
+		return "", apperr.Wrap(apperr.WriteFailed, err)
+	}
+
+	return cleanPath, nil
+}
+
+// CreateProfile creates a profile directory with a .gitkeep file inside the configured root (B.2).
+func (s *Service) CreateProfile(name string) (profiles.Profile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.cfg.RootPath == "" {
+		return profiles.Profile{}, apperr.New(apperr.RootNotFound)
+	}
+
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || strings.HasPrefix(trimmed, ".") || !isValidWindowsFolderName(trimmed) {
+		return profiles.Profile{}, apperr.New(apperr.InvalidFolderName).WithParam("name", name)
+	}
+
+	profilePath := filepath.Join(s.cfg.RootPath, trimmed)
+	if _, err := os.Stat(profilePath); err == nil {
+		return profiles.Profile{}, apperr.New(apperr.FolderExists).WithParam("profile", trimmed)
+	}
+
+	for _, c := range s.cfg.Connections {
+		if strings.EqualFold(c.Profile, trimmed) {
+			return profiles.Profile{}, apperr.New(apperr.ProfileAlreadyConnected).WithParam("profile", trimmed)
+		}
+	}
+
+	if err := os.MkdirAll(profilePath, fsops.DefaultDirPerms); err != nil {
+		return profiles.Profile{}, apperr.Wrap(apperr.WriteFailed, err)
+	}
+
+	gitkeepPath := filepath.Join(profilePath, ".gitkeep")
+	if err := os.WriteFile(gitkeepPath, []byte(""), fsops.DefaultFilePerms); err != nil {
+		_ = os.RemoveAll(profilePath)
+		return profiles.Profile{}, apperr.Wrap(apperr.WriteFailed, err)
+	}
+
+	return profiles.Profile{
+		Name:      trimmed,
+		Path:      profilePath,
+		FileCount: 0,
+	}, nil
+}
+
+// DetectAgentFolders returns suggestions for standard agent folders that exist on this PC (B.2).
+func (s *Service) DetectAgentFolders() []AgentFolderSuggestion {
+	homeDir := os.Getenv("AGENTSYNC_HOME_OVERRIDE")
+	if homeDir == "" {
+		homeDir = os.Getenv("USERPROFILE")
+		if homeDir == "" {
+			homeDir = os.Getenv("HOME")
+		}
+	}
+	if homeDir == "" {
+		return []AgentFolderSuggestion{}
+	}
+
+	candidates := []struct {
+		relPath          string
+		label            string
+		suggestedProfile string
+	}{
+		{relPath: ".claude", label: "Claude Code", suggestedProfile: "CLAUDE"},
+		{relPath: ".gemini", label: "Gemini CLI", suggestedProfile: "GEMINI"},
+		{relPath: ".codex", label: "Codex", suggestedProfile: "CODEX"},
+		{relPath: filepath.Join(".config", "opencode"), label: "OpenCode", suggestedProfile: "OPENCODE"},
+	}
+
+	var suggestions []AgentFolderSuggestion
+	for _, cand := range candidates {
+		candPath := filepath.Join(homeDir, cand.relPath)
+		if fi, err := os.Stat(candPath); err == nil && fi.IsDir() {
+			suggestions = append(suggestions, AgentFolderSuggestion{
+				Path:             candPath,
+				Label:            cand.label,
+				SuggestedProfile: cand.suggestedProfile,
+			})
+		}
+	}
+
+	if suggestions == nil {
+		return []AgentFolderSuggestion{}
+	}
+	return suggestions
 }

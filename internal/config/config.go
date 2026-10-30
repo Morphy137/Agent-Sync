@@ -131,6 +131,29 @@ func Save(cfg *Config) error {
 	return fsops.AtomicWrite(configPath, data, fsops.DefaultFilePerms)
 }
 
+// IsSubdirectory returns true if childPath is equal to or inside parentPath.
+func IsSubdirectory(childPath, parentPath string) bool {
+	if parentPath == "" || childPath == "" {
+		return false
+	}
+	absParent, err := filepath.Abs(parentPath)
+	if err != nil {
+		return false
+	}
+	absChild, err := filepath.Abs(childPath)
+	if err != nil {
+		return false
+	}
+	if strings.EqualFold(absParent, absChild) {
+		return true
+	}
+	rel, err := filepath.Rel(absParent, absChild)
+	if err != nil {
+		return false
+	}
+	return !strings.HasPrefix(rel, "..") && !strings.HasPrefix(rel, "/") && !strings.HasPrefix(rel, "\\")
+}
+
 // ValidateConnection checks that a connection target is valid.
 func ValidateConnection(rootPath, targetPath string, existing []Connection, currentID string) error {
 	absTarget, err := filepath.Abs(targetPath)
@@ -146,17 +169,8 @@ func ValidateConnection(rootPath, targetPath string, existing []Connection, curr
 		return apperr.New(apperr.TargetNotFound).WithParam("path", targetPath)
 	}
 
-	if rootPath != "" {
-		absRoot, err := filepath.Abs(rootPath)
-		if err == nil {
-			if strings.EqualFold(absRoot, absTarget) {
-				return apperr.New(apperr.TargetInsideRoot).WithParam("path", targetPath)
-			}
-			rel, err := filepath.Rel(absRoot, absTarget)
-			if err == nil && !strings.HasPrefix(rel, "..") && !strings.HasPrefix(rel, "/") && !strings.HasPrefix(rel, "\\") {
-				return apperr.New(apperr.TargetInsideRoot).WithParam("path", targetPath)
-			}
-		}
+	if rootPath != "" && IsSubdirectory(absTarget, rootPath) {
+		return apperr.New(apperr.TargetInsideRoot).WithParam("path", targetPath)
 	}
 
 	for _, conn := range existing {
