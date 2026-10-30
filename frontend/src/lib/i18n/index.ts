@@ -5,10 +5,44 @@ import { localeState, type SupportedLocale } from "./localeState.svelte";
 export type { SupportedLocale };
 export type LanguageSetting = "system" | "en" | "es";
 
-const dictionaries: Record<SupportedLocale, Record<string, any>> = {
-  en,
-  es,
+type Dictionary = Record<string, any>;
+
+// Feature namespaces live in locales/<locale>/<namespace>.json and are merged over the core file.
+const namespaceModules = import.meta.glob<Dictionary>("./locales/*/*.json", {
+  eager: true,
+  import: "default",
+});
+
+function deepMerge(target: Dictionary, source: Dictionary): Dictionary {
+  for (const [key, value] of Object.entries(source)) {
+    const existing = target[key];
+    if (value && typeof value === "object" && existing && typeof existing === "object") {
+      deepMerge(existing, value);
+    } else {
+      target[key] = value;
+    }
+  }
+  return target;
+}
+
+function buildDictionary(locale: SupportedLocale, core: Dictionary): Dictionary {
+  const merged = structuredClone(core);
+  for (const [path, mod] of Object.entries(namespaceModules)) {
+    if (path.startsWith(`./locales/${locale}/`)) {
+      deepMerge(merged, mod);
+    }
+  }
+  return merged;
+}
+
+const dictionaries: Record<SupportedLocale, Dictionary> = {
+  en: buildDictionary("en", en),
+  es: buildDictionary("es", es),
 };
+
+export function getDictionary(locale: SupportedLocale): Dictionary {
+  return dictionaries[locale];
+}
 
 const listeners = new Set<(loc: SupportedLocale) => void>();
 

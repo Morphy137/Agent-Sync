@@ -21,6 +21,10 @@
   import Button from "./lib/components/Button.svelte";
   import IconButton from "./lib/components/IconButton.svelte";
   import Modal from "./lib/components/Modal.svelte";
+  import ViewTabs from "./lib/components/ViewTabs.svelte";
+  import RulesView from "./lib/views/RulesView.svelte";
+  import SubscriptionsView from "./lib/views/SubscriptionsView.svelte";
+  import LocationsView from "./lib/views/LocationsView.svelte";
 
   let backupsList = $state<backup.BackupInfo[]>([]);
   let unconnectedOpen = $state(true);
@@ -123,10 +127,7 @@
   }
 
   async function handleSyncClick() {
-    if (
-      appState.config?.confirmBeforeSync ||
-      appState.statusPlan?.direction === "conflict"
-    ) {
+    if (appState.config?.confirmBeforeSync || appState.statusPlan?.direction === "conflict") {
       try {
         const plan = await api.planSync();
         appState.statusPlan = plan;
@@ -240,7 +241,9 @@
   const connectedProfiles = $derived.by(() => {
     if (!appState.config?.connections) return [];
     return appState.config.connections.map((conn) => {
-      const prof = appState.profiles.find((p) => p.name.toLowerCase() === conn.profile.toLowerCase()) || {
+      const prof = appState.profiles.find(
+        (p) => p.name.toLowerCase() === conn.profile.toLowerCase()
+      ) || {
         name: conn.profile,
         path: `${appState.config?.rootPath || ""}/${conn.profile}`,
         fileCount: 0,
@@ -297,120 +300,130 @@
           {/if}
         </div>
 
-        <div class="connections-header">
-          <div class="connections-title-group">
-            <h2 class="section-title">{t("connections.title")}</h2>
-            <span class="section-summary">
-              {t("connections.connected_count", {
-                connected: connectedProfiles.length,
-                unconnected: unconnectedProfiles.length,
-              })}
-            </span>
-          </div>
+        <ViewTabs value={appState.activeView} onchange={(view) => (appState.activeView = view)} />
 
-          <div class="connections-header-actions">
-            <IconButton
-              label={t("titlebar.check_remote")}
-              disabled={appState.isChecking}
-              onclick={() => appState.checkRemote()}
-            >
-              <RefreshCw size={16} class={appState.isChecking ? "spin" : ""} />
-            </IconButton>
-
-            <Button
-              variant="primary"
-              size="sm"
-              onclick={() => {
-                appState.connectionWizardProfile = "";
-                appState.connectionWizardReplacesId = "";
-                appState.connectionWizardOpen = true;
-              }}
-            >
-              <Plus size={16} />
-              <span>{t("connections.add_connection")}</span>
-            </Button>
-          </div>
-        </div>
-
-        {#if connectedProfiles.length > 0}
-          <div class="profiles-grid">
-            {#each connectedProfiles as item (item.conn.id)}
-              {@const status = getStatusForConnection(item.conn.id)}
-              <ProfileCard
-                profile={item.prof}
-                connection={item.conn}
-                {status}
-                onconnect={handleConnectProfile}
-                onupdate={handleUpdateConnection}
-                onbackups={handleOpenBackups}
-                onchangeTarget={handleChangeTarget}
-                onopenExplorer={handleOpenExplorer}
-                ondisconnect={handleDisconnect}
-              />
-            {/each}
-          </div>
+        {#if appState.activeView === "rules"}
+          <RulesView />
+        {:else if appState.activeView === "subscriptions"}
+          <SubscriptionsView />
+        {:else if appState.activeView === "locations"}
+          <LocationsView />
         {:else}
-          <div class="empty-connections-card">
-            <div class="empty-icon-box">
-              <FolderSync size={32} />
-            </div>
-            <h3 class="empty-title">{t("connections.empty_title")}</h3>
-            <p class="empty-desc">{t("connections.empty_desc")}</p>
-            <Button
-              variant="primary"
-              size="md"
-              onclick={() => {
-                appState.connectionWizardProfile = "";
-                appState.connectionWizardReplacesId = "";
-                appState.connectionWizardOpen = true;
-              }}
-            >
-              <Plus size={16} />
-              <span>{t("connections.add_connection")}</span>
-            </Button>
-          </div>
-        {/if}
-
-        {#if unconnectedProfiles.length > 0}
-          <div class="unconnected-section">
-            <button
-              type="button"
-              class="unconnected-toggle"
-              onclick={() => (unconnectedOpen = !unconnectedOpen)}
-              aria-expanded={unconnectedOpen}
-            >
-              {#if unconnectedOpen}
-                <ChevronDown size={16} />
-              {:else}
-                <ChevronRight size={16} />
-              {/if}
-              <span class="unconnected-title">
-                {t("connections.unconnected_folders")} ({unconnectedProfiles.length})
+          <div class="connections-header">
+            <div class="connections-title-group">
+              <h2 class="section-title">{t("connections.title")}</h2>
+              <span class="section-summary">
+                {t("connections.connected_count", {
+                  connected: connectedProfiles.length,
+                  unconnected: unconnectedProfiles.length,
+                })}
               </span>
-            </button>
+            </div>
 
-            {#if unconnectedOpen}
-              <div class="unconnected-list">
-                {#each unconnectedProfiles as prof (prof.name)}
-                  <div class="unconnected-row">
-                    <div class="unconnected-info">
-                      <span class="unconnected-name">{prof.name}</span>
-                      <span class="unconnected-count">
-                        · {t("wizard.files_count", { count: prof.fileCount })}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onclick={() => handleConnectProfile(prof.name)}
-                    >
-                      <span>{t("connections.connect")}</span>
-                    </Button>
-                  </div>
-                {/each}
-              </div>
-            {/if}
+            <div class="connections-header-actions">
+              <IconButton
+                label={t("titlebar.check_remote")}
+                disabled={appState.isChecking}
+                onclick={() => appState.checkRemote()}
+              >
+                <RefreshCw size={16} class={appState.isChecking ? "spin" : ""} />
+              </IconButton>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onclick={() => {
+                  appState.connectionWizardProfile = "";
+                  appState.connectionWizardReplacesId = "";
+                  appState.connectionWizardOpen = true;
+                }}
+              >
+                <Plus size={16} />
+                <span>{t("connections.add_connection")}</span>
+              </Button>
+            </div>
           </div>
+
+          {#if connectedProfiles.length > 0}
+            <div class="profiles-grid">
+              {#each connectedProfiles as item (item.conn.id)}
+                {@const status = getStatusForConnection(item.conn.id)}
+                <ProfileCard
+                  profile={item.prof}
+                  connection={item.conn}
+                  {status}
+                  onconnect={handleConnectProfile}
+                  onupdate={handleUpdateConnection}
+                  onbackups={handleOpenBackups}
+                  onchangeTarget={handleChangeTarget}
+                  onopenExplorer={handleOpenExplorer}
+                  ondisconnect={handleDisconnect}
+                />
+              {/each}
+            </div>
+          {:else}
+            <div class="empty-connections-card">
+              <div class="empty-icon-box">
+                <FolderSync size={32} />
+              </div>
+              <h3 class="empty-title">{t("connections.empty_title")}</h3>
+              <p class="empty-desc">{t("connections.empty_desc")}</p>
+              <Button
+                variant="primary"
+                size="md"
+                onclick={() => {
+                  appState.connectionWizardProfile = "";
+                  appState.connectionWizardReplacesId = "";
+                  appState.connectionWizardOpen = true;
+                }}
+              >
+                <Plus size={16} />
+                <span>{t("connections.add_connection")}</span>
+              </Button>
+            </div>
+          {/if}
+
+          {#if unconnectedProfiles.length > 0}
+            <div class="unconnected-section">
+              <button
+                type="button"
+                class="unconnected-toggle"
+                onclick={() => (unconnectedOpen = !unconnectedOpen)}
+                aria-expanded={unconnectedOpen}
+              >
+                {#if unconnectedOpen}
+                  <ChevronDown size={16} />
+                {:else}
+                  <ChevronRight size={16} />
+                {/if}
+                <span class="unconnected-title">
+                  {t("connections.unconnected_folders")} ({unconnectedProfiles.length})
+                </span>
+              </button>
+
+              {#if unconnectedOpen}
+                <div class="unconnected-list">
+                  {#each unconnectedProfiles as prof (prof.name)}
+                    <div class="unconnected-row">
+                      <div class="unconnected-info">
+                        <span class="unconnected-name">{prof.name}</span>
+                        <span class="unconnected-count">
+                          · {t("wizard.files_count", { count: prof.fileCount })}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onclick={() => handleConnectProfile(prof.name)}
+                      >
+                        <span>{t("connections.connect")}</span>
+                      </Button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
         {/if}
       {:else}
         <WelcomeView onsuccess={() => appState.refreshAll()} />
@@ -452,10 +465,7 @@
     <div class="disconnect-modal-content">
       <p class="disconnect-msg">{t("connections.disconnect_confirm_msg")}</p>
       <div class="disconnect-modal-actions">
-        <Button
-          variant="secondary"
-          onclick={() => (disconnectModalConnection = null)}
-        >
+        <Button variant="secondary" onclick={() => (disconnectModalConnection = null)}>
           {t("common.cancel")}
         </Button>
         <Button

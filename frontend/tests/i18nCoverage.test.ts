@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import en from "../src/lib/i18n/locales/en.json";
+import { getDictionary } from "../src/lib/i18n";
 
 const SRC_DIR = resolve(process.cwd(), "src");
 const LOCALES_DIR = join(SRC_DIR, "lib", "i18n", "locales");
+const en = getDictionary("en");
 const SOURCE_FILE_PATTERN = /\.(svelte|ts)$/;
 const STATIC_KEY_PATTERN = /\bt\(\s*["']([a-z0-9_.]+)["']/g;
 const MARKUP_TEXT_PATTERN = />([^<>{}]*[A-Za-z]{2,}[^<>{}]*)</g;
@@ -16,6 +17,25 @@ function listSourceFiles(dir: string): string[] {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) return listSourceFiles(full);
     return SOURCE_FILE_PATTERN.test(entry.name) ? [full] : [];
+  });
+}
+
+function listLocaleFiles(locale: string): string[] {
+  const nsDir = join(LOCALES_DIR, locale);
+  const nsFiles = readdirSync(LOCALES_DIR, { withFileTypes: true }).some(
+    (e) => e.isDirectory() && e.name === locale
+  )
+    ? readdirSync(nsDir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => join(nsDir, f))
+    : [];
+  return [join(LOCALES_DIR, `${locale}.json`), ...nsFiles];
+}
+
+function leafKeys(obj: Record<string, any>, prefix = ""): string[] {
+  return Object.entries(obj).flatMap(([k, v]) => {
+    const full = prefix ? `${prefix}.${k}` : k;
+    return v && typeof v === "object" ? leafKeys(v, full) : [full];
   });
 }
 
@@ -59,9 +79,25 @@ function findDuplicateJsonKeys(raw: string): string[] {
 }
 
 describe("i18n source coverage", () => {
-  it.each(["en.json", "es.json"])("%s has no duplicate keys", (file) => {
-    const raw = readFileSync(join(LOCALES_DIR, file), "utf8");
-    expect(findDuplicateJsonKeys(raw)).toEqual([]);
+  it.each(["en", "es"])("%s locale files have no duplicate keys", (locale) => {
+    for (const file of listLocaleFiles(locale)) {
+      const raw = readFileSync(file, "utf8");
+      expect(findDuplicateJsonKeys(raw), file).toEqual([]);
+    }
+  });
+
+  it.each(["en", "es"])("%s namespace files do not redefine keys from other files", (locale) => {
+    const owners = new Map<string, string>();
+    const overlaps: string[] = [];
+    for (const file of listLocaleFiles(locale)) {
+      const keys = leafKeys(JSON.parse(readFileSync(file, "utf8")));
+      for (const key of keys) {
+        const owner = owners.get(key);
+        if (owner) overlaps.push(`${key} (${owner} & ${file})`);
+        owners.set(key, file);
+      }
+    }
+    expect(overlaps).toEqual([]);
   });
 
   it("every static t() key used in source exists in en.json", () => {

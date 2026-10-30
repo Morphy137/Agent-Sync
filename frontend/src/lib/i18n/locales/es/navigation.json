@@ -1,0 +1,9 @@
+{
+  "navigation": {
+    "aria_label": "Secciones principales",
+    "rules": "Reglas de sincronización",
+    "connections": "Conexiones de carpetas",
+    "subscriptions": "Suscripciones",
+    "locations": "Ubicaciones"
+  }
+}

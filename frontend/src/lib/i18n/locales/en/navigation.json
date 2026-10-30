@@ -1,0 +1,9 @@
+{
+  "navigation": {
+    "aria_label": "Main sections",
+    "rules": "Sync rules",
+    "connections": "Folder connections",
+    "subscriptions": "Subscriptions",
+    "locations": "Locations"
+  }
+}

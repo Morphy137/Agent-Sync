@@ -4,7 +4,10 @@ import { initTheme } from "../theme/theme";
 import { setLocale, t } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
+export type AppView = "rules" | "connections" | "subscriptions" | "locations";
+
 class AppState {
+  activeView = $state<AppView>("rules");
   config = $state<config.Config | null>(null);
   gitInfo = $state<service.GitInfoPayload | null>(null);
   profiles = $state<profiles.Profile[]>([]);

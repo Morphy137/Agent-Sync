@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import en from "../src/lib/i18n/locales/en.json";
-import es from "../src/lib/i18n/locales/es.json";
-import { t, setLocale } from "../src/lib/i18n";
+import { t, setLocale, getDictionary } from "../src/lib/i18n";
+
+const en = getDictionary("en");
+const es = getDictionary("es");
 
 function getAllKeys(obj: Record<string, any>, prefix = ""): string[] {
   let keys: string[] = [];
