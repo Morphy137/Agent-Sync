@@ -25,6 +25,7 @@
   import RulesView from "./lib/views/RulesView.svelte";
   import SubscriptionsView from "./lib/views/SubscriptionsView.svelte";
   import LocationsView from "./lib/views/LocationsView.svelte";
+  import RuleEditorModal from "./lib/components/rules/RuleEditorModal.svelte";
 
   let backupsList = $state<backup.BackupInfo[]>([]);
   let unconnectedOpen = $state(true);
@@ -37,6 +38,7 @@
     EventsOn("status:changed", (payload: orchestrator.SyncPlan) => {
       appState.handleStatusChanged(payload);
     });
+    EventsOn("rules:changed", () => appState.bumpRules());
   });
 
   async function handleSelectRoot() {
@@ -508,6 +510,8 @@
     onclose={() => (appState.gitIdentityModalOpen = false)}
     onsubmit={handleSaveGitIdentity}
   />
+
+  <RuleEditorModal />
 
   <Toast toasts={appState.toasts} ondismiss={(id) => appState.dismissToast(id)} />
 </div>

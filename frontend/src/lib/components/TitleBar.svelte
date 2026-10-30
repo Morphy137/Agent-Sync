@@ -76,6 +76,7 @@
   }
 
   const direction = $derived(appState.statusPlan?.direction || "idle");
+  const hasRuleWork = $derived((appState.statusPlan?.rulesPending ?? 0) > 0);
   const pendingCount = $derived.by(() => {
     if (!appState.statusPlan) return 0;
     const { downloads, uploads, conflicts } = appState.statusPlan;
@@ -160,7 +161,7 @@
       <Button
         variant="primary"
         size="sm"
-        disabled={direction === "idle" || appState.isSyncing}
+        disabled={(direction === "idle" && !hasRuleWork) || appState.isSyncing}
         loading={appState.isSyncing}
         onclick={onsync}
       >

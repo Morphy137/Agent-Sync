@@ -1,13 +1,43 @@
 import { api, parseError } from "../api";
-import type { config, service, orchestrator, profiles } from "../../../wailsjs/go/models";
+import type { config, service, orchestrator, profiles, rules } from "../../../wailsjs/go/models";
+import type { RuleScope } from "../api";
 import { initTheme } from "../theme/theme";
 import { setLocale, t } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
 export type AppView = "rules" | "connections" | "subscriptions" | "locations";
 
+export interface RuleEditorState {
+  open: boolean;
+  /** Existing rule to edit, or null to create a new one. */
+  rule: rules.Rule | null;
+  scope: RuleScope;
+  /** Source to preselect when creating (e.g. picked from a subscription tree). */
+  presetSource: rules.Source | null;
+}
+
 class AppState {
   activeView = $state<AppView>("rules");
+  ruleEditor = $state<RuleEditorState>({ open: false, rule: null, scope: "repo", presetSource: null });
+  /** Incremented whenever rules, locations or subscriptions change; views reload when it changes. */
+  rulesVersion = $state(0);
+
+  openRuleEditor(options: Partial<Omit<RuleEditorState, "open">> = {}) {
+    this.ruleEditor = {
+      open: true,
+      rule: options.rule ?? null,
+      scope: options.scope ?? (this.config?.rootPath ? "repo" : "local"),
+      presetSource: options.presetSource ?? null,
+    };
+  }
+
+  closeRuleEditor() {
+    this.ruleEditor = { ...this.ruleEditor, open: false };
+  }
+
+  bumpRules() {
+    this.rulesVersion++;
+  }
   config = $state<config.Config | null>(null);
   gitInfo = $state<service.GitInfoPayload | null>(null);
   profiles = $state<profiles.Profile[]>([]);
