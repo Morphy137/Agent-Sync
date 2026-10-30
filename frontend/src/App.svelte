@@ -396,7 +396,7 @@
           </div>
         {/if}
       {:else}
-        <WelcomeView onselectFolder={handleSelectRoot} />
+        <WelcomeView onsuccess={() => appState.refreshAll()} />
       {/if}
     </div>
   </main>
