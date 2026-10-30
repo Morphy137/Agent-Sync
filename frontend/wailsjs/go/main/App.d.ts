@@ -3,18 +3,36 @@
 import {service} from '../models';
 import {orchestrator} from '../models';
 import {config} from '../models';
-import {backup} from '../models';
 import {profiles} from '../models';
+import {backup} from '../models';
 
 export function AddRemote(arg1:string):Promise<void>;
 
 export function ApplyConnection(arg1:string):Promise<void>;
 
+export function BeginConnection(arg1:service.ConnectionDraftRequest):Promise<service.ConnectionDraft>;
+
+export function CancelConnection(arg1:string):Promise<void>;
+
+export function CancelPendingLink(arg1:string):Promise<void>;
+
 export function ChangeTarget(arg1:string,arg2:string):Promise<service.InitialLinkResult>;
 
 export function CheckRemote():Promise<orchestrator.SyncPlan>;
 
+export function CloneRepository(arg1:string,arg2:string,arg3:string):Promise<config.Config>;
+
+export function CommitConnection(arg1:string,arg2:Array<orchestrator.ConflictResolution>):Promise<void>;
+
 export function ConnectProfile(arg1:string,arg2:string):Promise<service.InitialLinkResult>;
+
+export function CreateFolder(arg1:string):Promise<string>;
+
+export function CreateProfile(arg1:string):Promise<profiles.Profile>;
+
+export function CreateRoot(arg1:string,arg2:string):Promise<config.Config>;
+
+export function DetectAgentFolders():Promise<Array<service.AgentFolderSuggestion>>;
 
 export function DisconnectProfile(arg1:string):Promise<config.Config>;
 
@@ -28,9 +46,13 @@ export function GetStatus():Promise<orchestrator.SyncPlan>;
 
 export function InitRepository():Promise<void>;
 
+export function InspectPath(arg1:string):Promise<service.PathInfo>;
+
 export function ListBackups(arg1:string):Promise<Array<backup.BackupInfo>>;
 
 export function ListProfiles():Promise<Array<profiles.Profile>>;
+
+export function ListTargetEntries(arg1:string,arg2:number):Promise<Array<service.TargetEntry>>;
 
 export function OpenInExplorer(arg1:string):Promise<void>;
 
@@ -39,6 +61,8 @@ export function PlanSync():Promise<orchestrator.SyncPlan>;
 export function ResolveInitialLink(arg1:string,arg2:string):Promise<void>;
 
 export function RestoreBackup(arg1:string,arg2:string):Promise<void>;
+
+export function SelectFolder(arg1:string,arg2:string):Promise<string>;
 
 export function SelectRootFolder(arg1:string):Promise<string>;
 

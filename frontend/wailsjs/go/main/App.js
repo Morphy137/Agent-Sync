@@ -10,6 +10,18 @@ export function ApplyConnection(arg1) {
   return window['go']['main']['App']['ApplyConnection'](arg1);
 }
 
+export function BeginConnection(arg1) {
+  return window['go']['main']['App']['BeginConnection'](arg1);
+}
+
+export function CancelConnection(arg1) {
+  return window['go']['main']['App']['CancelConnection'](arg1);
+}
+
+export function CancelPendingLink(arg1) {
+  return window['go']['main']['App']['CancelPendingLink'](arg1);
+}
+
 export function ChangeTarget(arg1, arg2) {
   return window['go']['main']['App']['ChangeTarget'](arg1, arg2);
 }
@@ -18,8 +30,32 @@ export function CheckRemote() {
   return window['go']['main']['App']['CheckRemote']();
 }
 
+export function CloneRepository(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CloneRepository'](arg1, arg2, arg3);
+}
+
+export function CommitConnection(arg1, arg2) {
+  return window['go']['main']['App']['CommitConnection'](arg1, arg2);
+}
+
 export function ConnectProfile(arg1, arg2) {
   return window['go']['main']['App']['ConnectProfile'](arg1, arg2);
+}
+
+export function CreateFolder(arg1) {
+  return window['go']['main']['App']['CreateFolder'](arg1);
+}
+
+export function CreateProfile(arg1) {
+  return window['go']['main']['App']['CreateProfile'](arg1);
+}
+
+export function CreateRoot(arg1, arg2) {
+  return window['go']['main']['App']['CreateRoot'](arg1, arg2);
+}
+
+export function DetectAgentFolders() {
+  return window['go']['main']['App']['DetectAgentFolders']();
 }
 
 export function DisconnectProfile(arg1) {
@@ -46,12 +82,20 @@ export function InitRepository() {
   return window['go']['main']['App']['InitRepository']();
 }
 
+export function InspectPath(arg1) {
+  return window['go']['main']['App']['InspectPath'](arg1);
+}
+
 export function ListBackups(arg1) {
   return window['go']['main']['App']['ListBackups'](arg1);
 }
 
 export function ListProfiles() {
   return window['go']['main']['App']['ListProfiles']();
+}
+
+export function ListTargetEntries(arg1, arg2) {
+  return window['go']['main']['App']['ListTargetEntries'](arg1, arg2);
 }
 
 export function OpenInExplorer(arg1) {
@@ -68,6 +112,10 @@ export function ResolveInitialLink(arg1, arg2) {
 
 export function RestoreBackup(arg1, arg2) {
   return window['go']['main']['App']['RestoreBackup'](arg1, arg2);
+}
+
+export function SelectFolder(arg1, arg2) {
+  return window['go']['main']['App']['SelectFolder'](arg1, arg2);
 }
 
 export function SelectRootFolder(arg1) {

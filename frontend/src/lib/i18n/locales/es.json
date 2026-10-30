@@ -13,6 +13,20 @@
     "dismiss_toast": "Descartar notificación",
     "toggle_switch": "Alternar opción"
   },
+  "path_field": {
+    "browse": "Examinar",
+    "create_folder": "Crear carpeta",
+    "creating": "Creando...",
+    "valid_folder": "Carpeta válida",
+    "does_not_exist": "No existe",
+    "not_a_dir": "No es una carpeta",
+    "not_writable": "Sin permisos de escritura",
+    "inside_root": "No se permite dentro del repositorio",
+    "already_connected": "Ya conectada a otro perfil",
+    "empty_path": "Escribe una ruta de carpeta",
+    "browse_dialog_title": "Seleccionar carpeta",
+    "failed_create": "No se pudo crear la carpeta: {error}"
+  },
   "titlebar": {
     "check_remote": "Buscar cambios",
     "sync_button": "Sincronizar",

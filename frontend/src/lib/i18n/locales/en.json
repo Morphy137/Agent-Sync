@@ -13,6 +13,20 @@
     "dismiss_toast": "Dismiss notification",
     "toggle_switch": "Toggle switch"
   },
+  "path_field": {
+    "browse": "Browse",
+    "create_folder": "Create folder",
+    "creating": "Creating...",
+    "valid_folder": "Valid folder",
+    "does_not_exist": "Folder does not exist",
+    "not_a_dir": "Path is not a directory",
+    "not_writable": "Folder is not writable",
+    "inside_root": "Target cannot be inside repository root",
+    "already_connected": "Folder is already connected to another profile",
+    "empty_path": "Please enter a folder path",
+    "browse_dialog_title": "Select folder",
+    "failed_create": "Could not create folder: {error}"
+  },
   "titlebar": {
     "check_remote": "Check for remote changes",
     "sync_button": "Sync",
