@@ -34,6 +34,18 @@ const (
 	PathNotAbsolute         = "path_not_absolute"
 	CloneFailed             = "clone_failed"
 	DraftNotFound           = "draft_not_found"
+	RuleNotFound            = "rule_not_found"
+	InvalidRule             = "invalid_rule"
+	SourceNotFound          = "source_not_found"
+	SourceReadOnly          = "source_read_only"
+	LocationUnmapped        = "location_unmapped"
+	LocationInvalid         = "location_invalid"
+	CollisionDetected       = "collision_detected"
+	TransformFailed         = "transform_failed"
+	InvalidRemoteURL        = "invalid_remote_url"
+	SubscriptionNotFound    = "subscription_not_found"
+	RemoteBranchNotFound    = "remote_branch_not_found"
+	RecognizersInvalid      = "recognizers_invalid"
 	Unknown                 = "unknown"
 )
 

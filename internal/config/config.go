@@ -30,17 +30,38 @@ type Connection struct {
 	CreatedAt  string `json:"createdAt"`
 }
 
+// Location maps a user-defined alias to a folder on this machine.
+// Rules stored in the repository reference aliases so they stay portable across PCs.
+type Location struct {
+	Alias string `json:"alias"`
+	Path  string `json:"path"`
+}
+
+// Subscription is a read-only remote repository whose content can feed sync rules.
+type Subscription struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	URL           string `json:"url"`
+	Branch        string `json:"branch"`
+	AutoUpdate    bool   `json:"autoUpdate"`
+	AddedAt       string `json:"addedAt"`
+	LastCheckedAt string `json:"lastCheckedAt,omitempty"`
+	LastUpdatedAt string `json:"lastUpdatedAt,omitempty"`
+}
+
 // Config stores user preferences and configured connections.
 type Config struct {
-	Version              int          `json:"version"`
-	RootPath             string       `json:"rootPath"`
-	BackupPath           string       `json:"backupPath"`
-	BackupRetention      int          `json:"backupRetention"`
-	CheckIntervalMinutes int          `json:"checkIntervalMinutes"`
-	Language             string       `json:"language"`
-	Theme                string       `json:"theme"`
-	ConfirmBeforeSync    bool         `json:"confirmBeforeSync"`
-	Connections          []Connection `json:"connections"`
+	Version              int            `json:"version"`
+	RootPath             string         `json:"rootPath"`
+	BackupPath           string         `json:"backupPath"`
+	BackupRetention      int            `json:"backupRetention"`
+	CheckIntervalMinutes int            `json:"checkIntervalMinutes"`
+	Language             string         `json:"language"`
+	Theme                string         `json:"theme"`
+	ConfirmBeforeSync    bool           `json:"confirmBeforeSync"`
+	Connections          []Connection   `json:"connections"`
+	Locations            []Location     `json:"locations"`
+	Subscriptions        []Subscription `json:"subscriptions"`
 }
 
 // GetConfigDir returns the active configuration directory.
@@ -70,6 +91,8 @@ func DefaultConfig() *Config {
 		Theme:                DefaultTheme,
 		ConfirmBeforeSync:    DefaultConfirmBeforeSync,
 		Connections:          make([]Connection, 0),
+		Locations:            make([]Location, 0),
+		Subscriptions:        make([]Subscription, 0),
 	}
 }
 
@@ -110,6 +133,12 @@ func Load() (*Config, error) {
 	}
 	if cfg.Connections == nil {
 		cfg.Connections = make([]Connection, 0)
+	}
+	if cfg.Locations == nil {
+		cfg.Locations = make([]Location, 0)
+	}
+	if cfg.Subscriptions == nil {
+		cfg.Subscriptions = make([]Subscription, 0)
 	}
 
 	return cfg, nil
