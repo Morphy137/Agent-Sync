@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"agentsync/internal/gitops"
 	"agentsync/internal/orchestrator"
 	"agentsync/internal/service"
+	"agentsync/internal/syncer"
 )
 
 func TestServiceValidationAndPendingLinks(t *testing.T) {
@@ -538,5 +540,196 @@ func TestFolderOperationsAndPathInspection(t *testing.T) {
 	selected, err := svc.SelectFolder("Pick Folder", tempDir)
 	if err != nil || selected != "selected/folder/path" {
 		t.Errorf("expected 'selected/folder/path', got '%s', err: %v", selected, err)
+	}
+}
+
+// B.2 Tests: ListTargetEntries.
+func TestListTargetEntries(t *testing.T) {
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, "target")
+	_ = os.MkdirAll(filepath.Join(targetDir, "rules"), 0o755)
+	_ = os.MkdirAll(filepath.Join(targetDir, "cache"), 0o755)
+	_ = os.MkdirAll(filepath.Join(targetDir, "level1", "level2", "level3"), 0o755)
+
+	_ = os.WriteFile(filepath.Join(targetDir, "CLAUDE.md"), []byte("claude content"), 0o644)
+	_ = os.WriteFile(filepath.Join(targetDir, "settings.json"), []byte("{}"), 0o644)
+	_ = os.WriteFile(filepath.Join(targetDir, "rules", "subrule.md"), []byte("subrule"), 0o644)
+	_ = os.WriteFile(filepath.Join(targetDir, "cache", "cached.tmp"), []byte("cache"), 0o644)
+	_ = os.WriteFile(filepath.Join(targetDir, "level1", "level2", "level3", "deep.md"), []byte("deep"), 0o644)
+
+	svc := service.New(func(eventName string, data any) {})
+
+	entries := svc.ListTargetEntries(targetDir, 2)
+	if len(entries) == 0 {
+		t.Fatalf("expected target entries, got 0")
+	}
+
+	foundCache := false
+	foundDeep := false
+	foundRules := false
+
+	for _, e := range entries {
+		if e.RelPath == "cache" {
+			foundCache = true
+			if !e.TooLarge || e.Reason != "cache_dir" {
+				t.Errorf("expected cache dir to be marked tooLarge with cache_dir reason, got %+v", e)
+			}
+		}
+		if strings.Contains(e.RelPath, "deep.md") {
+			foundDeep = true
+		}
+		if e.RelPath == "rules/subrule.md" {
+			foundRules = true
+		}
+	}
+
+	if !foundCache {
+		t.Errorf("expected cache folder to be found in entries")
+	}
+	if !foundRules {
+		t.Errorf("expected rules/subrule.md at depth 2 to be found")
+	}
+	if foundDeep {
+		t.Errorf("deep.md at depth 4 should NOT be in entries with maxDepth=2")
+	}
+}
+
+// B.2 Tests: BeginConnection and CommitConnection with import, resolutions, rollback, and replacesConnectionID.
+func TestBeginAndCommitConnection(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("AGENTSYNC_CONFIG_DIR", tempDir)
+
+	rootDir := filepath.Join(tempDir, "agent-configs")
+	_ = os.MkdirAll(rootDir, 0o755)
+
+	svc := service.New(func(eventName string, data any) {})
+	if _, err := svc.SetRootPath(rootDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Create new profile + import 2 files
+	target1 := filepath.Join(tempDir, "target1")
+	_ = os.MkdirAll(target1, 0o755)
+	_ = os.WriteFile(filepath.Join(target1, "CLAUDE.md"), []byte("# Claude target v1"), 0o644)
+	_ = os.WriteFile(filepath.Join(target1, "settings.json"), []byte(`{"key":"val"}`), 0o644)
+
+	draftReq1 := service.ConnectionDraftRequest{
+		Profile:       "CLAUDE",
+		TargetPath:    target1,
+		CreateProfile: true,
+		ImportPaths:   []string{"CLAUDE.md", "settings.json"},
+	}
+
+	draft1, err := svc.BeginConnection(draftReq1)
+	if err != nil {
+		t.Fatalf("BeginConnection failed: %v", err)
+	}
+	if len(draft1.Preview.ToImport) != 2 {
+		t.Errorf("expected 2 import paths in preview, got %d", len(draft1.Preview.ToImport))
+	}
+
+	if err := svc.CommitConnection(draft1.ID, nil); err != nil {
+		t.Fatalf("CommitConnection failed: %v", err)
+	}
+
+	// Verify profile directory and files created in repo
+	repoClaudeFile := filepath.Join(rootDir, "CLAUDE", "CLAUDE.md")
+	content, err := os.ReadFile(repoClaudeFile)
+	if err != nil || string(content) != "# Claude target v1" {
+		t.Errorf("expected repo file to contain imported content, got '%s', err: %v", string(content), err)
+	}
+
+	// 2. Existing profile with differences
+	target2 := filepath.Join(tempDir, "target2")
+	_ = os.MkdirAll(target2, 0o755)
+	_ = os.WriteFile(filepath.Join(target2, "CLAUDE.md"), []byte("# Claude target v2 diff"), 0o644)
+
+	// Another profile GEMINI
+	geminiRepo := filepath.Join(rootDir, "GEMINI")
+	_ = os.MkdirAll(geminiRepo, 0o755)
+	_ = os.WriteFile(filepath.Join(geminiRepo, "GEMINI.md"), []byte("gemini repo content"), 0o644)
+
+	targetGemini := filepath.Join(tempDir, "target-gemini")
+	_ = os.MkdirAll(targetGemini, 0o755)
+	_ = os.WriteFile(filepath.Join(targetGemini, "GEMINI.md"), []byte("gemini local content diff"), 0o644)
+
+	draftReqGemini := service.ConnectionDraftRequest{
+		Profile:       "GEMINI",
+		TargetPath:    targetGemini,
+		CreateProfile: false,
+	}
+
+	draftGemini, err := svc.BeginConnection(draftReqGemini)
+	if err != nil {
+		t.Fatalf("BeginConnection for GEMINI failed: %v", err)
+	}
+	if len(draftGemini.Preview.Differences) != 1 {
+		t.Fatalf("expected 1 difference in preview, got %d", len(draftGemini.Preview.Differences))
+	}
+
+	// Commit with keep_local resolution -> target overwrites repo
+	resolutions := []orchestrator.ConflictResolution{
+		{RelPath: "GEMINI.md", Resolution: syncer.ResolutionKeepLocal},
+	}
+	if err := svc.CommitConnection(draftGemini.ID, resolutions); err != nil {
+		t.Fatalf("CommitConnection with keep_local failed: %v", err)
+	}
+	geminiRepoContent, _ := os.ReadFile(filepath.Join(geminiRepo, "GEMINI.md"))
+	if string(geminiRepoContent) != "gemini local content diff" {
+		t.Errorf("expected repo to be updated with local version, got '%s'", geminiRepoContent)
+	}
+
+	// 3. replacesConnectionID atomically replaces old connection
+	activeConns, _ := svc.GetConfig()
+	var origClaudeConn config.Connection
+	for _, c := range activeConns.Connections {
+		if c.Profile == "CLAUDE" {
+			origClaudeConn = c
+			break
+		}
+	}
+	if origClaudeConn.ID == "" {
+		t.Fatalf("expected active CLAUDE connection")
+	}
+
+	targetClaudeNew := filepath.Join(tempDir, "claude-new-target")
+	_ = os.MkdirAll(targetClaudeNew, 0o755)
+
+	draftReplaceReq := service.ConnectionDraftRequest{
+		Profile:              "CLAUDE",
+		TargetPath:           targetClaudeNew,
+		CreateProfile:        false,
+		ReplacesConnectionID: origClaudeConn.ID,
+	}
+	draftReplace, err := svc.BeginConnection(draftReplaceReq)
+	if err != nil {
+		t.Fatalf("BeginConnection replace failed: %v", err)
+	}
+
+	// Before commit, orig connection is still active
+	cNow, _ := svc.GetConfig()
+	foundOrig := false
+	for _, c := range cNow.Connections {
+		if c.ID == origClaudeConn.ID {
+			foundOrig = true
+		}
+	}
+	if !foundOrig {
+		t.Errorf("original connection should still exist before commit")
+	}
+
+	// Commit replace
+	if err := svc.CommitConnection(draftReplace.ID, nil); err != nil {
+		t.Fatalf("CommitConnection replace failed: %v", err)
+	}
+
+	cAfter, _ := svc.GetConfig()
+	for _, c := range cAfter.Connections {
+		if c.ID == origClaudeConn.ID {
+			t.Errorf("original connection %s should have been replaced!", origClaudeConn.ID)
+		}
+		if c.Profile == "CLAUDE" && c.TargetPath != targetClaudeNew {
+			t.Errorf("expected target to be updated to %s, got %s", targetClaudeNew, c.TargetPath)
+		}
 	}
 }

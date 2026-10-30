@@ -69,6 +69,52 @@ type AgentFolderSuggestion struct {
 	SuggestedProfile string `json:"suggestedProfile"`
 }
 
+// TargetEntry represents a file or directory inside a destination folder (B.2).
+type TargetEntry struct {
+	RelPath   string `json:"relPath"`
+	IsDir     bool   `json:"isDir"`
+	Size      int64  `json:"size"`
+	FileCount int    `json:"fileCount"`
+	TooLarge  bool   `json:"tooLarge"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// ConnectionDraftRequest defines the payload for creating a connection draft (B.2).
+type ConnectionDraftRequest struct {
+	Profile              string   `json:"profile"`
+	TargetPath           string   `json:"targetPath"`
+	CreateProfile        bool     `json:"createProfile"`
+	ImportPaths          []string `json:"importPaths"`
+	ReplacesConnectionID string   `json:"replacesConnectionId,omitempty"`
+}
+
+// DraftDifference describes a file existing in both target and repo with differing contents.
+type DraftDifference struct {
+	RelPath    string `json:"relPath"`
+	RepoHash   string `json:"repoHash"`
+	TargetHash string `json:"targetHash"`
+}
+
+// ConnectionDraftPreview provides calculated preview information for a draft (B.2).
+type ConnectionDraftPreview struct {
+	ToImport         []string          `json:"toImport"`
+	ToCreateInTarget []string          `json:"toCreateInTarget"`
+	ToOverwrite      []string          `json:"toOverwrite"`
+	Differences      []DraftDifference `json:"differences"`
+}
+
+// ConnectionDraft represents an in-flight connection configuration being created in the wizard (B.2).
+type ConnectionDraft struct {
+	ID                   string                 `json:"id"`
+	Profile              string                 `json:"profile"`
+	TargetPath           string                 `json:"targetPath"`
+	CreateProfile        bool                   `json:"createProfile"`
+	ImportPaths          []string               `json:"importPaths"`
+	ReplacesConnectionID string                 `json:"replacesConnectionId,omitempty"`
+	CreatedAt            time.Time              `json:"createdAt"`
+	Preview              ConnectionDraftPreview `json:"preview"`
+}
+
 const (
 	PendingLinkTTL = 15 * time.Minute
 )
@@ -88,6 +134,7 @@ type Service struct {
 	st           *state.State
 	orch         *orchestrator.Orchestrator
 	pendingLinks map[string]PendingLink
+	drafts       map[string]*ConnectionDraft
 	emitFunc     func(eventName string, data any)
 	dialogFunc   func(title, defaultDir string) (string, error)
 }
@@ -108,6 +155,19 @@ func New(emitFunc func(eventName string, data any)) *Service {
 		st:           st,
 		orch:         orchestrator.New(),
 		pendingLinks: make(map[string]PendingLink),
+		drafts:       make(map[string]*ConnectionDraft),
+		emitFunc:     emitFunc,
+	}
+}
+
+// NewWithInstances creates a Service with explicitly supplied config and state (for unit testing).
+func NewWithInstances(cfg *config.Config, st *state.State, orch *orchestrator.Orchestrator, emitFunc func(eventName string, data any)) *Service {
+	return &Service{
+		cfg:          cfg,
+		st:           st,
+		orch:         orch,
+		pendingLinks: make(map[string]PendingLink),
+		drafts:       make(map[string]*ConnectionDraft),
 		emitFunc:     emitFunc,
 	}
 }
@@ -117,6 +177,11 @@ func (s *Service) cleanExpiredPendingLinksLocked() {
 	for id, p := range s.pendingLinks {
 		if now.Sub(p.CreatedAt) > PendingLinkTTL {
 			delete(s.pendingLinks, id)
+		}
+	}
+	for id, d := range s.drafts {
+		if now.Sub(d.CreatedAt) > PendingLinkTTL {
+			delete(s.drafts, id)
 		}
 	}
 }
@@ -142,6 +207,7 @@ func (s *Service) ReloadFromDisk() error {
 	s.cfg = cfg
 	s.st = st
 	s.pendingLinks = make(map[string]PendingLink)
+	s.drafts = make(map[string]*ConnectionDraft)
 	return nil
 }
 
@@ -1092,4 +1158,365 @@ func (s *Service) DetectAgentFolders() []AgentFolderSuggestion {
 		return []AgentFolderSuggestion{}
 	}
 	return suggestions
+}
+
+var DefaultExcludedFolderNames = map[string]bool{
+	"projects":        true,
+	"todos":           true,
+	"statsig":         true,
+	"shell-snapshots": true,
+	"logs":            true,
+	"cache":           true,
+	"tmp":             true,
+	"node_modules":    true,
+	".git":            true,
+}
+
+const (
+	MaxTargetEntryFiles = 2000
+	MaxTargetEntryBytes = 50 * 1024 * 1024 // 50 MB
+)
+
+// scanDirStats recursively counts files and total size inside a directory.
+func scanDirStats(dir string) (int, int64) {
+	var count int
+	var size int64
+	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			count++
+			size += info.Size()
+		}
+		return nil
+	})
+	return count, size
+}
+
+// ListTargetEntries returns the tree of destination files and folders up to maxDepth (B.2).
+func (s *Service) ListTargetEntries(rawPath string, maxDepth int) []TargetEntry {
+	if maxDepth <= 0 {
+		maxDepth = 2
+	}
+
+	cleanTarget := filepath.Clean(expandPath(rawPath))
+	fi, err := os.Stat(cleanTarget)
+	if err != nil || !fi.IsDir() {
+		return []TargetEntry{}
+	}
+
+	var results []TargetEntry
+
+	var walk func(currentDir string, depth int)
+	walk = func(currentDir string, depth int) {
+		if depth > maxDepth {
+			return
+		}
+
+		entries, err := os.ReadDir(currentDir)
+		if err != nil {
+			return
+		}
+
+		for _, entry := range entries {
+			name := entry.Name()
+			fullPath := filepath.Join(currentDir, name)
+			rel, err := filepath.Rel(cleanTarget, fullPath)
+			if err != nil {
+				continue
+			}
+			relSlash := filepath.ToSlash(rel)
+
+			if entry.IsDir() {
+				lowerName := strings.ToLower(name)
+				if DefaultExcludedFolderNames[lowerName] {
+					results = append(results, TargetEntry{
+						RelPath:  relSlash,
+						IsDir:    true,
+						TooLarge: true,
+						Reason:   "cache_dir",
+					})
+					continue
+				}
+
+				count, size := scanDirStats(fullPath)
+				tooLarge := count > MaxTargetEntryFiles || size > MaxTargetEntryBytes
+				reason := ""
+				if tooLarge {
+					reason = "too_large"
+				}
+
+				results = append(results, TargetEntry{
+					RelPath:   relSlash,
+					IsDir:     true,
+					Size:      size,
+					FileCount: count,
+					TooLarge:  tooLarge,
+					Reason:    reason,
+				})
+
+				if !tooLarge && depth < maxDepth {
+					walk(fullPath, depth+1)
+				}
+			} else {
+				if fsops.ShouldIgnore(name) {
+					continue
+				}
+				info, err := entry.Info()
+				if err != nil {
+					continue
+				}
+				results = append(results, TargetEntry{
+					RelPath:   relSlash,
+					IsDir:     false,
+					Size:      info.Size(),
+					FileCount: 1,
+					TooLarge:  false,
+				})
+			}
+		}
+	}
+
+	walk(cleanTarget, 1)
+
+	if results == nil {
+		return []TargetEntry{}
+	}
+	return results
+}
+
+// BeginConnection prepares and returns a connection draft preview without writing to disk (B.2).
+func (s *Service) BeginConnection(req ConnectionDraftRequest) (*ConnectionDraft, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cleanExpiredPendingLinksLocked()
+
+	if s.cfg.RootPath == "" {
+		return nil, apperr.New(apperr.RootNotFound)
+	}
+
+	trimmedProfile := strings.TrimSpace(req.Profile)
+	if trimmedProfile == "" {
+		return nil, apperr.New(apperr.InvalidFolderName).WithParam("name", req.Profile)
+	}
+
+	if !isValidWindowsFolderName(trimmedProfile) || strings.HasPrefix(trimmedProfile, ".") {
+		return nil, apperr.New(apperr.InvalidFolderName).WithParam("name", req.Profile)
+	}
+
+	profileDir := filepath.Join(s.cfg.RootPath, trimmedProfile)
+
+	if req.CreateProfile {
+		if _, err := os.Stat(profileDir); err == nil {
+			return nil, apperr.New(apperr.FolderExists).WithParam("profile", trimmedProfile)
+		}
+		for _, c := range s.cfg.Connections {
+			if strings.EqualFold(c.Profile, trimmedProfile) && c.ID != req.ReplacesConnectionID {
+				return nil, apperr.New(apperr.ProfileAlreadyConnected).WithParam("profile", trimmedProfile)
+			}
+		}
+	} else {
+		fi, err := os.Stat(profileDir)
+		if err != nil || !fi.IsDir() {
+			return nil, apperr.New(apperr.ProfileNotFound).WithParam("profile", trimmedProfile)
+		}
+		for _, c := range s.cfg.Connections {
+			if strings.EqualFold(c.Profile, trimmedProfile) && c.ID != req.ReplacesConnectionID {
+				return nil, apperr.New(apperr.ProfileAlreadyConnected).WithParam("profile", trimmedProfile)
+			}
+		}
+	}
+
+	targetClean := filepath.Clean(expandPath(req.TargetPath))
+	if err := config.ValidateConnection(s.cfg.RootPath, targetClean, s.cfg.Connections, req.ReplacesConnectionID); err != nil {
+		return nil, err
+	}
+
+	preview := ConnectionDraftPreview{
+		ToImport:         make([]string, 0),
+		ToCreateInTarget: make([]string, 0),
+		ToOverwrite:      make([]string, 0),
+		Differences:      make([]DraftDifference, 0),
+	}
+
+	for _, ip := range req.ImportPaths {
+		cleanIP := filepath.ToSlash(filepath.Clean(ip))
+		if cleanIP != "" && cleanIP != "." {
+			preview.ToImport = append(preview.ToImport, cleanIP)
+		}
+	}
+
+	if !req.CreateProfile {
+		repoFiles, err := fsops.WalkManaged(profileDir)
+		if err == nil {
+			for relPath, absRepoFile := range repoFiles {
+				if fsops.ShouldIgnore(filepath.Base(relPath)) {
+					continue
+				}
+				targetFilePath := filepath.Join(targetClean, filepath.FromSlash(relPath))
+				tfi, err := os.Stat(targetFilePath)
+				if err != nil || tfi.IsDir() {
+					preview.ToCreateInTarget = append(preview.ToCreateInTarget, relPath)
+				} else {
+					repoHash, _ := fsops.HashFile(absRepoFile)
+					targetHash, _ := fsops.HashFile(targetFilePath)
+					if repoHash != targetHash {
+						preview.Differences = append(preview.Differences, DraftDifference{
+							RelPath:    relPath,
+							RepoHash:   repoHash,
+							TargetHash: targetHash,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	draft := &ConnectionDraft{
+		ID:                   generateID(),
+		Profile:              trimmedProfile,
+		TargetPath:           targetClean,
+		CreateProfile:        req.CreateProfile,
+		ImportPaths:          preview.ToImport,
+		ReplacesConnectionID: req.ReplacesConnectionID,
+		CreatedAt:            time.Now(),
+		Preview:              preview,
+	}
+
+	s.drafts[draft.ID] = draft
+	return draft, nil
+}
+
+// CommitConnection applies a connection draft with automatic rollback on error (B.2).
+func (s *Service) CommitConnection(draftID string, resolutions []orchestrator.ConflictResolution) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cleanExpiredPendingLinksLocked()
+
+	draft, ok := s.drafts[draftID]
+	if !ok {
+		return apperr.New(apperr.DraftNotFound).WithParam("draftId", draftID)
+	}
+
+	var createdProfileDir string
+	var importedRepoFiles []string
+
+	rollback := func() {
+		for _, f := range importedRepoFiles {
+			_ = os.Remove(f)
+		}
+		if createdProfileDir != "" {
+			_ = os.RemoveAll(createdProfileDir)
+		}
+	}
+
+	profileDir := filepath.Join(s.cfg.RootPath, draft.Profile)
+
+	// 1. Create profile folder if needed
+	if draft.CreateProfile {
+		if err := os.MkdirAll(profileDir, fsops.DefaultDirPerms); err != nil {
+			return apperr.Wrap(apperr.WriteFailed, err)
+		}
+		createdProfileDir = profileDir
+
+		gitkeepPath := filepath.Join(profileDir, ".gitkeep")
+		if err := os.WriteFile(gitkeepPath, []byte(""), fsops.DefaultFilePerms); err != nil {
+			rollback()
+			return apperr.Wrap(apperr.WriteFailed, err)
+		}
+	}
+
+	// 2. Import selected files from target to repo
+	for _, relPath := range draft.ImportPaths {
+		src := filepath.Join(draft.TargetPath, filepath.FromSlash(relPath))
+		dst := filepath.Join(profileDir, filepath.FromSlash(relPath))
+		if fi, err := os.Stat(src); err == nil && !fi.IsDir() {
+			if err := fsops.AtomicCopy(src, dst); err != nil {
+				rollback()
+				return apperr.Wrap(apperr.WriteFailed, err)
+			}
+			importedRepoFiles = append(importedRepoFiles, dst)
+		}
+	}
+
+	resolutionMap := make(map[string]string)
+	for _, r := range resolutions {
+		resolutionMap[r.RelPath] = r.Resolution
+	}
+
+	var filesToApplyToTarget []string
+	for _, diff := range draft.Preview.Differences {
+		res := resolutionMap[diff.RelPath]
+		if res == syncer.ResolutionKeepLocal {
+			src := filepath.Join(draft.TargetPath, filepath.FromSlash(diff.RelPath))
+			dst := filepath.Join(profileDir, filepath.FromSlash(diff.RelPath))
+			if err := fsops.AtomicCopy(src, dst); err != nil {
+				rollback()
+				return apperr.Wrap(apperr.WriteFailed, err)
+			}
+			importedRepoFiles = append(importedRepoFiles, dst)
+		} else {
+			filesToApplyToTarget = append(filesToApplyToTarget, diff.RelPath)
+		}
+	}
+
+	filesToApplyToTarget = append(filesToApplyToTarget, draft.Preview.ToCreateInTarget...)
+
+	newConn := config.Connection{
+		ID:         generateID(),
+		Profile:    draft.Profile,
+		TargetPath: draft.TargetPath,
+		CreatedAt:  config.FormatRFC3339(time.Now()),
+	}
+
+	// 3. Apply files to target with mandatory safety backup
+	if len(filesToApplyToTarget) > 0 {
+		allConns := append(append([]config.Connection{}, s.cfg.Connections...), newConn)
+		if _, err := syncer.Apply(s.cfg.RootPath, newConn, allConns, s.cfg.BackupPath, filesToApplyToTarget, s.st, s.cfg.BackupRetention, backup.ReasonInitialLink); err != nil {
+			rollback()
+			return err
+		}
+	}
+
+	// 4. Update config connections (atomically replacing replaced connection if applicable)
+	if draft.ReplacesConnectionID != "" {
+		var updatedConns []config.Connection
+		for _, c := range s.cfg.Connections {
+			if c.ID != draft.ReplacesConnectionID {
+				updatedConns = append(updatedConns, c)
+			}
+		}
+		s.cfg.Connections = updatedConns
+		delete(s.st.Baselines, draft.ReplacesConnectionID)
+	}
+
+	s.cfg.Connections = append(s.cfg.Connections, newConn)
+
+	syncer.ReconcileBaselines(s.cfg.RootPath, newConn, s.st)
+	_ = s.st.Save()
+
+	if err := config.Save(s.cfg); err != nil {
+		rollback()
+		return err
+	}
+
+	delete(s.drafts, draftID)
+
+	if plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, false); err == nil {
+		s.emitPlanLocked(plan)
+	}
+
+	return nil
+}
+
+// CancelConnection discards a connection draft (B.2).
+func (s *Service) CancelConnection(draftID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.drafts, draftID)
+	return nil
 }

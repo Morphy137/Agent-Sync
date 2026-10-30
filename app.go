@@ -218,3 +218,23 @@ func (a *App) SetGitIdentity(name string, email string) error {
 func (a *App) GetGitInfo() (*GitInfoPayload, error) {
 	return a.svc.GetGitInfo()
 }
+
+// ListTargetEntries lists files and folders inside a destination folder (B.2).
+func (a *App) ListTargetEntries(path string, maxDepth int) []service.TargetEntry {
+	return a.svc.ListTargetEntries(path, maxDepth)
+}
+
+// BeginConnection prepares and returns a connection draft (B.2).
+func (a *App) BeginConnection(req service.ConnectionDraftRequest) (*service.ConnectionDraft, error) {
+	return a.svc.BeginConnection(req)
+}
+
+// CommitConnection executes and saves a connection draft (B.2).
+func (a *App) CommitConnection(draftID string, resolutions []orchestrator.ConflictResolution) error {
+	return a.svc.CommitConnection(draftID, resolutions)
+}
+
+// CancelConnection discards a connection draft (B.2).
+func (a *App) CancelConnection(draftID string) error {
+	return a.svc.CancelConnection(draftID)
+}
