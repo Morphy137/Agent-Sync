@@ -238,3 +238,13 @@ func (a *App) CommitConnection(draftID string, resolutions []orchestrator.Confli
 func (a *App) CancelConnection(draftID string) error {
 	return a.svc.CancelConnection(draftID)
 }
+
+// CreateRoot creates a directory and sets it as the repository root (B.2).
+func (a *App) CreateRoot(parentDir string, name string) (*config.Config, error) {
+	return a.svc.CreateRoot(parentDir, name)
+}
+
+// CloneRepository clones a remote repository into a target folder and sets it as root (B.2).
+func (a *App) CloneRepository(url string, parentDir string, name string) (*config.Config, error) {
+	return a.svc.CloneRepository(url, parentDir, name)
+}

@@ -733,3 +733,89 @@ func TestBeginAndCommitConnection(t *testing.T) {
 		}
 	}
 }
+
+// B.2 Tests: CreateRoot and CloneRepository
+func TestCreateRootAndCloneRepository(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("AGENTSYNC_CONFIG_DIR", tempDir)
+
+	svc := service.New(func(eventName string, data any) {})
+
+	// 1. CreateRoot validations
+	_, err := svc.CreateRoot("relative/path", "my-root")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.PathNotAbsolute {
+		t.Errorf("expected PathNotAbsolute, got %v", err)
+	}
+
+	_, err = svc.CreateRoot(tempDir, "invalid*name")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.InvalidFolderName {
+		t.Errorf("expected InvalidFolderName, got %v", err)
+	}
+
+	_, err = svc.CreateRoot(filepath.Join(tempDir, "nonexistent"), "my-root")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.TargetNotFound {
+		t.Errorf("expected TargetNotFound, got %v", err)
+	}
+
+	// Successful CreateRoot
+	cfg, err := svc.CreateRoot(tempDir, "new-root")
+	if err != nil {
+		t.Fatalf("CreateRoot failed: %v", err)
+	}
+	expectedRoot := filepath.Join(tempDir, "new-root")
+	if cfg.RootPath != expectedRoot {
+		t.Errorf("expected root path %s, got %s", expectedRoot, cfg.RootPath)
+	}
+	if fi, err := os.Stat(expectedRoot); err != nil || !fi.IsDir() {
+		t.Errorf("expected root folder to exist on disk as directory")
+	}
+
+	// Folder already exists
+	_, err = svc.CreateRoot(tempDir, "new-root")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.FolderExists {
+		t.Errorf("expected FolderExists, got %v", err)
+	}
+
+	// 2. CloneRepository validations
+	_, err = svc.CloneRepository("", tempDir, "cloned-root")
+	if err == nil {
+		t.Errorf("expected error for empty clone URL")
+	}
+
+	_, err = svc.CloneRepository("https://github.com/example/repo.git", "relative/path", "cloned-root")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.PathNotAbsolute {
+		t.Errorf("expected PathNotAbsolute, got %v", err)
+	}
+
+	_, err = svc.CloneRepository("https://github.com/example/repo.git", tempDir, "NUL")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.InvalidFolderName {
+		t.Errorf("expected InvalidFolderName, got %v", err)
+	}
+
+	// Setup a local bare git repo to clone from
+	bareDir := filepath.Join(tempDir, "remote.git")
+	_ = os.MkdirAll(bareDir, 0o755)
+	initCmd := exec.Command("git", "init", "--bare", bareDir)
+	if out, err := initCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare failed: %v: %s", err, string(out))
+	}
+
+	// Successful clone
+	cfg, err = svc.CloneRepository(bareDir, tempDir, "cloned-root")
+	if err != nil {
+		t.Fatalf("CloneRepository failed: %v", err)
+	}
+	expectedCloned := filepath.Join(tempDir, "cloned-root")
+	if cfg.RootPath != expectedCloned {
+		t.Errorf("expected root path %s, got %s", expectedCloned, cfg.RootPath)
+	}
+	if !gitops.IsRepo(expectedCloned) {
+		t.Errorf("expected cloned folder to be a git repository")
+	}
+
+	// Existing folder returns FolderExists
+	_, err = svc.CloneRepository(bareDir, tempDir, "cloned-root")
+	if appErr, ok := err.(*apperr.Error); !ok || appErr.Code != apperr.FolderExists {
+		t.Errorf("expected FolderExists, got %v", err)
+	}
+}

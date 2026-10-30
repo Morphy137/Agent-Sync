@@ -1520,3 +1520,89 @@ func (s *Service) CancelConnection(draftID string) error {
 	delete(s.drafts, draftID)
 	return nil
 }
+
+// CreateRoot creates a directory and sets it as the repository root (B.2).
+func (s *Service) CreateRoot(parentDir, name string) (*config.Config, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if parentDir == "" || !filepath.IsAbs(parentDir) {
+		return nil, apperr.New(apperr.PathNotAbsolute).WithParam("path", parentDir)
+	}
+
+	trimmedName := strings.TrimSpace(name)
+	if trimmedName == "" || !isValidWindowsFolderName(trimmedName) {
+		return nil, apperr.New(apperr.InvalidFolderName).WithParam("name", name)
+	}
+
+	fi, err := os.Stat(parentDir)
+	if err != nil || !fi.IsDir() {
+		return nil, apperr.New(apperr.TargetNotFound).WithParam("path", parentDir)
+	}
+
+	rootPath := filepath.Join(parentDir, trimmedName)
+	if _, err := os.Stat(rootPath); err == nil {
+		return nil, apperr.New(apperr.FolderExists).WithParam("path", rootPath)
+	}
+
+	if err := os.MkdirAll(rootPath, fsops.DefaultDirPerms); err != nil {
+		return nil, apperr.Wrap(apperr.WriteFailed, err)
+	}
+
+	s.cfg.RootPath = rootPath
+	if err := config.Save(s.cfg); err != nil {
+		return nil, err
+	}
+
+	s.reconcileAllLocked()
+	if plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, false); err == nil {
+		s.emitPlanLocked(plan)
+	}
+
+	return cloneConfig(s.cfg), nil
+}
+
+// CloneRepository clones a remote repository into a target folder and sets it as root (B.2).
+func (s *Service) CloneRepository(url, parentDir, name string) (*config.Config, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if strings.TrimSpace(url) == "" {
+		return nil, apperr.New(apperr.CloneFailed).WithParam("reason", "empty url")
+	}
+
+	if parentDir == "" || !filepath.IsAbs(parentDir) {
+		return nil, apperr.New(apperr.PathNotAbsolute).WithParam("path", parentDir)
+	}
+
+	trimmedName := strings.TrimSpace(name)
+	if trimmedName == "" || !isValidWindowsFolderName(trimmedName) {
+		return nil, apperr.New(apperr.InvalidFolderName).WithParam("name", name)
+	}
+
+	fi, err := os.Stat(parentDir)
+	if err != nil || !fi.IsDir() {
+		return nil, apperr.New(apperr.TargetNotFound).WithParam("path", parentDir)
+	}
+
+	rootPath := filepath.Join(parentDir, trimmedName)
+	if _, err := os.Stat(rootPath); err == nil {
+		return nil, apperr.New(apperr.FolderExists).WithParam("path", rootPath)
+	}
+
+	if err := gitops.Clone(url, rootPath); err != nil {
+		return nil, err
+	}
+
+	s.cfg.RootPath = rootPath
+	if err := config.Save(s.cfg); err != nil {
+		return nil, err
+	}
+
+	s.reconcileAllLocked()
+	if plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, false); err == nil {
+		s.emitPlanLocked(plan)
+	}
+
+	return cloneConfig(s.cfg), nil
+}

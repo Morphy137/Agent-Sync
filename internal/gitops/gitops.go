@@ -17,6 +17,7 @@ import (
 
 const (
 	GitCommandTimeout = 60 * time.Second
+	CloneTimeout      = 5 * time.Minute
 )
 
 // ChangedPath represents a file changed in git status.
@@ -213,6 +214,41 @@ func Init(root string) error {
 		_, _ = runner.runCmd("commit", "-m", "chore: initialize agent configs repository")
 	}
 
+	return nil
+}
+
+// Clone clones a git repository from url into targetPath (B.2).
+func Clone(url, targetPath string) error {
+	if !IsInstalled() {
+		return apperr.New(apperr.GitNotInstalled)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), CloneTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "clone", url, targetPath)
+	cmd.SysProcAttr = getSysProcAttr()
+	cmd.Env = append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"LC_ALL=C",
+	)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		combined := strings.TrimSpace(stderr.String())
+		if combined == "" {
+			combined = strings.TrimSpace(stdout.String())
+		}
+		mapped := mapGitError(err, combined)
+		if appErr, ok := mapped.(*apperr.Error); ok && appErr.Code != apperr.Unknown {
+			return appErr
+		}
+		return apperr.Wrap(apperr.CloneFailed, fmt.Errorf("%w: %s", err, combined))
+	}
 	return nil
 }
 
