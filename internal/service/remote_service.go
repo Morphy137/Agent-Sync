@@ -127,7 +127,8 @@ func (s *Service) RemoveSubscription(id string) error {
 	for _, r := range localFile.Rules {
 		if r.Source.Origin == rules.OriginSubscription && r.Source.Subscription == id {
 			for _, d := range r.Destinations {
-				s.st.RemoveConnection(rulesync.BaselinePrefix + r.ID + ":" + d.ID)
+				s.st.RemoveConnection(rulesync.BaselineKey(r.ID, d.ID))
+				s.st.RemoveConnection(rulesync.ManagedKey(r.ID, d.ID))
 			}
 			continue
 		}

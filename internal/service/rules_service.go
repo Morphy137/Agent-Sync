@@ -339,7 +339,8 @@ func (s *Service) DeleteRule(id string) error {
 	}
 
 	for _, d := range removed.Destinations {
-		s.st.RemoveConnection(rulesync.BaselinePrefix + removed.ID + ":" + d.ID)
+		s.st.RemoveConnection(rulesync.BaselineKey(removed.ID, d.ID))
+		s.st.RemoveConnection(rulesync.ManagedKey(removed.ID, d.ID))
 	}
 	if err := s.st.Save(); err != nil {
 		return err

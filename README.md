@@ -2,6 +2,21 @@
 
 AgentSync is a high-performance, lightweight desktop application built with Go, Wails v2, and Svelte 5. It keeps your AI agent configuration files (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, prompt templates, custom slash commands, etc.) synchronized across multiple machines via a versioned Git root folder.
 
+Edit a file once and AgentSync writes it everywhere it is needed — with the name each destination
+expects (`AGENTS.md` → `CLAUDE.md`, `GEMINI.md`, …) — versioned in git and backed up before every change.
+It is not limited to AI agents: any file or folder can be synced to any folder (another project, an
+Obsidian vault, …).
+
+## Documentation
+
+| Guide | What it covers |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the program works: concepts, code map, sync flow, safety guarantees |
+| [docs/SYNC_RULES.md](docs/SYNC_RULES.md) | Sync rules, locations, scopes, modes, transforms, collisions, rule files |
+| [docs/RECOGNIZERS.md](docs/RECOGNIZERS.md) | Content/agent detection and the `recognizers.json` file |
+| [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md) | Remote connection, shared repositories (subscriptions), reviewing diffs |
+| [docs/design/sync-rules-spec.md](docs/design/sync-rules-spec.md) | Developer contract for the rules engine packages |
+
 ---
 
 ## Architecture & Conceptual Diagram
@@ -46,6 +61,12 @@ AgentSync is a high-performance, lightweight desktop application built with Go, 
 
 ## Key Features
 
+- **Generic Sync Rules (one source → many destinations):** Any file or folder in the repository (or on this PC, or in a subscribed repo) can be written to any number of destinations, each with its own final name, mode (two-way, one-way, create-only) and optional transform. Destinations use per-PC **location aliases**, so shared rules in `agentsync.rules.json` work on every computer. See [docs/SYNC_RULES.md](docs/SYNC_RULES.md).
+- **Detection Without Hardcoding:** Skills, MCP configs and instruction files are detected from their content, and agent folders (Claude Code, Codex, Gemini CLI, OpenCode, Antigravity…) are recognized from data in an editable `recognizers.json` to suggest the right path, name and transform. See [docs/RECOGNIZERS.md](docs/RECOGNIZERS.md).
+- **MCP Config Merging:** `json_merge` / `toml_merge` transforms write only the MCP servers AgentSync owns into `~/.claude.json`, `settings.json` or `config.toml`, preserving everything else.
+- **Collision Warnings:** Two rules targeting the same file, overlapping folders, cycles or case conflicts are always reported and block the involved destinations — never resolved silently.
+- **Subscriptions:** Paste the URL of a shared repository, pick only the folders/files you want (e.g. one skill) and stay updated; incoming changes are listed with diffs. See [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md).
+- **Lossless Remote Connection & Diff Review:** Connect a folder to a remote even if it is not a repo yet; local history is kept in a backup branch and local differences are reviewed file by file in a diff view (keep yours, take the repository version, or edit a merged version).
 - **Connection-Centric Dashboard & Step-by-Step Connection Wizard:** Focuses on active connections between repository profiles and local target directories. Includes a 3-step Connection Wizard (repository profile selection/creation -> target folder selection with live validation & selective file import -> diff preview & conflict resolution) with pre-action safety backups.
 - **PathField Component & Universal Folder Navigation:** Every path input throughout the app (onboarding, wizard, settings) supports direct manual typing, live inspection and validation, native system folder picker dialogs, suggestions chips (Claude Code, Gemini, Codex, OpenCode), and inline folder creation.
 - **Flexible Onboarding (Select, Create, Clone):** Welcome screen supports selecting an existing repository, creating and initializing a new Git repository folder, or cloning a remote repository directly from HTTPS/SSH URLs.
