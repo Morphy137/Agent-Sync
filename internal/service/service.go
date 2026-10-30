@@ -50,6 +50,17 @@ type GitInfoPayload struct {
 	UserEmail   string `json:"userEmail"`
 }
 
+const (
+	PendingLinkTTL = 15 * time.Minute
+)
+
+// PendingLink stores an in-flight connection awaiting user resolution (R2, R3).
+type PendingLink struct {
+	Connection           config.Connection
+	ReplacesConnectionID string
+	CreatedAt            time.Time
+}
+
 // Service owns the single in-memory *config.Config and *state.State instances
 // and serializes all state and git operations behind a global mutex (C3).
 type Service struct {
@@ -57,7 +68,7 @@ type Service struct {
 	cfg          *config.Config
 	st           *state.State
 	orch         *orchestrator.Orchestrator
-	pendingLinks map[string]config.Connection
+	pendingLinks map[string]PendingLink
 	emitFunc     func(eventName string, data any)
 }
 
@@ -76,8 +87,17 @@ func New(emitFunc func(eventName string, data any)) *Service {
 		cfg:          cfg,
 		st:           st,
 		orch:         orchestrator.New(),
-		pendingLinks: make(map[string]config.Connection),
+		pendingLinks: make(map[string]PendingLink),
 		emitFunc:     emitFunc,
+	}
+}
+
+func (s *Service) cleanExpiredPendingLinksLocked() {
+	now := time.Now()
+	for id, p := range s.pendingLinks {
+		if now.Sub(p.CreatedAt) > PendingLinkTTL {
+			delete(s.pendingLinks, id)
+		}
 	}
 }
 
@@ -101,7 +121,7 @@ func (s *Service) ReloadFromDisk() error {
 	}
 	s.cfg = cfg
 	s.st = st
-	s.pendingLinks = make(map[string]config.Connection)
+	s.pendingLinks = make(map[string]PendingLink)
 	return nil
 }
 
@@ -244,8 +264,7 @@ func (s *Service) ConnectProfile(profile string, targetPath string) (*InitialLin
 		return nil, apperr.New(apperr.ProfileNotFound).WithParam("profile", profile)
 	}
 
-	// Check if already connected to this profile (if target differs, allow changing target or reject duplicate?)
-	// Wait: M1 says: "ConnectProfile no valida que el profile exista ni que ya esté conectado. El orchestrator usa connByProfile (1:1) e ignora en silencio una segunda conexión -> Validar -> profile_not_found / profile_already_connected"
+	// Validate that the profile is not already connected
 	for _, c := range s.cfg.Connections {
 		if strings.EqualFold(c.Profile, profile) {
 			return nil, apperr.New(apperr.ProfileAlreadyConnected).WithParam("profile", profile)
@@ -281,7 +300,11 @@ func (s *Service) ConnectProfile(profile string, targetPath string) (*InitialLin
 	}
 
 	if len(untracked) > 0 {
-		s.pendingLinks[conn.ID] = conn
+		s.cleanExpiredPendingLinksLocked()
+		s.pendingLinks[conn.ID] = PendingLink{
+			Connection: conn,
+			CreatedAt:  time.Now(),
+		}
 		return &InitialLinkResult{
 			PendingID:      conn.ID,
 			Connection:     conn,
@@ -317,40 +340,123 @@ func (s *Service) ConnectProfile(profile string, targetPath string) (*InitialLin
 	}, nil
 }
 
-// ChangeTarget updates the target directory of an existing connection, disconnecting the old one first.
+// ChangeTarget updates the target directory of an existing connection atomically under lock (R2).
+// The original connection remains intact if validation fails or pending decision is cancelled.
 func (s *Service) ChangeTarget(connectionID string, targetPath string) (*InitialLinkResult, error) {
 	s.mu.Lock()
-	var profileName string
-	for _, c := range s.cfg.Connections {
-		if c.ID == connectionID {
-			profileName = c.Profile
+	defer s.mu.Unlock()
+
+	s.cleanExpiredPendingLinksLocked()
+
+	var connToReplace *config.Connection
+	for i := range s.cfg.Connections {
+		if s.cfg.Connections[i].ID == connectionID {
+			connToReplace = &s.cfg.Connections[i]
 			break
 		}
 	}
-	s.mu.Unlock()
-
-	if profileName == "" {
+	if connToReplace == nil {
 		return nil, apperr.New(apperr.TargetNotFound).WithParam("connectionId", connectionID)
 	}
 
-	if _, err := s.DisconnectProfile(connectionID); err != nil {
+	if err := config.ValidateConnection(s.cfg.RootPath, targetPath, s.cfg.Connections, connectionID); err != nil {
 		return nil, err
 	}
-	return s.ConnectProfile(profileName, targetPath)
+
+	absTarget, _ := filepath.Abs(targetPath)
+	newConn := config.Connection{
+		ID:         generateID(),
+		Profile:    connToReplace.Profile,
+		TargetPath: absTarget,
+		CreatedAt:  config.FormatRFC3339(time.Now()),
+	}
+
+	status, err := syncer.ComputeStatus(s.cfg.RootPath, newConn, s.st)
+	if err != nil {
+		return nil, err
+	}
+
+	var untracked []string
+	var toDownload []string
+	for _, f := range status.Files {
+		switch f.Status {
+		case syncer.FileUntrackedDiff:
+			untracked = append(untracked, f.RelPath)
+		case syncer.FileNewInSource, syncer.FileSourceChanged, syncer.FileTargetMissing:
+			toDownload = append(toDownload, f.RelPath)
+		}
+	}
+
+	if len(untracked) > 0 {
+		s.pendingLinks[newConn.ID] = PendingLink{
+			Connection:           newConn,
+			ReplacesConnectionID: connectionID,
+			CreatedAt:            time.Now(),
+		}
+		return &InitialLinkResult{
+			PendingID:      newConn.ID,
+			Connection:     newConn,
+			NeedsDecision:  true,
+			UntrackedFiles: untracked,
+		}, nil
+	}
+
+	// No untracked diffs: apply new files immediately and atomically replace connection
+	if len(toDownload) > 0 {
+		allConns := append(append([]config.Connection{}, s.cfg.Connections...), newConn)
+		if _, err := syncer.Apply(s.cfg.RootPath, newConn, allConns, s.cfg.BackupPath, toDownload, s.st, s.cfg.BackupRetention, backup.ReasonInitialLink); err != nil {
+			return nil, err
+		}
+	}
+
+	var updatedConns []config.Connection
+	for _, c := range s.cfg.Connections {
+		if c.ID != connectionID {
+			updatedConns = append(updatedConns, c)
+		}
+	}
+	s.cfg.Connections = append(updatedConns, newConn)
+	delete(s.st.Baselines, connectionID)
+
+	syncer.ReconcileBaselines(s.cfg.RootPath, newConn, s.st)
+	_ = s.st.Save()
+
+	if err := config.Save(s.cfg); err != nil {
+		return nil, err
+	}
+
+	if plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, false); err == nil {
+		s.emitPlanLocked(plan)
+	}
+
+	return &InitialLinkResult{
+		PendingID:      "",
+		Connection:     newConn,
+		NeedsDecision:  false,
+		UntrackedFiles: []string{},
+	}, nil
 }
 
-// ResolveInitialLink resolves a pending initial link by pendingID (M2).
+// ResolveInitialLink resolves a pending initial link by pendingID (M2, R2).
 func (s *Service) ResolveInitialLink(pendingID string, choice string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	conn, ok := s.pendingLinks[pendingID]
+	s.cleanExpiredPendingLinksLocked()
+
+	pending, ok := s.pendingLinks[pendingID]
 	if !ok {
 		return apperr.New(apperr.TargetNotFound).WithParam("pendingId", pendingID)
 	}
 
+	conn := pending.Connection
+
 	// Revalidate connection before persisting
-	if err := config.ValidateConnection(s.cfg.RootPath, conn.TargetPath, s.cfg.Connections, conn.ID); err != nil {
+	excludeID := pending.ReplacesConnectionID
+	if excludeID == "" {
+		excludeID = conn.ID
+	}
+	if err := config.ValidateConnection(s.cfg.RootPath, conn.TargetPath, s.cfg.Connections, excludeID); err != nil {
 		delete(s.pendingLinks, pendingID)
 		return err
 	}
@@ -376,12 +482,16 @@ func (s *Service) ResolveInitialLink(pendingID string, choice string) error {
 	switch choice {
 	case syncer.ResolutionKeepRepo:
 		filesToApply := append(untracked, toDownload...)
-		if _, err := syncer.Apply(s.cfg.RootPath, conn, allConns, s.cfg.BackupPath, filesToApply, s.st, s.cfg.BackupRetention, backup.ReasonInitialLink); err != nil {
-			return err
+		if len(filesToApply) > 0 {
+			if _, err := syncer.Apply(s.cfg.RootPath, conn, allConns, s.cfg.BackupPath, filesToApply, s.st, s.cfg.BackupRetention, backup.ReasonInitialLink); err != nil {
+				return err
+			}
 		}
 	case syncer.ResolutionKeepLocal:
-		if err := syncer.Capture(s.cfg.RootPath, conn, untracked, s.st); err != nil {
-			return err
+		if len(untracked) > 0 {
+			if err := syncer.Capture(s.cfg.RootPath, conn, untracked, s.st); err != nil {
+				return err
+			}
 		}
 		if len(toDownload) > 0 {
 			if _, err := syncer.Apply(s.cfg.RootPath, conn, allConns, s.cfg.BackupPath, toDownload, s.st, s.cfg.BackupRetention, backup.ReasonInitialLink); err != nil {
@@ -392,6 +502,18 @@ func (s *Service) ResolveInitialLink(pendingID string, choice string) error {
 		// Leave untracked_diff untouched
 	default:
 		return apperr.New(apperr.UnresolvedConflicts)
+	}
+
+	// Atomically remove replaced connection if applicable (R2)
+	if pending.ReplacesConnectionID != "" {
+		var updatedConns []config.Connection
+		for _, c := range s.cfg.Connections {
+			if c.ID != pending.ReplacesConnectionID {
+				updatedConns = append(updatedConns, c)
+			}
+		}
+		s.cfg.Connections = updatedConns
+		delete(s.st.Baselines, pending.ReplacesConnectionID)
 	}
 
 	delete(s.pendingLinks, pendingID)
@@ -407,6 +529,15 @@ func (s *Service) ResolveInitialLink(pendingID string, choice string) error {
 		s.emitPlanLocked(plan)
 	}
 
+	return nil
+}
+
+// CancelPendingLink cancels and removes a pending connection link (R3).
+func (s *Service) CancelPendingLink(pendingID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.pendingLinks, pendingID)
 	return nil
 }
 

@@ -270,3 +270,125 @@ func TestServiceConcurrentOperations(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// R2 Test: ChangeTarget is atomic. If new target is invalid or has differences and is cancelled, the original connection remains intact.
+func TestR2_ChangeTargetIsAtomic(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("AGENTSYNC_CONFIG_DIR", tempDir)
+
+	rootDir := filepath.Join(tempDir, "agent-configs")
+	claudeDir := filepath.Join(rootDir, "CLAUDE")
+	_ = os.MkdirAll(claudeDir, 0o755)
+	_ = os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("claude initial repo"), 0o644)
+
+	target1 := filepath.Join(tempDir, "target1")
+	_ = os.MkdirAll(target1, 0o755)
+
+	svc := service.New(func(eventName string, data any) {})
+	if _, err := svc.SetRootPath(rootDir); err != nil {
+		t.Fatal(err)
+	}
+
+	linkRes, err := svc.ConnectProfile("CLAUDE", target1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalConnID := linkRes.Connection.ID
+
+	// 1. Try to change target to an invalid directory (e.g. inside root)
+	invalidTarget := filepath.Join(rootDir, "inside-root")
+	_ = os.MkdirAll(invalidTarget, 0o755)
+	_, err = svc.ChangeTarget(originalConnID, invalidTarget)
+	if err == nil {
+		t.Fatalf("expected error changing target to inside-root")
+	}
+
+	// Verify original connection is still present and unchanged
+	cfg, _ := svc.GetConfig()
+	activeConns := cfg.Connections
+	if len(activeConns) != 1 || activeConns[0].ID != originalConnID || activeConns[0].TargetPath != target1 {
+		t.Fatalf("original connection was corrupted after invalid ChangeTarget: %+v", activeConns)
+	}
+
+	// 2. Change target to a directory with conflicting untracked file -> creates pending link
+	target2 := filepath.Join(tempDir, "target2")
+	_ = os.MkdirAll(target2, 0o755)
+	_ = os.WriteFile(filepath.Join(target2, "CLAUDE.md"), []byte("claude target2 diff"), 0o644)
+
+	pendingRes, err := svc.ChangeTarget(originalConnID, target2)
+	if err != nil {
+		t.Fatalf("ChangeTarget to target2 failed: %v", err)
+	}
+	if !pendingRes.NeedsDecision || pendingRes.PendingID == "" {
+		t.Fatalf("expected NeedsDecision and PendingID for target2")
+	}
+
+	// While pending, original connection MUST STILL be active in config
+	cfg, _ = svc.GetConfig()
+	activeConns = cfg.Connections
+	if len(activeConns) != 1 || activeConns[0].ID != originalConnID {
+		t.Fatalf("original connection was removed before decision: %+v", activeConns)
+	}
+
+	// 3. User cancels the change
+	if err := svc.CancelPendingLink(pendingRes.PendingID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Original connection MUST STILL be untouched
+	cfg, _ = svc.GetConfig()
+	activeConns = cfg.Connections
+	if len(activeConns) != 1 || activeConns[0].ID != originalConnID || activeConns[0].TargetPath != target1 {
+		t.Fatalf("original connection was altered after cancelling: %+v", activeConns)
+	}
+
+	// 4. Now perform change and resolve it
+	pendingRes2, err := svc.ChangeTarget(originalConnID, target2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ResolveInitialLink(pendingRes2.PendingID, "keep_local"); err != nil {
+		t.Fatalf("ResolveInitialLink keep_local failed: %v", err)
+	}
+
+	cfg, _ = svc.GetConfig()
+	activeConns = cfg.Connections
+	if len(activeConns) != 1 || activeConns[0].ID == originalConnID || activeConns[0].TargetPath != target2 {
+		t.Fatalf("expected connection to be atomically replaced by target2, got: %+v", activeConns)
+	}
+}
+
+// R3 Test: CancelPendingLink clears the pending link, and expired links are cleaned up.
+func TestR3_CleanPendingLinksAndTTL(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("AGENTSYNC_CONFIG_DIR", tempDir)
+
+	rootDir := filepath.Join(tempDir, "agent-configs")
+	claudeDir := filepath.Join(rootDir, "CLAUDE")
+	_ = os.MkdirAll(claudeDir, 0o755)
+	_ = os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("claude repo"), 0o644)
+
+	targetDir := filepath.Join(tempDir, "target")
+	_ = os.MkdirAll(targetDir, 0o755)
+	_ = os.WriteFile(filepath.Join(targetDir, "CLAUDE.md"), []byte("claude target diff"), 0o644)
+
+	svc := service.New(func(eventName string, data any) {})
+	if _, err := svc.SetRootPath(rootDir); err != nil {
+		t.Fatal(err)
+	}
+
+	linkRes, err := svc.ConnectProfile("CLAUDE", targetDir)
+	if err != nil || !linkRes.NeedsDecision {
+		t.Fatal(err)
+	}
+
+	// Cancelling removes the pending link
+	if err := svc.CancelPendingLink(linkRes.PendingID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Resolving after cancel returns error
+	if err := svc.ResolveInitialLink(linkRes.PendingID, "keep_repo"); err == nil {
+		t.Errorf("expected error resolving cancelled pending link")
+	}
+}

@@ -113,6 +113,11 @@ func (a *App) ResolveInitialLink(pendingID string, choice string) error {
 	return a.svc.ResolveInitialLink(pendingID, choice)
 }
 
+// CancelPendingLink cancels and cleans up a pending link (R3).
+func (a *App) CancelPendingLink(pendingID string) error {
+	return a.svc.CancelPendingLink(pendingID)
+}
+
 // DisconnectProfile removes a connection and cleans up its baseline state.
 func (a *App) DisconnectProfile(connectionID string) (*config.Config, error) {
 	return a.svc.DisconnectProfile(connectionID)
