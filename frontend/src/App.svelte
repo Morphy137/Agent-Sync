@@ -11,7 +11,7 @@
   import ProfileCard from "./lib/components/ProfileCard.svelte";
   import WelcomeView from "./lib/components/WelcomeView.svelte";
   import SyncPreviewModal from "./lib/components/SyncPreviewModal.svelte";
-  import InitialLinkModal from "./lib/components/InitialLinkModal.svelte";
+  import ConnectionWizardModal from "./lib/components/ConnectionWizardModal.svelte";
   import BackupsDrawer from "./lib/components/BackupsDrawer.svelte";
   import SettingsDrawer from "./lib/components/SettingsDrawer.svelte";
   import AddRemoteModal from "./lib/components/AddRemoteModal.svelte";
@@ -41,57 +41,16 @@
     }
   }
 
-  async function handleConnectProfile(profileName: string) {
-    try {
-      const targetDir = await api.selectTargetFolder(
-        t("dialogs.select_target_title", { profile: profileName })
-      );
-      if (!targetDir) return;
-
-      const result = await api.connectProfile(profileName, targetDir);
-      if (result.needsDecision) {
-        appState.initialLinkData = result;
-        appState.initialLinkModalOpen = true;
-      } else {
-        await appState.refreshAll();
-        appState.addToast("success", t("toasts.sync_success"));
-      }
-    } catch (err) {
-      appState.showError(err);
-    }
+  function handleConnectProfile(profileName: string) {
+    appState.connectionWizardProfile = profileName;
+    appState.connectionWizardReplacesId = "";
+    appState.connectionWizardOpen = true;
   }
 
-  async function handleChangeTarget(connectionId: string, profileName: string) {
-    try {
-      const targetDir = await api.selectTargetFolder(
-        t("dialogs.select_target_title", { profile: profileName })
-      );
-      if (!targetDir) return;
-
-      const result = await api.changeTarget(connectionId, targetDir);
-      if (result.needsDecision) {
-        appState.initialLinkData = result;
-        appState.initialLinkModalOpen = true;
-      } else {
-        await appState.refreshAll();
-        appState.addToast("success", t("toasts.sync_success"));
-      }
-    } catch (err) {
-      appState.showError(err);
-    }
-  }
-
-  async function handleResolveInitialLink(choice: string) {
-    if (!appState.initialLinkData) return;
-    try {
-      await api.resolveInitialLink(appState.initialLinkData.pendingId, choice);
-      appState.initialLinkModalOpen = false;
-      appState.initialLinkData = null;
-      await appState.refreshAll();
-      appState.addToast("success", t("toasts.sync_success"));
-    } catch (err) {
-      appState.showError(err);
-    }
+  function handleChangeTarget(connectionId: string, profileName: string) {
+    appState.connectionWizardProfile = profileName;
+    appState.connectionWizardReplacesId = connectionId;
+    appState.connectionWizardOpen = true;
   }
 
   async function handleUpdateConnection(connectionId: string) {
@@ -332,11 +291,19 @@
     onconfirm={executeSyncNow}
   />
 
-  <InitialLinkModal
-    open={appState.initialLinkModalOpen}
-    data={appState.initialLinkData}
-    onclose={() => (appState.initialLinkModalOpen = false)}
-    onconfirm={handleResolveInitialLink}
+  <ConnectionWizardModal
+    open={appState.connectionWizardOpen}
+    initialProfile={appState.connectionWizardProfile}
+    replacesConnectionId={appState.connectionWizardReplacesId}
+    onclose={() => {
+      appState.connectionWizardOpen = false;
+      appState.connectionWizardProfile = "";
+      appState.connectionWizardReplacesId = "";
+    }}
+    onsuccess={async () => {
+      await appState.refreshAll();
+      appState.addToast("success", t("toasts.sync_success"));
+    }}
   />
 
   <BackupsDrawer

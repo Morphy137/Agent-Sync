@@ -19,8 +19,9 @@ class AppState {
   activeBackupConnectionId = $state<string | null>(null);
   activeBackupProfileName = $state<string>("");
   previewModalOpen = $state(false);
-  initialLinkModalOpen = $state(false);
-  initialLinkData = $state<service.InitialLinkResult | null>(null);
+  connectionWizardOpen = $state(false);
+  connectionWizardProfile = $state<string>("");
+  connectionWizardReplacesId = $state<string>("");
   addRemoteModalOpen = $state(false);
   gitIdentityModalOpen = $state(false);
 
