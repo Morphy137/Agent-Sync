@@ -245,7 +245,9 @@
     "theme_light": "Light",
     "theme_dark": "Dark",
     "interval_disabled": "Disabled",
-    "interval_minutes": "Every {count} minutes"
+    "interval_minutes": "Every {count} minutes",
+    "confirm_root_change_title": "Change repository root folder?",
+    "confirm_root_change_msg": "Changing the repository root will reload configurations and connections."
   },
   "statusbar": {
     "branch": "{branch}",

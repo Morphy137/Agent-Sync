@@ -245,7 +245,9 @@
     "theme_light": "Claro",
     "theme_dark": "Oscuro",
     "interval_disabled": "Desactivado",
-    "interval_minutes": "Cada {count} minutos"
+    "interval_minutes": "Cada {count} minutos",
+    "confirm_root_change_title": "¿Cambiar carpeta raíz del repositorio?",
+    "confirm_root_change_msg": "Cambiar la carpeta raíz recargará las configuraciones y conexiones."
   },
   "statusbar": {
     "branch": "{branch}",

@@ -10,6 +10,8 @@
   import Input from "./Input.svelte";
   import Switch from "./Switch.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
+  import PathField from "./PathField.svelte";
+  import Modal from "./Modal.svelte";
 
   interface Props {
     open: boolean;
@@ -17,7 +19,8 @@
     onsave: (
       payload: service.SettingsPayload,
       gitName: string,
-      gitEmail: string
+      gitEmail: string,
+      newRootPath?: string
     ) => void;
   }
 
@@ -32,18 +35,36 @@
   let gitUserName = $state<string>("");
   let gitUserEmail = $state<string>("");
 
+  let rootPath = $state<string>("");
+  let initialRootPath = $state<string>("");
+  let confirmRootModalOpen = $state(false);
+
+  // Snapshots for revert on cancel (R5)
+  let initialLanguage = $state<string>("system");
+  let initialTheme = $state<string>("system");
+  let wasOpen = false;
+
   $effect(() => {
-    if (open && appState.config) {
-      language = appState.config.language || "system";
-      theme = appState.config.theme || "system";
-      backupPath = appState.config.backupPath || "";
-      backupRetention = appState.config.backupRetention || 20;
-      checkInterval = appState.config.checkIntervalMinutes ?? 5;
-      confirmBeforeSync = appState.config.confirmBeforeSync ?? true;
-    }
-    if (open && appState.gitInfo) {
-      gitUserName = appState.gitInfo.userName || "";
-      gitUserEmail = appState.gitInfo.userEmail || "";
+    if (open && !wasOpen) {
+      wasOpen = true;
+      if (appState.config) {
+        language = appState.config.language || "system";
+        theme = appState.config.theme || "system";
+        initialLanguage = language;
+        initialTheme = theme;
+        backupPath = appState.config.backupPath || "";
+        backupRetention = appState.config.backupRetention || 20;
+        checkInterval = appState.config.checkIntervalMinutes ?? 5;
+        confirmBeforeSync = appState.config.confirmBeforeSync ?? true;
+        rootPath = appState.config.rootPath || "";
+        initialRootPath = rootPath;
+      }
+      if (appState.gitInfo) {
+        gitUserName = appState.gitInfo.userName || "";
+        gitUserEmail = appState.gitInfo.userEmail || "";
+      }
+    } else if (!open && wasOpen) {
+      wasOpen = false;
     }
   });
 
@@ -57,7 +78,28 @@
     applyTheme(val as any);
   }
 
+  function handleClose() {
+    // Revert unsaved theme & language (R5)
+    if (language !== initialLanguage) {
+      setLocale(initialLanguage as any);
+    }
+    if (theme !== initialTheme) {
+      applyTheme(initialTheme as any);
+    }
+    onclose();
+  }
+
   function handleSave() {
+    if (rootPath.trim() && rootPath.trim() !== initialRootPath) {
+      confirmRootModalOpen = true;
+      return;
+    }
+    doSave();
+  }
+
+  function doSave() {
+    initialLanguage = language;
+    initialTheme = theme;
     onsave(
       {
         language,
@@ -68,12 +110,14 @@
         confirmBeforeSync,
       },
       gitUserName.trim(),
-      gitUserEmail.trim()
+      gitUserEmail.trim(),
+      rootPath.trim() !== initialRootPath ? rootPath.trim() : undefined
     );
+    confirmRootModalOpen = false;
   }
 </script>
 
-<Drawer {open} title={t("settings.title")} {onclose}>
+<Drawer {open} title={t("settings.title")} onclose={handleClose}>
   <div class="settings-sections">
     <!-- 1. Appearance -->
     <Card padding="md">
@@ -135,10 +179,12 @@
       <div class="section-block">
         <h3 class="section-heading">{t("settings.section_backups")}</h3>
 
-        <Input
+        <PathField
           label={t("settings.backup_path_label")}
           value={backupPath}
-          oninput={(v) => (backupPath = v)}
+          mode="backup"
+          allowCreate={true}
+          onchange={(v) => (backupPath = v)}
         />
 
         <Input
@@ -156,10 +202,12 @@
         <div class="section-block">
           <h3 class="section-heading">{t("settings.section_repository")}</h3>
 
-          <Input
+          <PathField
             label={t("settings.root_path_label")}
-            value={appState.config.rootPath}
-            disabled={true}
+            value={rootPath}
+            mode="root"
+            allowCreate={false}
+            onchange={(v) => (rootPath = v)}
           />
 
           {#if appState.gitInfo?.isRepo}
@@ -195,6 +243,24 @@
   </div>
 </Drawer>
 
+<Modal
+  open={confirmRootModalOpen}
+  title={t("settings.confirm_root_change_title")}
+  onclose={() => (confirmRootModalOpen = false)}
+>
+  <div class="confirm-root-body">
+    <p class="confirm-root-text">{t("settings.confirm_root_change_msg")}</p>
+    <div class="confirm-root-actions">
+      <Button variant="secondary" onclick={() => (confirmRootModalOpen = false)}>
+        {t("common.cancel")}
+      </Button>
+      <Button variant="primary" onclick={doSave}>
+        {t("common.confirm")}
+      </Button>
+    </div>
+  </div>
+</Modal>
+
 <style>
   .settings-sections {
     display: flex;
@@ -221,5 +287,23 @@
     margin-top: var(--space-2);
     display: flex;
     justify-content: flex-end;
+  }
+
+  .confirm-root-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .confirm-root-text {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .confirm-root-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
   }
 </style>

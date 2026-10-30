@@ -167,14 +167,31 @@
   async function handleSaveSettings(
     payload: service.SettingsPayload,
     gitName: string,
-    gitEmail: string
+    gitEmail: string,
+    newRootPath?: string
   ) {
     try {
       const updated = await api.updateSettings(payload);
       appState.config = updated;
-      if (appState.gitInfo?.isRepo && gitEmail.trim()) {
-        await api.setGitIdentity(gitName.trim(), gitEmail.trim());
+
+      // Only save identity if name or email changed compared to gitInfo (R5)
+      const currentName = appState.gitInfo?.userName || "";
+      const currentEmail = appState.gitInfo?.userEmail || "";
+      const trimmedName = gitName.trim();
+      const trimmedEmail = gitEmail.trim();
+      if (
+        appState.gitInfo?.isRepo &&
+        trimmedEmail &&
+        (trimmedName !== currentName || trimmedEmail !== currentEmail)
+      ) {
+        await api.setGitIdentity(trimmedName, trimmedEmail);
       }
+
+      if (newRootPath && newRootPath.trim() !== appState.config?.rootPath) {
+        const rootCfg = await api.setRootPath(newRootPath.trim());
+        appState.config = rootCfg;
+      }
+
       await appState.refreshAll();
       appState.settingsDrawerOpen = false;
       appState.addToast("success", t("toasts.save_success"));
