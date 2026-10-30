@@ -18,6 +18,7 @@ import (
 	"agentsync/internal/orchestrator"
 	"agentsync/internal/profiles"
 	"agentsync/internal/state"
+	"agentsync/internal/subscriptions"
 	"agentsync/internal/syncer"
 )
 
@@ -137,6 +138,8 @@ type Service struct {
 	drafts       map[string]*ConnectionDraft
 	emitFunc     func(eventName string, data any)
 	dialogFunc   func(title, defaultDir string) (string, error)
+	fileDialog   func(title, defaultDir string) (string, error)
+	subUpdates   map[string]subscriptions.UpdateInfo
 }
 
 // New creates a new Service, loading config and state once into memory.
@@ -156,6 +159,7 @@ func New(emitFunc func(eventName string, data any)) *Service {
 		orch:         orchestrator.New(),
 		pendingLinks: make(map[string]PendingLink),
 		drafts:       make(map[string]*ConnectionDraft),
+		subUpdates:   make(map[string]subscriptions.UpdateInfo),
 		emitFunc:     emitFunc,
 	}
 }
@@ -168,6 +172,7 @@ func NewWithInstances(cfg *config.Config, st *state.State, orch *orchestrator.Or
 		orch:         orch,
 		pendingLinks: make(map[string]PendingLink),
 		drafts:       make(map[string]*ConnectionDraft),
+		subUpdates:   make(map[string]subscriptions.UpdateInfo),
 		emitFunc:     emitFunc,
 	}
 }
@@ -224,6 +229,10 @@ func cloneConfig(cfg *config.Config) *config.Config {
 	cp := *cfg
 	cp.Connections = make([]config.Connection, len(cfg.Connections))
 	copy(cp.Connections, cfg.Connections)
+	cp.Locations = make([]config.Location, len(cfg.Locations))
+	copy(cp.Locations, cfg.Locations)
+	cp.Subscriptions = make([]config.Subscription, len(cfg.Subscriptions))
+	copy(cp.Subscriptions, cfg.Subscriptions)
 	return &cp
 }
 
@@ -662,7 +671,13 @@ func (s *Service) GetStatus() (*orchestrator.SyncPlan, error) {
 	defer s.mu.Unlock()
 
 	s.reconcileAllLocked()
-	return s.orch.PlanSyncWithOptions(s.cfg, s.st, false)
+	s.syncOrchestratorRulesLocked()
+	plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, false)
+	if err != nil {
+		return nil, err
+	}
+	s.annotatePlanLocked(&plan.RulesPending, &plan.RulesConflicts)
+	return plan, nil
 }
 
 // PlanSync calculates the synchronization plan with remote fetch.
@@ -671,10 +686,12 @@ func (s *Service) PlanSync() (*orchestrator.SyncPlan, error) {
 	defer s.mu.Unlock()
 
 	s.reconcileAllLocked()
+	s.syncOrchestratorRulesLocked()
 	plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, true)
 	if err != nil {
 		return nil, err
 	}
+	s.annotatePlanLocked(&plan.RulesPending, &plan.RulesConflicts)
 	nowStr := config.FormatRFC3339(time.Now())
 	s.st.SetTimestamps("", nowStr)
 	_ = s.st.Save()
@@ -701,10 +718,14 @@ func (s *Service) TryBackgroundCheck() (*orchestrator.SyncPlan, bool) {
 	}
 
 	s.reconcileAllLocked()
+	s.checkSubscriptionsLocked()
+	s.syncOrchestratorRulesLocked()
 	plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, true)
 	if err != nil {
 		return nil, false
 	}
+	s.annotatePlanLocked(&plan.RulesPending, &plan.RulesConflicts)
+	s.emitRulesChangedLocked()
 
 	nowStr := config.FormatRFC3339(time.Now())
 	s.st.SetTimestamps("", nowStr)
@@ -763,15 +784,19 @@ func (s *Service) ExecuteSync(fingerprint string, resolutions []orchestrator.Con
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.syncOrchestratorRulesLocked()
 	res, err := s.orch.ExecuteSync(s.cfg, s.st, fingerprint, resolutions)
 	if err != nil {
 		return nil, err
 	}
 
-	if plan, planErr := s.orch.PlanSyncWithOptions(s.cfg, s.st, false); planErr == nil {
-		s.emitPlanLocked(plan)
+	// Rules run after pull so they distribute the freshest repo content; captures are committed and pushed.
+	if err := s.syncRulesAfterGitLocked(res); err != nil {
+		return nil, err
 	}
 
+	s.emitStatusLocked()
+	s.emitRulesChangedLocked()
 	return res, nil
 }
 
@@ -970,6 +995,25 @@ func (s *Service) SetDialogFunc(fn func(title, defaultDir string) (string, error
 func (s *Service) SelectFolder(title, defaultDir string) (string, error) {
 	s.mu.Lock()
 	fn := s.dialogFunc
+	s.mu.Unlock()
+
+	if fn != nil {
+		return fn(title, resolveDialogStartDir(defaultDir))
+	}
+	return "", nil
+}
+
+// SetFileDialogFunc configures the file selection dialog handler.
+func (s *Service) SetFileDialogFunc(fn func(title, defaultDir string) (string, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fileDialog = fn
+}
+
+// SelectFile opens a native file selection dialog.
+func (s *Service) SelectFile(title, defaultDir string) (string, error) {
+	s.mu.Lock()
+	fn := s.fileDialog
 	s.mu.Unlock()
 
 	if fn != nil {

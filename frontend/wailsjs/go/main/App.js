@@ -6,6 +6,10 @@ export function AddRemote(arg1) {
   return window['go']['main']['App']['AddRemote'](arg1);
 }
 
+export function AddSubscription(arg1, arg2) {
+  return window['go']['main']['App']['AddSubscription'](arg1, arg2);
+}
+
 export function ApplyConnection(arg1) {
   return window['go']['main']['App']['ApplyConnection'](arg1);
 }
@@ -30,6 +34,10 @@ export function CheckRemote() {
   return window['go']['main']['App']['CheckRemote']();
 }
 
+export function CheckSubscription(arg1) {
+  return window['go']['main']['App']['CheckSubscription'](arg1);
+}
+
 export function CloneRepository(arg1, arg2, arg3) {
   return window['go']['main']['App']['CloneRepository'](arg1, arg2, arg3);
 }
@@ -40,6 +48,10 @@ export function CommitConnection(arg1, arg2) {
 
 export function ConnectProfile(arg1, arg2) {
   return window['go']['main']['App']['ConnectProfile'](arg1, arg2);
+}
+
+export function ConnectRemote(arg1) {
+  return window['go']['main']['App']['ConnectRemote'](arg1);
 }
 
 export function CreateFolder(arg1) {
@@ -54,8 +66,20 @@ export function CreateRoot(arg1, arg2) {
   return window['go']['main']['App']['CreateRoot'](arg1, arg2);
 }
 
+export function DeleteRule(arg1) {
+  return window['go']['main']['App']['DeleteRule'](arg1);
+}
+
 export function DetectAgentFolders() {
   return window['go']['main']['App']['DetectAgentFolders']();
+}
+
+export function DetectSource(arg1) {
+  return window['go']['main']['App']['DetectSource'](arg1);
+}
+
+export function DiscardRepoFile(arg1) {
+  return window['go']['main']['App']['DiscardRepoFile'](arg1);
 }
 
 export function DisconnectProfile(arg1) {
@@ -74,8 +98,36 @@ export function GetGitInfo() {
   return window['go']['main']['App']['GetGitInfo']();
 }
 
+export function GetRecognizersPath() {
+  return window['go']['main']['App']['GetRecognizersPath']();
+}
+
+export function GetRepoFileDiff(arg1, arg2) {
+  return window['go']['main']['App']['GetRepoFileDiff'](arg1, arg2);
+}
+
+export function GetRuleDiff(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetRuleDiff'](arg1, arg2, arg3);
+}
+
+export function GetRulesReport() {
+  return window['go']['main']['App']['GetRulesReport']();
+}
+
 export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
+}
+
+export function GetSubscriptionIncomingDiff(arg1, arg2) {
+  return window['go']['main']['App']['GetSubscriptionIncomingDiff'](arg1, arg2);
+}
+
+export function GetSubscriptionTree(arg1) {
+  return window['go']['main']['App']['GetSubscriptionTree'](arg1);
+}
+
+export function ImportIntoRepo(arg1, arg2) {
+  return window['go']['main']['App']['ImportIntoRepo'](arg1, arg2);
 }
 
 export function InitRepository() {
@@ -90,8 +142,20 @@ export function ListBackups(arg1) {
   return window['go']['main']['App']['ListBackups'](arg1);
 }
 
+export function ListLocations() {
+  return window['go']['main']['App']['ListLocations']();
+}
+
 export function ListProfiles() {
   return window['go']['main']['App']['ListProfiles']();
+}
+
+export function ListRepoTree() {
+  return window['go']['main']['App']['ListRepoTree']();
+}
+
+export function ListSubscriptions() {
+  return window['go']['main']['App']['ListSubscriptions']();
 }
 
 export function ListTargetEntries(arg1, arg2) {
@@ -102,16 +166,44 @@ export function OpenInExplorer(arg1) {
   return window['go']['main']['App']['OpenInExplorer'](arg1);
 }
 
+export function OpenPath(arg1) {
+  return window['go']['main']['App']['OpenPath'](arg1);
+}
+
 export function PlanSync() {
   return window['go']['main']['App']['PlanSync']();
+}
+
+export function RemoveLocation(arg1) {
+  return window['go']['main']['App']['RemoveLocation'](arg1);
+}
+
+export function RemoveSubscription(arg1) {
+  return window['go']['main']['App']['RemoveSubscription'](arg1);
 }
 
 export function ResolveInitialLink(arg1, arg2) {
   return window['go']['main']['App']['ResolveInitialLink'](arg1, arg2);
 }
 
+export function ResolveRuleFile(arg1) {
+  return window['go']['main']['App']['ResolveRuleFile'](arg1);
+}
+
 export function RestoreBackup(arg1, arg2) {
   return window['go']['main']['App']['RestoreBackup'](arg1, arg2);
+}
+
+export function SaveLocation(arg1, arg2) {
+  return window['go']['main']['App']['SaveLocation'](arg1, arg2);
+}
+
+export function SaveRule(arg1, arg2) {
+  return window['go']['main']['App']['SaveRule'](arg1, arg2);
+}
+
+export function SelectFile(arg1, arg2) {
+  return window['go']['main']['App']['SelectFile'](arg1, arg2);
 }
 
 export function SelectFolder(arg1, arg2) {
@@ -134,6 +226,22 @@ export function SetRootPath(arg1) {
   return window['go']['main']['App']['SetRootPath'](arg1);
 }
 
+export function SetSubscriptionAutoUpdate(arg1, arg2) {
+  return window['go']['main']['App']['SetSubscriptionAutoUpdate'](arg1, arg2);
+}
+
+export function SuggestPlacement(arg1, arg2) {
+  return window['go']['main']['App']['SuggestPlacement'](arg1, arg2);
+}
+
+export function SyncRules() {
+  return window['go']['main']['App']['SyncRules']();
+}
+
 export function UpdateSettings(arg1) {
   return window['go']['main']['App']['UpdateSettings'](arg1);
+}
+
+export function UpdateSubscription(arg1) {
+  return window['go']['main']['App']['UpdateSubscription'](arg1);
 }

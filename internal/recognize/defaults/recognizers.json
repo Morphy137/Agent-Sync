@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "sourceKinds": [
+    {
+      "id": "skill",
+      "kind": "skill",
+      "match": {
+        "type": "dir",
+        "containsFile": "SKILL.md",
+        "frontmatterKeys": ["name", "description"]
+      }
+    },
+    {
+      "id": "mcp-json",
+      "kind": "mcp",
+      "match": {
+        "type": "file",
+        "extensions": [".json"],
+        "jsonKey": "mcpServers"
+      }
+    },
+    {
+      "id": "instructions",
+      "kind": "instructions",
+      "match": {
+        "type": "file",
+        "fileNames": ["AGENTS.md", "CLAUDE.md", "GEMINI.md"]
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "detect": {
+        "folderNames": [".claude"],
+        "anyOf": [{ "file": "CLAUDE.md" }, { "file": "settings.json" }, { "dir": "skills" }]
+      },
+      "placements": {
+        "instructions": { "path": "CLAUDE.md" },
+        "skill": { "path": "skills/{name}" },
+        "mcp": {
+          "base": "home",
+          "path": ".claude.json",
+          "transform": { "type": "json_merge", "key": "mcpServers" }
+        }
+      }
+    },
+    {
+      "id": "codex-cli",
+      "label": "Codex CLI",
+      "detect": {
+        "folderNames": [".codex"],
+        "anyOf": [{ "file": "config.toml" }, { "file": "AGENTS.md" }]
+      },
+      "placements": {
+        "instructions": { "path": "AGENTS.md" },
+        "skill": { "base": "home", "path": ".agents/skills/{name}" },
+        "mcp": {
+          "path": "config.toml",
+          "transform": { "type": "toml_merge", "key": "mcp_servers" }
+        }
+      }
+    },
+    {
+      "id": "gemini-cli",
+      "label": "Gemini CLI",
+      "detect": {
+        "folderNames": [".gemini"],
+        "anyOf": [{ "file": "GEMINI.md" }, { "file": "settings.json" }]
+      },
+      "placements": {
+        "instructions": { "path": "GEMINI.md" },
+        "skill": { "path": "skills/{name}" },
+        "mcp": {
+          "path": "settings.json",
+          "transform": { "type": "json_merge", "key": "mcpServers" }
+        }
+      }
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode",
+      "detect": {
+        "folderNames": ["opencode"],
+        "anyOf": [{ "file": "opencode.json" }, { "file": "opencode.jsonc" }]
+      },
+      "placements": {
+        "instructions": { "path": "AGENTS.md" },
+        "skill": { "path": "skills/{name}" }
+      }
+    },
+    {
+      "id": "antigravity",
+      "label": "Antigravity",
+      "detect": {
+        "folderNames": ["antigravity", "antigravity-cli"],
+        "anyOf": [{ "file": "mcp_config.json" }]
+      },
+      "placements": {
+        "instructions": { "base": "home", "path": ".gemini/AGENTS.md" },
+        "skill": { "path": "skills/{name}" }
+      }
+    },
+    {
+      "id": "shared-agents",
+      "label": "Shared agent skills (~/.agents)",
+      "detect": {
+        "folderNames": [".agents"]
+      },
+      "placements": {
+        "skill": { "path": "skills/{name}" }
+      }
+    }
+  ]
+}

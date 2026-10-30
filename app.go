@@ -10,10 +10,15 @@ import (
 
 	"agentsync/internal/backup"
 	"agentsync/internal/config"
+	"agentsync/internal/gitops"
 	"agentsync/internal/orchestrator"
 	"agentsync/internal/profiles"
+	"agentsync/internal/recognize"
+	"agentsync/internal/rules"
+	"agentsync/internal/rulesync"
 	"agentsync/internal/scheduler"
 	"agentsync/internal/service"
+	"agentsync/internal/subscriptions"
 )
 
 // SettingsPayload is an alias for service.SettingsPayload for Wails bindings.
@@ -55,6 +60,12 @@ func (a *App) startup(ctx context.Context) {
 			Title:                title,
 			DefaultDirectory:     defaultDir,
 			CanCreateDirectories: true,
+		})
+	})
+	a.svc.SetFileDialogFunc(func(title, defaultDir string) (string, error) {
+		return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+			Title:            title,
+			DefaultDirectory: defaultDir,
 		})
 	})
 	cfg, err := a.svc.GetConfig()
@@ -185,6 +196,129 @@ func (a *App) ListBackups(connectionID string) ([]backup.BackupInfo, error) {
 func (a *App) RestoreBackup(connectionID string, backupID string) error {
 	return a.svc.RestoreBackup(connectionID, backupID)
 }
+
+// SelectFile opens a native file selection dialog.
+func (a *App) SelectFile(title string, defaultDir string) (string, error) {
+	return a.svc.SelectFile(title, defaultDir)
+}
+
+// ---- Sync rules ----
+
+// GetRulesReport returns every rule with status, collisions and unmapped locations.
+func (a *App) GetRulesReport() (*rulesync.Report, error) { return a.svc.GetRulesReport() }
+
+// SaveRule creates or updates a rule in scope "repo" (shared through git) or "local" (this PC only).
+func (a *App) SaveRule(rule rules.Rule, scope string) (*service.SaveRuleResult, error) {
+	return a.svc.SaveRule(rule, scope)
+}
+
+// DeleteRule removes a rule; files already written stay in place.
+func (a *App) DeleteRule(id string) error { return a.svc.DeleteRule(id) }
+
+// SyncRules applies every non-conflicting rule change with backups.
+func (a *App) SyncRules() (*rulesync.ApplyResult, error) { return a.svc.SyncRules() }
+
+// ResolveRuleFile applies the user decision for a conflicting or drifted file.
+func (a *App) ResolveRuleFile(res rulesync.Resolution) error { return a.svc.ResolveRuleFile(res) }
+
+// GetRuleDiff returns source vs destination content of one rule file.
+func (a *App) GetRuleDiff(ruleID, destID, relPath string) (*rulesync.Diff, error) {
+	return a.svc.GetRuleDiff(ruleID, destID, relPath)
+}
+
+// ListRepoTree lists repository entries with detected kinds for picking rule sources.
+func (a *App) ListRepoTree() ([]service.SourceTreeEntry, error) { return a.svc.ListRepoTree() }
+
+// ImportIntoRepo copies a local file/folder into the repository and returns its repo path.
+func (a *App) ImportIntoRepo(sourcePath, repoRelDir string) (string, error) {
+	return a.svc.ImportIntoRepo(sourcePath, repoRelDir)
+}
+
+// DetectSource reports the detected content kind of a source.
+func (a *App) DetectSource(src rules.Source) (*recognize.SourceInfo, error) {
+	return a.svc.DetectSource(src)
+}
+
+// SuggestPlacement proposes destination path/mode/transform for a source in a location.
+func (a *App) SuggestPlacement(src rules.Source, alias string) (*recognize.Suggestion, error) {
+	return a.svc.SuggestPlacement(src, alias)
+}
+
+// GetRecognizersPath returns the user recognizers.json path (created from defaults if missing).
+func (a *App) GetRecognizersPath() (string, error) { return a.svc.GetRecognizersPath() }
+
+// ---- Locations ----
+
+// ListLocations returns the location aliases known on this PC.
+func (a *App) ListLocations() ([]service.LocationInfo, error) { return a.svc.ListLocations() }
+
+// SaveLocation maps an alias to a folder on this PC.
+func (a *App) SaveLocation(alias, path string) (*config.Config, error) {
+	return a.svc.SaveLocation(alias, path)
+}
+
+// RemoveLocation removes an alias mapping on this PC.
+func (a *App) RemoveLocation(alias string) (*config.Config, error) {
+	return a.svc.RemoveLocation(alias)
+}
+
+// ---- Subscriptions ----
+
+// ListSubscriptions returns subscriptions with their last update check.
+func (a *App) ListSubscriptions() ([]service.SubscriptionInfo, error) {
+	return a.svc.ListSubscriptions()
+}
+
+// AddSubscription clones a remote repository as a read-only source.
+func (a *App) AddSubscription(url, name string) (*config.Subscription, error) {
+	return a.svc.AddSubscription(url, name)
+}
+
+// RemoveSubscription deletes a subscription and its rules.
+func (a *App) RemoveSubscription(id string) error { return a.svc.RemoveSubscription(id) }
+
+// CheckSubscription fetches and reports incoming changes.
+func (a *App) CheckSubscription(id string) (*subscriptions.UpdateInfo, error) {
+	return a.svc.CheckSubscription(id)
+}
+
+// UpdateSubscription pulls remote changes and applies the subscription rules.
+func (a *App) UpdateSubscription(id string) (*service.SubscriptionUpdateResult, error) {
+	return a.svc.UpdateSubscription(id)
+}
+
+// SetSubscriptionAutoUpdate toggles automatic updates during periodic checks.
+func (a *App) SetSubscriptionAutoUpdate(id string, enabled bool) (*config.Config, error) {
+	return a.svc.SetSubscriptionAutoUpdate(id, enabled)
+}
+
+// GetSubscriptionTree lists subscription entries with detected kinds.
+func (a *App) GetSubscriptionTree(id string) ([]service.SourceTreeEntry, error) {
+	return a.svc.GetSubscriptionTree(id)
+}
+
+// GetSubscriptionIncomingDiff compares a subscription file between local clone and remote.
+func (a *App) GetSubscriptionIncomingDiff(id, relPath string) (*rulesync.Diff, error) {
+	return a.svc.GetSubscriptionIncomingDiff(id, relPath)
+}
+
+// ---- Repository remote ----
+
+// ConnectRemote attaches the repository root to a remote URL without losing local files.
+func (a *App) ConnectRemote(url string) (*gitops.ConnectRemoteResult, error) {
+	return a.svc.ConnectRemote(url)
+}
+
+// GetRepoFileDiff compares a repo file ("working": HEAD vs disk, "incoming": HEAD vs upstream).
+func (a *App) GetRepoFileDiff(relPath, mode string) (*rulesync.Diff, error) {
+	return a.svc.GetRepoFileDiff(relPath, mode)
+}
+
+// DiscardRepoFile reverts a local repo change (backup first).
+func (a *App) DiscardRepoFile(relPath string) error { return a.svc.DiscardRepoFile(relPath) }
+
+// OpenPath opens a file with its default application or a folder in the file explorer.
+func (a *App) OpenPath(path string) error { return a.OpenInExplorer(path) }
 
 // OpenInExplorer opens the OS file explorer at the specified directory path.
 func (a *App) OpenInExplorer(path string) error {

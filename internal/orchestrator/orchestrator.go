@@ -67,6 +67,8 @@ type SyncPlan struct {
 	DirtyOverlapExists bool                      `json:"dirtyOverlapExists"`
 	Connections        []syncer.ConnectionStatus `json:"connections"`
 	LastCheckAt        string                    `json:"lastCheckAt,omitempty"`
+	RulesPending       int                       `json:"rulesPending"`
+	RulesConflicts     int                       `json:"rulesConflicts"`
 }
 
 // SyncResult summarizes the outcome of ExecuteSync.
@@ -76,11 +78,33 @@ type SyncResult struct {
 	Pulled         int      `json:"pulled"`
 	Pushed         int      `json:"pushed"`
 	BackupSessions []string `json:"backupSessions"`
+	RulesWritten   int      `json:"rulesWritten"`
+	RulesCaptured  int      `json:"rulesCaptured"`
+	RulesSkipped   int      `json:"rulesSkipped"`
 }
 
 // Orchestrator coordinates the end-to-end sync workflow.
 type Orchestrator struct {
 	OnBeforePush func()
+	// ManagedRepoPaths lists repo-relative paths (files or folders, forward slashes) owned by sync rules.
+	// Changes under them are committed like profile changes instead of being reported as DirtyOutside.
+	ManagedRepoPaths []string
+}
+
+// isManagedRepoPath reports whether a repo-relative path belongs to a profile connection or a sync rule.
+func (o *Orchestrator) isManagedRepoPath(cfg *config.Config, repoPath string) bool {
+	for _, conn := range cfg.Connections {
+		if strings.HasPrefix(repoPath, conn.Profile+"/") {
+			return true
+		}
+	}
+	for _, managed := range o.ManagedRepoPaths {
+		trimmed := strings.TrimSuffix(managed, "/")
+		if repoPath == trimmed || strings.HasPrefix(repoPath, trimmed+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // New creates a new Orchestrator instance.
@@ -223,15 +247,7 @@ func (o *Orchestrator) PlanSyncWithOptions(cfg *config.Config, st *state.State, 
 				if ch.Path == ".gitignore" {
 					continue
 				}
-				inProfile := false
-				for _, conn := range cfg.Connections {
-					prefix := conn.Profile + "/"
-					if strings.HasPrefix(ch.Path, prefix) {
-						inProfile = true
-						break
-					}
-				}
-				if inProfile {
+				if o.isManagedRepoPath(cfg, ch.Path) {
 					plan.CommitPreview = append(plan.CommitPreview, ch.Path)
 				} else {
 					plan.DirtyOutside = append(plan.DirtyOutside, ch.Path)
