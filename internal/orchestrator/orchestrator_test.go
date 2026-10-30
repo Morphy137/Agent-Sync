@@ -480,3 +480,87 @@ func TestDirtyOutsideOverlapBlocksSync(t *testing.T) {
 		}
 	}
 }
+
+// R1 Test: keep_repo discards manual uncommitted repo edits after backing them up.
+func TestR1_KeepRepoBacksUpDiscardedRepoEdits(t *testing.T) {
+	_, cfgA, stA, orchA, cfgB, stB, orchB := setupTwoClonesWithBareRemote(t)
+
+	// PC-B creates and commits a remote change to CLAUDE/CLAUDE.md and pushes
+	targetFileB := filepath.Join(cfgB.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileB, []byte("# Remote version B\n"), 0o644)
+	planB, err := orchB.PlanSync(cfgB, stB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := orchB.ExecuteSync(cfgB, stB, planB, nil); err != nil {
+		t.Fatalf("PC-B sync failed: %v", err)
+	}
+
+	// PC-A makes a manual uncommitted edit directly in the repo worktree
+	repoFileA := filepath.Join(cfgA.RootPath, "CLAUDE", "CLAUDE.md")
+	_ = os.WriteFile(repoFileA, []byte("# Manual uncommitted repo edit A\n"), 0o644)
+
+	// And PC-A target also differs or matches baseline
+	targetFileA := filepath.Join(cfgA.Connections[0].TargetPath, "CLAUDE.md")
+	_ = os.WriteFile(targetFileA, []byte("# Local target A\n"), 0o644)
+
+	planA, err := orchA.PlanSync(cfgA, stA)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resolutions := []orchestrator.ConflictResolution{
+		{
+			Profile:    "CLAUDE",
+			RelPath:    "CLAUDE.md",
+			Resolution: "keep_repo",
+		},
+	}
+
+	resA, err := orchA.ExecuteSync(cfgA, stA, planA, resolutions)
+	if err != nil {
+		t.Fatalf("ExecuteSync with keep_repo failed: %v", err)
+	}
+
+	// Verify that backup exists in cfgA.BackupPath/_repo/<session>/CLAUDE/CLAUDE.md
+	repoBackups, err := backup.ListRepoBackups(cfgA.BackupPath)
+	if err != nil {
+		t.Fatalf("ListRepoBackups failed: %v", err)
+	}
+	if len(repoBackups) == 0 {
+		t.Fatalf("expected at least 1 repo backup for discarded edit, got 0")
+	}
+	if repoBackups[0].Reason != backup.ReasonDiscardRepoEdit {
+		t.Errorf("expected reason %s, got %s", backup.ReasonDiscardRepoEdit, repoBackups[0].Reason)
+	}
+
+	backedUpFile := filepath.Join(repoBackups[0].Path, "CLAUDE", "CLAUDE.md")
+	backedUpContent, err := os.ReadFile(backedUpFile)
+	if err != nil {
+		t.Fatalf("could not read backed up repo file: %v", err)
+	}
+	if string(backedUpContent) != "# Manual uncommitted repo edit A\n" {
+		t.Errorf("expected backed up content '# Manual uncommitted repo edit A\\n', got '%s'", backedUpContent)
+	}
+
+	// Target receives remote version
+	contentA, err := os.ReadFile(targetFileA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(contentA)) != "# Remote version B" {
+		t.Errorf("expected target to receive remote version, got '%s'", contentA)
+	}
+
+	// Also verify backup session ID was recorded in SyncResult
+	foundSession := false
+	for _, s := range resA.BackupSessions {
+		if s == repoBackups[0].ID {
+			foundSession = true
+			break
+		}
+	}
+	if !foundSession {
+		t.Errorf("expected backup session %s to be recorded in SyncResult.BackupSessions: %+v", repoBackups[0].ID, resA.BackupSessions)
+	}
+}

@@ -21,6 +21,7 @@ const (
 	ReasonSync            = "sync"
 	ReasonRestore         = "restore"
 	ReasonInitialLink     = "initial_link"
+	ReasonDiscardRepoEdit = "discard_repo_edit"
 )
 
 // Manifest defines the metadata stored with each backup snapshot.
@@ -277,6 +278,157 @@ func RestoreBackup(backupRoot string, conn config.Connection, allConnections []c
 		if err := fsops.AtomicCopy(src, dst); err != nil {
 			return apperr.Wrap(apperr.WriteFailed, err)
 		}
+	}
+
+	return nil
+}
+
+// CreateRepoBackup backs up uncommitted manual edits in the repository before they are discarded.
+func CreateRepoBackup(backupRoot string, repoRoot string, files []string, reason string, retention int) (*BackupInfo, error) {
+	if len(files) == 0 {
+		return nil, nil
+	}
+
+	var existingFiles []string
+	for _, relPath := range files {
+		targetFile := filepath.Join(repoRoot, filepath.FromSlash(relPath))
+		if fi, err := os.Stat(targetFile); err == nil && !fi.IsDir() {
+			existingFiles = append(existingFiles, relPath)
+		}
+	}
+
+	if len(existingFiles) == 0 {
+		return nil, nil
+	}
+
+	repoBackupDir := filepath.Join(backupRoot, "_repo")
+	if err := os.MkdirAll(repoBackupDir, fsops.DefaultDirPerms); err != nil {
+		return nil, apperr.Wrap(apperr.BackupFailed, err)
+	}
+
+	now := time.Now()
+	backupFolderID := FormatTimestamp(now, repoBackupDir)
+	snapshotDir := filepath.Join(repoBackupDir, backupFolderID)
+
+	if err := os.MkdirAll(snapshotDir, fsops.DefaultDirPerms); err != nil {
+		return nil, apperr.Wrap(apperr.BackupFailed, err)
+	}
+
+	for _, relPath := range existingFiles {
+		src := filepath.Join(repoRoot, filepath.FromSlash(relPath))
+		dst := filepath.Join(snapshotDir, filepath.FromSlash(relPath))
+		if err := fsops.AtomicCopy(src, dst); err != nil {
+			_ = os.RemoveAll(snapshotDir)
+			return nil, apperr.Wrap(apperr.BackupFailed, err)
+		}
+	}
+
+	manifest := Manifest{
+		ConnectionID: "_repo",
+		Profile:      "_repo",
+		TargetPath:   repoRoot,
+		CreatedAt:    config.FormatRFC3339(now),
+		Reason:       reason,
+		Files:        existingFiles,
+	}
+
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		_ = os.RemoveAll(snapshotDir)
+		return nil, apperr.Wrap(apperr.BackupFailed, err)
+	}
+
+	manifestPath := filepath.Join(snapshotDir, ManifestFileName)
+	if err := fsops.AtomicWrite(manifestPath, manifestData, fsops.DefaultFilePerms); err != nil {
+		_ = os.RemoveAll(snapshotDir)
+		return nil, apperr.Wrap(apperr.BackupFailed, err)
+	}
+
+	if retention > 0 {
+		_ = PruneRepoBackups(backupRoot, retention)
+	}
+
+	return &BackupInfo{
+		ID:           backupFolderID,
+		ConnectionID: "_repo",
+		Profile:      "_repo",
+		TargetPath:   repoRoot,
+		CreatedAt:    manifest.CreatedAt,
+		Reason:       reason,
+		Files:        existingFiles,
+		Path:         snapshotDir,
+	}, nil
+}
+
+// ListRepoBackups returns all snapshots for discarded repo edits, ordered newest first.
+func ListRepoBackups(backupRoot string) ([]BackupInfo, error) {
+	repoBackupDir := filepath.Join(backupRoot, "_repo")
+	entries, err := os.ReadDir(repoBackupDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []BackupInfo{}, nil
+		}
+		return nil, apperr.Wrap(apperr.BackupFailed, err)
+	}
+
+	var results []BackupInfo
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		snapshotDir := filepath.Join(repoBackupDir, entry.Name())
+		manifestPath := filepath.Join(snapshotDir, ManifestFileName)
+		data, err := os.ReadFile(manifestPath)
+		if err != nil {
+			continue
+		}
+
+		var manifest Manifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			continue
+		}
+
+		results = append(results, BackupInfo{
+			ID:           entry.Name(),
+			ConnectionID: manifest.ConnectionID,
+			Profile:      manifest.Profile,
+			TargetPath:   manifest.TargetPath,
+			CreatedAt:    manifest.CreatedAt,
+			Reason:       manifest.Reason,
+			Files:        manifest.Files,
+			Path:         snapshotDir,
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].CreatedAt != results[j].CreatedAt {
+			return results[i].CreatedAt > results[j].CreatedAt
+		}
+		return results[i].ID > results[j].ID
+	})
+
+	return results, nil
+}
+
+// PruneRepoBackups keeps only the newest retentionCount snapshots of repo discards.
+func PruneRepoBackups(backupRoot string, retentionCount int) error {
+	if retentionCount <= 0 {
+		return nil
+	}
+
+	list, err := ListRepoBackups(backupRoot)
+	if err != nil {
+		return err
+	}
+
+	if len(list) <= retentionCount {
+		return nil
+	}
+
+	toRemove := list[retentionCount:]
+	for _, b := range toRemove {
+		_ = os.RemoveAll(b.Path)
 	}
 
 	return nil

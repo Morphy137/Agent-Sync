@@ -417,6 +417,10 @@ func (o *Orchestrator) ExecuteSyncLocked(cfg *config.Config, st *state.State, ex
 	}
 
 	// Step 3: Git preflight
+	result := &SyncResult{
+		BackupSessions: make([]string, 0),
+	}
+
 	if isRepo {
 		runner = gitops.NewRunner(cfg.RootPath)
 		runner.OnBeforePush = o.OnBeforePush
@@ -435,14 +439,30 @@ func (o *Orchestrator) ExecuteSyncLocked(cfg *config.Config, st *state.State, ex
 		// Step 4: Commit pending manual edits inside profiles (CommitPreview)
 		if len(plan.CommitPreview) > 0 {
 			var pendingToCommit []string
+			var filesToDiscard []string
 			for _, cp := range plan.CommitPreview {
 				if keepRepoSet[cp] {
-					// Revert uncommitted manual edit in profile so pull won't conflict
-					_, _ = runner.DiscardPath(cp)
+					filesToDiscard = append(filesToDiscard, cp)
 				} else {
 					pendingToCommit = append(pendingToCommit, cp)
 				}
 			}
+
+			if len(filesToDiscard) > 0 {
+				repoBackup, err := backup.CreateRepoBackup(cfg.BackupPath, cfg.RootPath, filesToDiscard, backup.ReasonDiscardRepoEdit, cfg.BackupRetention)
+				if err != nil {
+					return nil, err
+				}
+				if repoBackup != nil {
+					result.BackupSessions = append(result.BackupSessions, repoBackup.ID)
+				}
+				for _, cp := range filesToDiscard {
+					if _, err := runner.DiscardPath(cp); err != nil {
+						return nil, err
+					}
+				}
+			}
+
 			if len(pendingToCommit) > 0 {
 				msg := fmt.Sprintf("chore(sync): commit pending changes from %s", hostname)
 				if err := runner.CommitPaths(pendingToCommit, msg); err != nil {
@@ -450,10 +470,6 @@ func (o *Orchestrator) ExecuteSyncLocked(cfg *config.Config, st *state.State, ex
 				}
 			}
 		}
-	}
-
-	result := &SyncResult{
-		BackupSessions: make([]string, 0),
 	}
 
 	// Step 5: Pull first (if behind > 0)

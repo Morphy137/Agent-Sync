@@ -133,3 +133,41 @@ func TestCreateListPruneAndRestoreBackup(t *testing.T) {
 		t.Errorf("expected RestoreBackup to fail when backupRoot is a file")
 	}
 }
+
+func TestCreateRepoBackupAndPrune(t *testing.T) {
+	tempDir := t.TempDir()
+	backupRoot := filepath.Join(tempDir, "backups")
+	repoRoot := filepath.Join(tempDir, "repo")
+
+	claudeDir := filepath.Join(repoRoot, "CLAUDE")
+	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	filePath := filepath.Join(claudeDir, "CLAUDE.md")
+	_ = os.WriteFile(filePath, []byte("repo edit v1"), 0o644)
+
+	// Non-existent files return nil
+	info, err := backup.CreateRepoBackup(backupRoot, repoRoot, []string{"NOTEXIST.md"}, backup.ReasonDiscardRepoEdit, 5)
+	if err != nil || info != nil {
+		t.Errorf("expected nil for non-existent file, got %v, %v", info, err)
+	}
+
+	// Create 3 snapshots
+	for i := 1; i <= 3; i++ {
+		_ = os.WriteFile(filePath, []byte("repo edit v"+string(rune('0'+i))), 0o644)
+		_, err := backup.CreateRepoBackup(backupRoot, repoRoot, []string{"CLAUDE/CLAUDE.md"}, backup.ReasonDiscardRepoEdit, 2)
+		if err != nil {
+			t.Fatalf("CreateRepoBackup iteration %d failed: %v", i, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	list, err := backup.ListRepoBackups(backupRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Retention is 2, so only 2 snapshots remain
+	if len(list) != 2 {
+		t.Errorf("expected 2 snapshots after pruning with retention=2, got %d", len(list))
+	}
+}

@@ -416,7 +416,17 @@ func (g *GitRunner) CommitPaths(paths []string, message string) error {
 
 // DiscardPath restores a tracked file to HEAD or removes an untracked file.
 func (g *GitRunner) DiscardPath(relPath string) (string, error) {
-	return g.runCmd("checkout", "--", relPath)
+	out, err := g.runCmd("checkout", "--", relPath)
+	if err != nil {
+		fullPath := filepath.Join(g.Root, filepath.FromSlash(relPath))
+		if fi, statErr := os.Stat(fullPath); statErr == nil && !fi.IsDir() {
+			if rmErr := os.Remove(fullPath); rmErr == nil {
+				return "", nil
+			}
+		}
+		return out, err
+	}
+	return out, nil
 }
 
 // Push pushes commits to upstream.
