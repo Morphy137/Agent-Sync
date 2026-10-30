@@ -1,7 +1,8 @@
 import en from "./locales/en.json";
 import es from "./locales/es.json";
+import { localeState, type SupportedLocale } from "./localeState.svelte";
 
-export type SupportedLocale = "en" | "es";
+export type { SupportedLocale };
 export type LanguageSetting = "system" | "en" | "es";
 
 const dictionaries: Record<SupportedLocale, Record<string, any>> = {
@@ -9,7 +10,6 @@ const dictionaries: Record<SupportedLocale, Record<string, any>> = {
   es,
 };
 
-let currentLocale: SupportedLocale = "en";
 const listeners = new Set<(loc: SupportedLocale) => void>();
 
 export function getSystemLocale(): SupportedLocale {
@@ -38,19 +38,19 @@ export function setLocale(lang: LanguageSetting) {
   } catch {
     // ignore storage errors
   }
-  if (resolved !== currentLocale) {
-    currentLocale = resolved;
-    listeners.forEach((fn) => fn(currentLocale));
+  if (resolved !== localeState.current) {
+    localeState.current = resolved;
+    listeners.forEach((fn) => fn(resolved));
   }
 }
 
 export function getActiveLocale(): SupportedLocale {
-  return currentLocale;
+  return localeState.current;
 }
 
 export function subscribeLocale(fn: (loc: SupportedLocale) => void): () => void {
   listeners.add(fn);
-  fn(currentLocale);
+  fn(localeState.current);
   return () => {
     listeners.delete(fn);
   };
@@ -70,14 +70,15 @@ function getNestedValue(obj: Record<string, any>, path: string): string | undefi
 }
 
 export function t(key: string, params?: Record<string, string | number>): string {
-  let template = getNestedValue(dictionaries[currentLocale], key);
+  const locale = localeState.current;
+  let template = getNestedValue(dictionaries[locale], key);
 
   if (template === undefined) {
     // Fallback to English
     template = getNestedValue(dictionaries.en, key);
     if (template === undefined) {
       if (import.meta.env.DEV) {
-        console.warn(`[i18n] Missing translation key: "${key}" for locale "${currentLocale}"`);
+        console.warn(`[i18n] Missing translation key: "${key}" for locale "${locale}"`);
       }
       return key;
     }
@@ -96,7 +97,7 @@ export function formatDate(isoDateStr: string): string {
   if (!isoDateStr) return "";
   try {
     const date = new Date(isoDateStr);
-    return new Intl.DateTimeFormat(currentLocale === "es" ? "es-ES" : "en-US", {
+    return new Intl.DateTimeFormat(localeState.current === "es" ? "es-ES" : "en-US", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(date);
@@ -104,3 +105,6 @@ export function formatDate(isoDateStr: string): string {
     return isoDateStr;
   }
 }
+
+// Resolve the system language before the first render; persisted config overrides it once loaded.
+setLocale("system");

@@ -25,7 +25,8 @@
     "already_connected": "Ya conectada a otro perfil",
     "empty_path": "Escribe una ruta de carpeta",
     "browse_dialog_title": "Seleccionar carpeta",
-    "failed_create": "No se pudo crear la carpeta: {error}"
+    "failed_create": "No se pudo crear la carpeta: {error}",
+    "browse_failed": "No se pudo abrir el selector de carpetas: {error}"
   },
   "wizard": {
     "title": "Añadir conexión",
@@ -80,7 +81,22 @@
     "disconnect_confirm_title": "¿Desconectar perfil {profile}?",
     "disconnect_confirm_msg": "Los archivos de tu carpeta local no se borrarán. Solo se eliminarán los metadatos de sincronización.",
     "empty_title": "Conecta tu primera carpeta",
-    "empty_desc": "Sincroniza tus configuraciones de agentes entre varios equipos de manera sencilla."
+    "empty_desc": "Sincroniza tus configuraciones de agentes entre varios equipos de manera sencilla.",
+    "card": {
+      "not_connected": "Sin conectar",
+      "managed_files_count": "{count} archivos",
+      "button_connect": "Conectar",
+      "button_update": "Actualizar",
+      "button_backups": "Backups",
+      "view_files": "Ver archivos ({count})",
+      "hide_files": "Ocultar archivos",
+      "menu_change_target": "Cambiar destino",
+      "menu_open_explorer": "Abrir en explorador",
+      "menu_disconnect": "Desconectar",
+      "menu_toggle": "Más opciones",
+      "repo_label": "Repositorio",
+      "target_label": "Destino"
+    }
   },
   "onboarding": {
     "title": "Bienvenido a AgentSync",
@@ -142,21 +158,6 @@
       "title": "Identidad Git requerida",
       "message": "Configura un nombre y correo de usuario git para este repositorio antes de confirmar cambios.",
       "button_configure": "Configurar Identidad"
-    }
-  },
-  "connections": {
-    "card": {
-      "not_connected": "Sin conectar",
-      "managed_files_count": "{count} archivos",
-      "button_connect": "Conectar",
-      "button_update": "Actualizar",
-      "button_backups": "Backups",
-      "view_files": "Ver archivos ({count})",
-      "hide_files": "Ocultar archivos",
-      "menu_change_target": "Cambiar destino",
-      "menu_open_explorer": "Abrir en explorador",
-      "menu_disconnect": "Desconectar",
-      "menu_toggle": "Más opciones"
     }
   },
   "status": {
@@ -245,6 +246,7 @@
     "theme_light": "Claro",
     "theme_dark": "Oscuro",
     "interval_disabled": "Desactivado",
+    "interval_one_minute": "Cada minuto",
     "interval_minutes": "Cada {count} minutos",
     "confirm_root_change_title": "¿Cambiar carpeta raíz del repositorio?",
     "confirm_root_change_msg": "Cambiar la carpeta raíz recargará las configuraciones y conexiones."

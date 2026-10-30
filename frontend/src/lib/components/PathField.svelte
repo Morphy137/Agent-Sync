@@ -89,14 +89,15 @@
 
   async function handleBrowse() {
     if (disabled) return;
+    createError = null;
     try {
       const selected = await SelectFolder(t("path_field.browse_dialog_title"), inputValue.trim());
       if (selected && selected.trim()) {
         inputValue = selected.trim();
         await inspectNow(selected.trim());
       }
-    } catch {
-      // dialog cancelled or failed
+    } catch (err: unknown) {
+      createError = t("path_field.browse_failed", { error: String((err as Error)?.message ?? err) });
     }
   }
 

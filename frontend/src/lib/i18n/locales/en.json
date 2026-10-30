@@ -25,7 +25,8 @@
     "already_connected": "Folder is already connected to another profile",
     "empty_path": "Please enter a folder path",
     "browse_dialog_title": "Select folder",
-    "failed_create": "Could not create folder: {error}"
+    "failed_create": "Could not create folder: {error}",
+    "browse_failed": "Could not open the folder picker: {error}"
   },
   "wizard": {
     "title": "Add Connection",
@@ -80,7 +81,22 @@
     "disconnect_confirm_title": "Disconnect profile {profile}?",
     "disconnect_confirm_msg": "Files in your local folder will not be deleted. Baseline sync metadata will be removed.",
     "empty_title": "Connect your first folder",
-    "empty_desc": "Synchronize your agent configurations across multiple computers seamlessly."
+    "empty_desc": "Synchronize your agent configurations across multiple computers seamlessly.",
+    "card": {
+      "not_connected": "Not connected",
+      "managed_files_count": "{count} files",
+      "button_connect": "Connect",
+      "button_update": "Update",
+      "button_backups": "Backups",
+      "view_files": "View files ({count})",
+      "hide_files": "Hide files",
+      "menu_change_target": "Change target",
+      "menu_open_explorer": "Open in explorer",
+      "menu_disconnect": "Disconnect",
+      "menu_toggle": "More options",
+      "repo_label": "Repository",
+      "target_label": "Target"
+    }
   },
   "onboarding": {
     "title": "Welcome to AgentSync",
@@ -142,21 +158,6 @@
       "title": "Git Identity Required",
       "message": "Configure a git user name and email for this repository before committing changes.",
       "button_configure": "Configure Identity"
-    }
-  },
-  "connections": {
-    "card": {
-      "not_connected": "Not connected",
-      "managed_files_count": "{count} files",
-      "button_connect": "Connect",
-      "button_update": "Update",
-      "button_backups": "Backups",
-      "view_files": "View files ({count})",
-      "hide_files": "Hide files",
-      "menu_change_target": "Change target",
-      "menu_open_explorer": "Open in explorer",
-      "menu_disconnect": "Disconnect",
-      "menu_toggle": "More options"
     }
   },
   "status": {
@@ -245,6 +246,7 @@
     "theme_light": "Light",
     "theme_dark": "Dark",
     "interval_disabled": "Disabled",
+    "interval_one_minute": "Every minute",
     "interval_minutes": "Every {count} minutes",
     "confirm_root_change_title": "Change repository root folder?",
     "confirm_root_change_msg": "Changing the repository root will reload configurations and connections."

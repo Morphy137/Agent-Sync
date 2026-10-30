@@ -58,13 +58,13 @@ describe("SettingsDrawer.svelte", () => {
     await fireEvent.click(esOption);
     expect(getActiveLocale()).toBe("es");
 
-    // Change theme to Dark
-    const darkOption = getByText("Dark");
+    // Labels re-render live in the previewed language
+    const darkOption = getByText("Oscuro");
     await fireEvent.click(darkOption);
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 
     // Close without saving
-    const closeBtn = getByRole("button", { name: "Close" });
+    const closeBtn = getByRole("button", { name: "Cerrar" });
     await fireEvent.click(closeBtn);
 
     expect(closeSpy).toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe("SettingsDrawer.svelte", () => {
     await fireEvent.click(esOption);
 
     // Click Save
-    const saveBtn = getByRole("button", { name: "Save Settings" });
+    const saveBtn = getByRole("button", { name: "Guardar Ajustes" });
     await fireEvent.click(saveBtn);
 
     expect(saveSpy).toHaveBeenCalledWith(

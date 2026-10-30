@@ -140,4 +140,27 @@ describe("PathField.svelte", () => {
       expect(getByDisplayValue("C:/Users/User/.claude")).toBeDefined();
     });
   });
+
+  it("fills the input with the folder chosen in the browse dialog", async () => {
+    vi.mocked(App.SelectFolder).mockResolvedValue("C:/picked/dir");
+    vi.mocked(App.InspectPath).mockResolvedValue({ exists: true, isDir: true, writable: true } as any);
+
+    const { getByRole, getByDisplayValue } = render(PathField, { value: "", mode: "target" });
+    await fireEvent.click(getByRole("button", { name: "Browse" }));
+
+    await waitFor(() => {
+      expect(getByDisplayValue("C:/picked/dir")).toBeDefined();
+    });
+  });
+
+  it("shows an error when the browse dialog fails", async () => {
+    vi.mocked(App.SelectFolder).mockRejectedValue("dialog exploded");
+
+    const { getByRole, getByText } = render(PathField, { value: "", mode: "target" });
+    await fireEvent.click(getByRole("button", { name: "Browse" }));
+
+    await waitFor(() => {
+      expect(getByText("Could not open the folder picker: dialog exploded")).toBeDefined();
+    });
+  });
 });

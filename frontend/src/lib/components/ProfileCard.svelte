@@ -40,6 +40,21 @@
 
   let expanded = $state(false);
   let menuOpen = $state(false);
+  let menuContainer = $state<HTMLDivElement | null>(null);
+
+  function closeMenu() {
+    menuOpen = false;
+  }
+
+  function handleWindowPointerDown(e: PointerEvent) {
+    if (!menuOpen || !menuContainer) return;
+    if (menuContainer.contains(e.target as Node)) return;
+    closeMenu();
+  }
+
+  function handleWindowKeyDown(e: KeyboardEvent) {
+    if (menuOpen && e.key === "Escape") closeMenu();
+  }
 
   const isConnected = $derived(!!connection);
   const aggregateStatus = $derived(
@@ -94,6 +109,8 @@
   }
 </script>
 
+<svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeyDown} />
+
 <div class="profile-card" class:disconnected={!isConnected}>
   <!-- Top section: Tile + Info + StatusPill -->
   <div class="card-top">
@@ -115,13 +132,13 @@
       {#if connection}
         <div class="paths-block">
           <div class="path-row">
-            <span class="path-label">repo:</span>
+            <span class="path-label">{t("connections.card.repo_label")}</span>
             <Tooltip text={profile.path || `${profile.name}/`}>
               <span class="path-val">{profile.name}/</span>
             </Tooltip>
           </div>
           <div class="path-row">
-            <span class="path-label">{t("wizard.step2_name")}:</span>
+            <span class="path-label">{t("connections.card.target_label")}</span>
             <Tooltip text={connection.targetPath}>
               <span class="path-val">{targetTruncated}</span>
             </Tooltip>
@@ -173,10 +190,11 @@
         </Button>
       </div>
 
-      <div class="menu-container">
+      <div class="menu-container" bind:this={menuContainer}>
         <IconButton
           label={t("connections.card.menu_toggle")}
           onclick={() => (menuOpen = !menuOpen)}
+          ariaExpanded={menuOpen}
         >
           <MoreHorizontal size={16} />
         </IconButton>
@@ -185,7 +203,7 @@
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div
             class="dropdown-menu"
-            onclick={() => (menuOpen = false)}
+            onclick={closeMenu}
             role="menu"
             tabindex="-1"
           >
@@ -331,24 +349,21 @@
   }
 
   .paths-block {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-2);
+    row-gap: 2px;
   }
 
   .path-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
+    display: contents;
     font-size: var(--text-xs);
-    min-width: 0;
   }
 
   .path-label {
     color: var(--text-subtle);
     font-size: 11px;
-    flex-shrink: 0;
-    min-width: 44px;
+    align-self: center;
   }
 
   .path-val {

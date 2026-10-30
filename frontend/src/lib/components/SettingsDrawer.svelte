@@ -158,7 +158,7 @@
           value={checkInterval}
           options={[
             { value: 0, label: t("settings.interval_disabled") },
-            { value: 1, label: t("settings.interval_minutes", { count: 1 }) },
+            { value: 1, label: t("settings.interval_one_minute") },
             { value: 5, label: t("settings.interval_minutes", { count: 5 }) },
             { value: 15, label: t("settings.interval_minutes", { count: 15 }) },
             { value: 30, label: t("settings.interval_minutes", { count: 30 }) },

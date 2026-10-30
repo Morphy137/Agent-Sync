@@ -4,6 +4,7 @@
   interface Props {
     label: string;
     disabled?: boolean;
+    ariaExpanded?: boolean;
     onclick?: (e: MouseEvent) => void;
     children?: Snippet;
   }
@@ -11,6 +12,7 @@
   let {
     label,
     disabled = false,
+    ariaExpanded,
     onclick,
     children,
   }: Props = $props();
@@ -21,6 +23,7 @@
   class="icon-btn"
   aria-label={label}
   title={label}
+  aria-expanded={ariaExpanded}
   {disabled}
   {onclick}
 >

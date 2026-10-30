@@ -973,9 +973,31 @@ func (s *Service) SelectFolder(title, defaultDir string) (string, error) {
 	s.mu.Unlock()
 
 	if fn != nil {
-		return fn(title, defaultDir)
+		return fn(title, resolveDialogStartDir(defaultDir))
 	}
 	return "", nil
+}
+
+// resolveDialogStartDir returns the nearest existing directory for the given path, or "" when none applies.
+// Native dialogs fail when the default directory does not exist, so partial or typed paths are walked up.
+func resolveDialogStartDir(rawPath string) string {
+	if strings.TrimSpace(rawPath) == "" {
+		return ""
+	}
+	candidate := filepath.Clean(expandPath(rawPath))
+	if !filepath.IsAbs(candidate) {
+		return ""
+	}
+	for {
+		if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
+			return candidate
+		}
+		parent := filepath.Dir(candidate)
+		if parent == candidate {
+			return ""
+		}
+		candidate = parent
+	}
 }
 
 // InspectPath inspects path properties without side-effects (B.2).
