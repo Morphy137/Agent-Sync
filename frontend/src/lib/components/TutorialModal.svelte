@@ -119,7 +119,7 @@
     align-items: flex-end;
     justify-content: center;
     padding-bottom: 12vh;
-    background-color: color-mix(in srgb, var(--backdrop-overlay) 60%, transparent);
+    background-color: var(--backdrop-overlay);
   }
 
   .tutorial-card {
