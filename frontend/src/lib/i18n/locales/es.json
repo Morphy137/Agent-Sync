@@ -248,7 +248,7 @@
     "confirm_root_change_title": "¿Cambiar carpeta raíz del repositorio?",
     "confirm_root_change_msg": "Las conexiones se recargarán desde la nueva carpeta.",
     "git_identity_hint": "Se leen de git. Se guardan solo para este repositorio.",
-    "section_help": "Ayuda",
+    "section_help": "Ayuda e información",
     "replay_tutorial": "Repetir tutorial",
     "themes": {
       "light": "Blanco",
@@ -267,7 +267,10 @@
     },
     "themes_more": "Más",
     "themes_more_title": "Temas",
-    "theme_follow_system": "Seguir claro/oscuro del sistema"
+    "theme_follow_system": "Seguir claro/oscuro del sistema",
+    "whats_new": "Novedades",
+    "star_github": "Estrella en GitHub",
+    "app_version": "Versión {version}"
   },
   "statusbar": {
     "branch": "{branch}",
@@ -348,5 +351,19 @@
     "bell_count": "Notificaciones ({count})",
     "empty": "No hay novedades.",
     "close": "Cerrar notificación"
+  },
+  "changelog": {
+    "title": "Novedades",
+    "empty": "Aún no hay cambios registrados.",
+    "unreleased": "En la próxima versión",
+    "version": "Versión {version}",
+    "groups": {
+      "added": "Nuevo",
+      "changed": "Mejorado",
+      "fixed": "Corregido",
+      "removed": "Eliminado",
+      "security": "Seguridad",
+      "deprecated": "Obsoleto"
+    }
   }
 }

@@ -59,6 +59,8 @@ export function ExcludeRepoPath(arg1:string):Promise<service.GitignorePayload>;
 
 export function ExecuteSync(arg1:string,arg2:Array<orchestrator.ConflictResolution>):Promise<orchestrator.SyncResult>;
 
+export function GetChangelog():Promise<string>;
+
 export function GetConfig():Promise<config.Config>;
 
 export function GetGitInfo():Promise<service.GitInfoPayload>;

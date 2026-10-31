@@ -98,6 +98,10 @@ export function ExecuteSync(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSync'](arg1, arg2);
 }
 
+export function GetChangelog() {
+  return window['go']['main']['App']['GetChangelog']();
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }

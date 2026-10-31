@@ -14,6 +14,10 @@
   import Modal from "./Modal.svelte";
   import GitignoreModal from "./GitignoreModal.svelte";
   import ThemePicker from "./ThemePicker.svelte";
+  import ChangelogModal from "./ChangelogModal.svelte";
+  import { Star, Sparkles, GraduationCap } from "@lucide/svelte";
+  import { api } from "../api";
+  import { latestVersion, parseChangelog } from "../changelog/parse";
 
   interface Props {
     open: boolean;
@@ -31,6 +35,19 @@
   let language = $state<string>("system");
   let theme = $state<string>("system");
   let exclusionsOpen = $state(false);
+  let changelogOpen = $state(false);
+  let appVersion = $state("");
+
+  /** Project page; starring it helps others find AgentSync. */
+  const PROJECT_URL = "https://github.com/Morphy137/Agent-Sync";
+
+  $effect(() => {
+    if (!open || appVersion) return;
+    void api
+      .getChangelog()
+      .then((markdown) => (appVersion = latestVersion(parseChangelog(markdown))))
+      .catch(() => (appVersion = ""));
+  });
   let backupPath = $state<string>("");
   let backupRetention = $state<number>(20);
   let checkInterval = $state<number>(5);
@@ -242,10 +259,26 @@
     <!-- 5. Help -->
     <Card padding="md">
       <div class="section-block">
-        <h3 class="section-heading">{t("settings.section_help")}</h3>
-        <Button variant="secondary" size="sm" onclick={handleReplayTutorial}>
-          {t("settings.replay_tutorial")}
-        </Button>
+        <div class="help-heading">
+          <h3 class="section-heading">{t("settings.section_help")}</h3>
+          {#if appVersion}
+            <span class="app-version">{t("settings.app_version", { version: appVersion })}</span>
+          {/if}
+        </div>
+        <div class="help-actions">
+          <Button variant="secondary" size="sm" onclick={() => (changelogOpen = true)}>
+            <Sparkles size={14} />
+            <span>{t("settings.whats_new")}</span>
+          </Button>
+          <Button variant="secondary" size="sm" onclick={handleReplayTutorial}>
+            <GraduationCap size={14} />
+            <span>{t("settings.replay_tutorial")}</span>
+          </Button>
+          <Button variant="secondary" size="sm" onclick={() => api.openURL(PROJECT_URL)}>
+            <Star size={14} />
+            <span>{t("settings.star_github")}</span>
+          </Button>
+        </div>
       </div>
     </Card>
 
@@ -258,6 +291,7 @@
 </Drawer>
 
 <GitignoreModal open={exclusionsOpen} onclose={() => (exclusionsOpen = false)} />
+<ChangelogModal open={changelogOpen} onclose={() => (changelogOpen = false)} />
 
 <Modal
   open={confirmRootModalOpen}
@@ -304,6 +338,23 @@
     font-size: var(--text-xs);
     color: var(--text-muted);
     line-height: 1.5;
+  }
+
+  .help-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .app-version {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  .help-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
   }
 
   .save-actions {

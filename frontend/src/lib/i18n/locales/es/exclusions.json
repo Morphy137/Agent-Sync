@@ -1,7 +1,7 @@
 {
   "exclusions": {
     "title": "Exclusiones del repositorio",
-    "open_button": "Editar exclusiones (.gitignore)",
+    "open_button": "Editar exclusiones",
     "description": "Estos archivos y carpetas nunca se suben. Un patrón por línea.",
     "editor_label": "Contenido de .gitignore",
     "recommended_missing": "Faltan {count} exclusiones recomendadas.",

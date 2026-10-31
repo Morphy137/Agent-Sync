@@ -9,6 +9,7 @@ vi.mock("../wailsjs/go/main/App", () => ({
   InspectPath: vi.fn(),
   SelectFolder: vi.fn(),
   CreateFolder: vi.fn(),
+  GetChangelog: vi.fn().mockResolvedValue("## [0.0.1] - 2026-10-31\n### Added\n- First release\n"),
 }));
 
 describe("SettingsDrawer.svelte", () => {

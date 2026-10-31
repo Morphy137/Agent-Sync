@@ -1,7 +1,7 @@
 {
   "exclusions": {
     "title": "Repository exclusions",
-    "open_button": "Edit exclusions (.gitignore)",
+    "open_button": "Edit exclusions",
     "description": "These files and folders are never uploaded. One pattern per line.",
     "editor_label": ".gitignore content",
     "recommended_missing": "{count} recommended exclusion(s) missing.",
