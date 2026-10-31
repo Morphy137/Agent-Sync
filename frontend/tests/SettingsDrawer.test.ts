@@ -12,6 +12,9 @@ vi.mock("../wailsjs/go/main/App", () => ({
   GetChangelog: vi.fn().mockResolvedValue("## [0.0.1] - 2026-10-31\n### Added\n- First release\n"),
 }));
 
+const runtime = vi.hoisted(() => ({ BrowserOpenURL: vi.fn() }));
+vi.mock("../wailsjs/runtime/runtime", () => runtime);
+
 describe("SettingsDrawer.svelte", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -101,5 +104,15 @@ describe("SettingsDrawer.svelte", () => {
       "user@example.com",
       undefined
     );
+  });
+
+  it("opens the public GitHub repository from the star button", async () => {
+    const { getByRole } = render(SettingsDrawer, {
+      open: true,
+      onclose: vi.fn(),
+      onsave: vi.fn(),
+    });
+    await fireEvent.click(getByRole("button", { name: "Star on GitHub" }));
+    expect(runtime.BrowserOpenURL).toHaveBeenCalledWith("https://github.com/Morphy137/Agent-Sync");
   });
 });
