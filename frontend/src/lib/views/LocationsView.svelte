@@ -149,7 +149,7 @@
         <h3 class="card-title">{t("locations.recognizers_title")}</h3>
       </div>
       <p class="hint">{t("locations.recognizers_desc")}</p>
-      {#if recognizersPath}<span class="path">{recognizersPath}</span>{/if}
+      {#if recognizersPath}<span class="path" title={recognizersPath}>{recognizersPath}</span>{/if}
       <div>
         <Button variant="secondary" size="sm" onclick={openRecognizers}>
           {t("locations.recognizers_open")}
@@ -216,7 +216,7 @@
     background-color: var(--surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--elev-1);
-    padding: var(--space-4) var(--space-5);
+    padding: var(--space-3) var(--space-5);
   }
 
   .unmapped {
@@ -235,12 +235,16 @@
     flex-direction: column;
   }
 
+  .unmapped .list {
+    padding: 0;
+  }
+
   .row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    padding: var(--space-3) 0;
+    padding: var(--space-2) 0;
   }
 
   .row + .row {
@@ -250,7 +254,7 @@
   .row-main {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-1);
     min-width: 0;
   }
 
@@ -294,6 +298,12 @@
     font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
     color: var(--ink);
+  }
+
+  .hint {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
   }
 
   .recognizers {

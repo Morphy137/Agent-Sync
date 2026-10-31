@@ -1,6 +1,7 @@
 <script lang="ts">
   import { describeError } from "../i18n/errors";
-  import { Folder, FolderPlus, GitFork, AlertCircle, Sparkles } from "@lucide/svelte";
+  import { Folder, FolderPlus, GitFork, AlertCircle } from "@lucide/svelte";
+  import appIcon from "../../assets/app-icon.png";
   import type { service } from "../../../wailsjs/go/models";
   import {
     SetRootPath,
@@ -12,7 +13,6 @@
   import { t } from "../i18n";
   import Button from "./Button.svelte";
   import PathField from "./PathField.svelte";
-  import Spinner from "./Spinner.svelte";
 
   interface Props {
     onsuccess?: () => void;
@@ -68,7 +68,7 @@
   function isValidName(name: string): boolean {
     const trimmed = name.trim();
     if (!trimmed) return false;
-    if (trimmed.startsWith(".") || trimmed.endsWith(".") || trimmed.endsWith(" ")) return false;
+    if (trimmed.startsWith(".") || trimmed.endsWith(".") || name.endsWith(" ")) return false;
     if (INVALID_CHARS_REGEX.test(trimmed)) return false;
     if (RESERVED_WINDOWS_NAMES.includes(trimmed.toUpperCase())) return false;
     return true;
@@ -163,9 +163,7 @@
 <div class="onboarding-wrapper">
   <div class="onboarding-container">
     <div class="onboarding-header">
-      <div class="header-icon">
-        <Sparkles size={32} />
-      </div>
+      <img class="header-icon" src={appIcon} alt="" />
       <h1 class="header-title">{t("onboarding.title")}</h1>
       <p class="header-subtitle">{t("onboarding.subtitle")}</p>
     </div>
@@ -266,8 +264,17 @@
                 class="form-input"
                 type="text"
                 value={createFolderName}
+                aria-invalid={createFolderName.length > 0 && !isValidName(createFolderName)}
+                aria-describedby={createFolderName.length > 0 && !isValidName(createFolderName)
+                  ? "create-name-error"
+                  : undefined}
                 oninput={(e) => (createFolderName = (e.target as HTMLInputElement).value)}
               />
+              {#if createFolderName.length > 0 && !isValidName(createFolderName)}
+                <p class="field-error" id="create-name-error" role="alert">
+                  {t("onboarding.invalid_folder_name")}
+                </p>
+              {/if}
             </div>
             <div class="form-actions">
               <Button
@@ -341,8 +348,17 @@
                 class="form-input"
                 type="text"
                 value={cloneFolderName}
+                aria-invalid={cloneFolderName.length > 0 && !isValidName(cloneFolderName)}
+                aria-describedby={cloneFolderName.length > 0 && !isValidName(cloneFolderName)
+                  ? "clone-name-error"
+                  : undefined}
                 oninput={(e) => (cloneFolderName = (e.target as HTMLInputElement).value)}
               />
+              {#if cloneFolderName.length > 0 && !isValidName(cloneFolderName)}
+                <p class="field-error" id="clone-name-error" role="alert">
+                  {t("onboarding.invalid_folder_name")}
+                </p>
+              {/if}
             </div>
             <div class="form-actions">
               <Button
@@ -356,7 +372,6 @@
                 onclick={handleCloneRepo}
               >
                 {#if isLoading}
-                  <Spinner size="sm" />
                   <span>{t("onboarding.cloning")}</span>
                 {:else}
                   <span>{t("onboarding.btn_clone")}</span>
@@ -455,6 +470,11 @@
     box-shadow: var(--elev-2);
   }
 
+  .option-card:focus-visible,
+  .option-card.selected:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+
   .option-card.selected {
     border-color: var(--accent);
     box-shadow:
@@ -543,9 +563,13 @@
   }
 
   .form-input:focus-visible {
-    box-shadow:
-      var(--sunken),
-      0 0 0 2px var(--focus-ring);
+    box-shadow: var(--focus-ring);
+  }
+
+  .field-error {
+    margin: 0;
+    color: var(--danger);
+    font-size: var(--text-xs);
   }
 
   .form-actions {

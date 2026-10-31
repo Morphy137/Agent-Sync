@@ -252,9 +252,11 @@
     title={t("rules.title")}
     titleId="rules-view-title"
     summary={report
-      ? t("rules.summary", {
+      ? t(`rules.summary_${ruleStatuses.length === 1 ? "one" : "other"}`, {
           rules: ruleStatuses.length,
-          pending: report.pending,
+          pending: t(`rules.pending_${report.pending === 1 ? "one" : "other"}`, {
+            count: report.pending,
+          }),
           conflicts: report.conflicts,
         })
       : undefined}

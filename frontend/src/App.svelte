@@ -163,6 +163,7 @@
   }
 
   async function executeSyncNow(resolutions: orchestrator.ConflictResolution[]) {
+    if (appState.isSyncing) return;
     try {
       appState.isSyncing = true;
       const fingerprint = appState.statusPlan?.fingerprint || "";
@@ -336,7 +337,9 @@
         id: "local_changes",
         variant: "info",
         title: t("remote.banner.local_changes_title"),
-        message: t("remote.banner.local_changes_message", { count: localCount }),
+        message: t(`remote.banner.local_changes_message_${localCount === 1 ? "one" : "other"}`, {
+          count: localCount,
+        }),
         actions: [
           {
             label: t("remote.banner.review"),
@@ -402,10 +405,13 @@
             <section class="connections-view">
               <ViewHeader
                 title={t("connections.title")}
-                summary={t("connections.connected_count", {
-                  connected: connectedProfiles.length,
-                  unconnected: unconnectedProfiles.length,
-                })}
+                summary={t(
+                  `connections.connected_count_${connectedProfiles.length === 1 ? "one" : "other"}`,
+                  {
+                    connected: connectedProfiles.length,
+                    unconnected: unconnectedProfiles.length,
+                  }
+                )}
                 primaryLabel={t("connections.add_connection")}
                 onprimary={openConnectionWizard}
               >
@@ -484,7 +490,9 @@
                           <div class="unconnected-info">
                             <span class="unconnected-name">{prof.name}</span>
                             <span class="unconnected-count">
-                              · {t("wizard.files_count", { count: prof.fileCount })}
+                              · {t(`wizard.files_count_${prof.fileCount === 1 ? "one" : "other"}`, {
+                                count: prof.fileCount,
+                              })}
                             </span>
                           </div>
                           <Button
@@ -514,6 +522,7 @@
   <SyncPreviewModal
     open={appState.previewModalOpen}
     plan={appState.statusPlan}
+    syncing={appState.isSyncing}
     onclose={() => (appState.previewModalOpen = false)}
     onconfirm={executeSyncNow}
   />

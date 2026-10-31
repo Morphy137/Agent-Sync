@@ -276,6 +276,7 @@
 
   .item-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--space-2);
     margin-top: var(--space-3);

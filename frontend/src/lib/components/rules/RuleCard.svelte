@@ -151,7 +151,9 @@
               >
                 <ExternalLink size={14} />
                 <span class="item-text">
-                  {t("rules.card.open_destination_named", { name: destinationLabel(entry.dest) })}
+                  {t("rules.card.open_destination_named", {
+                    location: destinationLabel(entry.dest),
+                  })}
                 </span>
               </button>
             {/each}
@@ -225,6 +227,7 @@
   .title-col {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--space-2);
     min-width: 0;
   }
@@ -243,8 +246,9 @@
 
   .badges {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-1);
-    flex-shrink: 0;
+    min-width: 0;
   }
 
   .head-actions {

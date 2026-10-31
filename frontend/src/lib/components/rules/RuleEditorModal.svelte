@@ -438,9 +438,6 @@
     justify-content: center;
     width: 36px;
     height: 36px;
-    border-radius: var(--radius-md);
-    background-color: var(--surface-sunken);
-    box-shadow: var(--sunken);
     color: var(--dot-up);
     cursor: help;
   }

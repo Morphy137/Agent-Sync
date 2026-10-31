@@ -145,7 +145,9 @@
       {/if}
 
       <div class="files-count">
-        {t("connections.card.managed_files_count", { count: profile.fileCount })}
+        {t(`connections.card.managed_files_count_${profile.fileCount === 1 ? "one" : "other"}`, {
+          count: profile.fileCount,
+        })}
       </div>
     </div>
   </div>

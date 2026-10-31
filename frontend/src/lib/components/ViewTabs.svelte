@@ -44,8 +44,9 @@
     const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;
     e.preventDefault();
-    const next = tabs[(index + step + tabs.length) % tabs.length];
-    onchange(next.id);
+    const nextIndex = (index + step + tabs.length) % tabs.length;
+    onchange(tabs[nextIndex].id);
+    buttons[nextIndex]?.focus();
   }
 </script>
 

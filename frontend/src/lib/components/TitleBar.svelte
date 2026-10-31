@@ -26,6 +26,7 @@
   import Button from "./Button.svelte";
   import IconButton from "./IconButton.svelte";
   import Tooltip from "./Tooltip.svelte";
+  import appIcon from "../../assets/app-icon.png";
 
   interface Props {
     onsync: () => void;
@@ -110,21 +111,7 @@
 >
   <div class="titlebar-left">
     <div class="brand">
-      <svg
-        class="brand-logo"
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <rect x="3" y="3" width="11" height="11" rx="2.5" />
-        <rect x="10" y="10" width="11" height="11" rx="2.5" />
-      </svg>
+      <img class="brand-logo" src={appIcon} width="18" height="18" alt="" />
       <span class="brand-name">{t("app.title")}</span>
     </div>
 

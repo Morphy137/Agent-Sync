@@ -31,7 +31,7 @@ func setupTwoClonesWithBareRemote(t *testing.T) (
 
 	tempDir := t.TempDir()
 	bareRemote = filepath.Join(tempDir, "remote.git")
-	if err := exec.Command("git", "init", "--bare", bareRemote).Run(); err != nil {
+	if err := exec.Command("git", "init", "--bare", "--initial-branch", gitops.DefaultBranch, bareRemote).Run(); err != nil {
 		t.Fatal(err)
 	}
 

@@ -78,7 +78,7 @@
         {#if subscription.branch}
           <span class="branch">
             <GitBranch size={12} />
-            <span>{subscription.branch}</span>
+            <span title={subscription.branch}>{subscription.branch}</span>
           </span>
         {/if}
         <span class="rules" class:rules-empty={subscription.ruleCount === 0}>{ruleCountText}</span>
@@ -231,6 +231,18 @@
     align-items: center;
     gap: var(--space-1);
     font-family: var(--font-mono);
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .branch :global(svg) {
+    flex-shrink: 0;
+  }
+
+  .branch span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .rules {
