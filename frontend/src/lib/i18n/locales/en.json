@@ -310,6 +310,18 @@
     "path_not_absolute": "The path must be an absolute path.",
     "clone_failed": "Failed to clone repository from remote.",
     "draft_not_found": "The connection draft was not found or has expired.",
+    "rule_not_found": "The sync rule was not found. It may have been deleted on another PC.",
+    "invalid_rule": "The sync rule is not valid. Check its source and destinations.",
+    "source_not_found": "The source file or folder was not found.",
+    "source_read_only": "This source is read-only (subscription). Keep your local version or take the subscription version instead.",
+    "location_unmapped": "This location is not set on this PC. Choose its folder in Locations.",
+    "location_invalid": "The location name is not valid. Use lowercase letters, numbers, - or _.",
+    "collision_detected": "This destination collides with another rule and is paused until the rules change.",
+    "transform_failed": "The file could not be merged. It may be invalid or contain an entry not managed by AgentSync.",
+    "invalid_remote_url": "The repository URL is not valid or not allowed.",
+    "subscription_not_found": "The subscription was not found.",
+    "remote_branch_not_found": "The remote repository has no branches yet.",
+    "recognizers_invalid": "recognizers.json is not valid. The default recognizers are being used.",
     "unknown": "An unexpected error occurred."
   }
 }

@@ -1,0 +1,45 @@
+{
+  "locations": {
+    "title": "Locations",
+    "summary": "{count} on this PC",
+    "intro": "Locations are names for folders on this PC (e.g. claude → C:\\Users\\you\\.claude). Rules use these names, so shared rules work on every computer once each one sets its own folders.",
+    "add": "Add location",
+    "add_title": "New location",
+    "edit_title": "Edit location {alias}",
+    "edit": "Edit",
+    "open": "Open folder",
+    "remove": "Remove",
+    "remove_title": "Remove location {alias}?",
+    "remove_desc": "Only the alias is removed. No files are deleted.",
+    "remove_used": "{count} rule destination(s) use this location and will be skipped on this PC until it is set again. No files are deleted.",
+    "builtin": "Built-in",
+    "detected": "Detected: {label}",
+    "missing": "Folder not found",
+    "used_by": "Used by {count} destination(s)",
+    "unmapped_title": "Locations used by rules but not set on this PC",
+    "unmapped_desc": "Choose a folder for each one to start syncing those destinations here.",
+    "map_folder": "Choose folder",
+    "recognizers_title": "Detection recognizers",
+    "recognizers_desc": "recognizers.json describes skills, MCP configs, instruction files and known tool folders. AgentSync uses it to suggest paths. Edit it to teach AgentSync about new tools.",
+    "recognizers_open": "Open recognizers file",
+    "toast": {
+      "saved": "Location {alias} saved.",
+      "removed": "Location {alias} removed."
+    },
+    "form": {
+      "group_label": "Location details",
+      "alias_label": "Name",
+      "alias_placeholder": "e.g. claude, obsidian, web-project",
+      "alias_hint": "Lowercase letters, numbers, - and _. Use the same name on every PC.",
+      "path_label": "Folder on this PC",
+      "path_placeholder": "Choose or type a folder",
+      "save": "Save location",
+      "validation": {
+        "alias_required": "Enter a name.",
+        "alias_reserved": "\"home\" is built in and always points to your user folder.",
+        "alias_invalid": "Use up to 40 lowercase letters, numbers, - or _.",
+        "path_required": "Choose a folder."
+      }
+    }
+  }
+}

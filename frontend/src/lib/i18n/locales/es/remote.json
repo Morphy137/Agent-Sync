@@ -1,0 +1,87 @@
+{
+  "remote": {
+    "banner": {
+      "connect": "Conectar a repositorio remoto",
+      "review": "Revisar cambios",
+      "local_changes_title": "Cambios locales",
+      "local_changes_message": "{count} archivo(s) modificados en este PC se subirán en la próxima sincronización."
+    },
+    "url": {
+      "label": "URL del repositorio",
+      "placeholder": "https://github.com/usuario/agent-configs.git",
+      "hint": "HTTPS, SSH (git@host:usuario/repo.git) o una ruta local.",
+      "invalid": "Esto no parece la URL de un repositorio."
+    },
+    "connect": {
+      "title": "Conectar a repositorio remoto",
+      "intro_not_repo": "Esta carpeta aún no es un repositorio git. AgentSync la preparará y la conectará.",
+      "intro_repo": "Conecta este repositorio a un remoto para sincronizar entre equipos.",
+      "point_keep_files": "Tus archivos locales nunca se eliminan.",
+      "point_backup_branch": "Si esta carpeta tiene su propio historial, se guarda en una rama de respaldo.",
+      "point_review": "Las diferencias con el remoto quedan como cambios locales para que las revises.",
+      "submit": "Conectar",
+      "connecting": "Conectando...",
+      "connecting_hint": "Descargando el historial remoto. Puede tardar un momento.",
+      "identity_retry": "Configura tu nombre y correo de git y vuelve a conectar.",
+      "result_title": "Conectado",
+      "result_branch": "Rama: {branch}",
+      "remote_had_content": "El remoto ya tenía contenido; tu carpeta ahora lo sigue.",
+      "remote_was_empty": "El remoto estaba vacío; se subieron tus archivos.",
+      "backup_branch_title": "Historial local guardado",
+      "backup_branch_hint": "Tus commits anteriores se conservan en esta rama:",
+      "local_changes_title": "{count} diferencia(s) local(es)",
+      "local_changes_hint": "Revísalas: conserva las tuyas para subirlas en la próxima sincronización, o toma la versión del repositorio.",
+      "no_local_changes": "Sin diferencias locales. Todo coincide con el remoto.",
+      "review_changes": "Revisar cambios",
+      "done": "Listo",
+      "toast_success": "Repositorio conectado."
+    },
+    "changes": {
+      "title": "Revisar cambios",
+      "empty": "No hay cambios para revisar.",
+      "legend_title": "En las comparaciones:",
+      "legend_repository": "Repositorio: la última versión sincronizada",
+      "legend_local": "Este PC: tus archivos en disco",
+      "legend_remote": "Remoto: la versión del servidor",
+      "incoming_title": "Entrante desde el remoto",
+      "incoming_behind": "{count} commit(s) por descargar",
+      "incoming_hint": "Estos archivos se actualizarán en este PC al sincronizar.",
+      "local_title": "Cambios locales ({count})",
+      "local_hint": "Conserva los tuyos para subirlos en la próxima sincronización, o toma la versión del repositorio (se hace una copia de seguridad).",
+      "uploads_title": "Editados en carpetas conectadas ({count})",
+      "uploads_hint": "Estos cambios se copiarán al repositorio y se subirán.",
+      "conflicts_title": "Conflictos ({count})",
+      "conflicts_hint": "Cambiados en ambos lados. Elegirás una versión en la vista previa de sincronización.",
+      "outside_title": "Otros cambios del repositorio ({count})",
+      "outside_hint": "Archivos fuera de las carpetas sincronizadas. Confírmalos o descártalos en git antes de sincronizar.",
+      "view_diff": "Ver cambios",
+      "view_diff_for": "Ver cambios en {path}",
+      "view_mine": "Ver los míos",
+      "view_mine_for": "Ver mis cambios en {path}",
+      "view_remote": "Ver remoto",
+      "view_remote_for": "Ver cambios remotos en {path}",
+      "keep_mine": "Conservar el mío",
+      "keep_mine_for": "Conservar mi versión de {path}",
+      "kept_tag": "Se subirá",
+      "take_repo": "Tomar la versión del repositorio",
+      "take_repo_for": "Tomar la versión del repositorio de {path}",
+      "discard_confirm": "¿Reemplazar {path} por la versión del repositorio? Primero se hace una copia de seguridad de tu archivo.",
+      "discard_confirm_label": "Confirmar",
+      "discard_confirm_button": "Reemplazar mi archivo",
+      "discarded_toast": "{path} restaurado a la versión del repositorio.",
+      "sync_now": "Sincronizar ahora"
+    },
+    "diff": {
+      "working_title": "Tus cambios",
+      "incoming_title": "Cambios entrantes"
+    },
+    "status": {
+      "added": "Añadido",
+      "modified": "Modificado",
+      "changed": "Cambiado",
+      "deleted": "Eliminado",
+      "renamed": "Renombrado",
+      "untracked": "Nuevo"
+    }
+  }
+}

@@ -310,6 +310,18 @@
     "path_not_absolute": "La ruta debe ser una ruta absoluta.",
     "clone_failed": "Error al clonar el repositorio desde el remoto.",
     "draft_not_found": "El borrador de conexión no fue encontrado o ha expirado.",
+    "rule_not_found": "No se encontró la regla de sincronización. Puede que se haya eliminado en otro PC.",
+    "invalid_rule": "La regla de sincronización no es válida. Revisa su origen y destinos.",
+    "source_not_found": "No se encontró el archivo o carpeta de origen.",
+    "source_read_only": "Este origen es de solo lectura (suscripción). Conserva tu versión local o toma la de la suscripción.",
+    "location_unmapped": "Esta ubicación no está configurada en este PC. Elige su carpeta en Ubicaciones.",
+    "location_invalid": "El nombre de la ubicación no es válido. Usa minúsculas, números, - o _.",
+    "collision_detected": "Este destino colisiona con otra regla y queda en pausa hasta que cambien las reglas.",
+    "transform_failed": "No se pudo combinar el archivo. Puede que no sea válido o que contenga una entrada no gestionada por AgentSync.",
+    "invalid_remote_url": "La URL del repositorio no es válida o no está permitida.",
+    "subscription_not_found": "No se encontró la suscripción.",
+    "remote_branch_not_found": "El repositorio remoto aún no tiene ramas.",
+    "recognizers_invalid": "recognizers.json no es válido. Se están usando los reconocedores por defecto.",
     "unknown": "Ocurrió un error inesperado."
   }
 }

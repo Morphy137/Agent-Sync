@@ -1,0 +1,223 @@
+{
+  "rules": {
+    "title": "Reglas de sincronización",
+    "intro": "Cada regla escribe un archivo o carpeta en tantos lugares como quieras, cada uno con el nombre que necesita.",
+    "summary": "{rules} reglas · {pending} pendientes · {conflicts} por revisar",
+    "loading": "Cargando reglas...",
+    "new_button": "Nueva regla",
+    "sync_button": "Sincronizar reglas",
+    "empty": {
+      "title": "Edita una vez, sincroniza en todas partes",
+      "description": "Crea una regla para copiar un archivo como AGENTS.md en CLAUDE.md, GEMINI.md o cualquier otra carpeta, o comparte una carpeta completa de skills. Los cambios vuelven al origen y cada cambio tiene copia de seguridad.",
+      "action": "Crear tu primera regla"
+    },
+    "unmapped": {
+      "title": "{count} ubicación(es) sin configurar en este PC",
+      "message": "Las reglas que usan {aliases} se omiten en este equipo hasta que elijas sus carpetas.",
+      "action": "Configurar ubicaciones"
+    },
+    "collisions": {
+      "banner_title": "{count} colisión(es) detectada(s)",
+      "banner_message": "Algunos destinos escribirían en el mismo lugar. Quedan en pausa hasta que cambies las reglas.",
+      "involved": "Implicados",
+      "connection_ref": "Conexión de carpeta {profile}",
+      "edit_rule": "Editar {name}",
+      "type": {
+        "same_target": "Mismo archivo de destino",
+        "folder_overlap": "Carpetas superpuestas",
+        "cycle": "Destino dentro de un origen",
+        "inside_repo": "Destino dentro del repositorio",
+        "case_conflict": "Nombres que solo difieren en mayúsculas"
+      },
+      "hint": {
+        "same_target": "Dos destinos escriben el mismo archivo. Cambia una ruta o desactiva uno de los destinos.",
+        "folder_overlap": "Un destino de carpeta contiene otro destino. Usa carpetas separadas o excluye el archivo.",
+        "cycle": "Un destino apunta a (o dentro de) un origen de regla, lo que generaría un bucle.",
+        "inside_repo": "Los destinos no pueden estar dentro del repositorio; ahí viven los orígenes.",
+        "case_conflict": "Windows y macOS tratan estos nombres como el mismo archivo. Usa una sola forma."
+      }
+    },
+    "scope": {
+      "repo": "Compartida (repositorio)",
+      "local": "Solo este PC",
+      "repo_hint": "Se guarda en agentsync.rules.json dentro del repositorio y se sincroniza a todos tus equipos.",
+      "local_hint": "Se guarda solo en este equipo. Úsala para orígenes locales, suscripciones o ajustes propios de esta máquina."
+    },
+    "origin": {
+      "repo": "Repositorio",
+      "local": "Este PC",
+      "subscription": "Suscripción"
+    },
+    "kind": {
+      "auto": "Detectar automáticamente",
+      "file": "Archivo",
+      "folder": "Carpeta",
+      "skill": "Skill",
+      "mcp": "Configuración MCP",
+      "instructions": "Instrucciones"
+    },
+    "mode": {
+      "two_way": "Bidireccional",
+      "one_way": "Unidireccional",
+      "create_only": "Solo crear"
+    },
+    "mode_hint": {
+      "two_way": "Los cambios en este destino vuelven al origen y a los demás destinos.",
+      "one_way": "El origen siempre manda; los cambios locales se marcan para revisión.",
+      "create_only": "Solo se escribe si el archivo aún no existe; nunca se sobrescribe."
+    },
+    "transform": {
+      "none": "Sin transformación (copia simple)",
+      "json_merge": "Combinar en clave JSON",
+      "toml_merge": "Combinar en tabla TOML"
+    },
+    "dest_state": {
+      "ready": "Listo",
+      "location_unmapped": "Ubicación sin configurar en este PC",
+      "blocked_collision": "En pausa: colisión",
+      "disabled": "Desactivado",
+      "source_missing": "Origen no encontrado"
+    },
+    "file_status": {
+      "in_sync": "Sincronizado",
+      "new_in_source": "Nuevo en el origen",
+      "source_changed": "Origen actualizado",
+      "target_changed": "Editado aquí",
+      "target_missing": "Falta aquí",
+      "conflict": "Cambiado en ambos lados",
+      "untracked_diff": "Distinto al vincular",
+      "unreadable": "Ilegible",
+      "source_deleted": "Eliminado del origen",
+      "drift": "Editado localmente",
+      "ignored": "Se mantiene local"
+    },
+    "card": {
+      "source_label": "Origen",
+      "destinations_label": "Destinos ({count})",
+      "files_label": "Archivos",
+      "enabled": "Regla activada",
+      "kind_detected": "Tipo detectado",
+      "kind_forced": "Tipo elegido manualmente",
+      "kind_forced_badge": "{kind} (manual)",
+      "menu_toggle": "Más opciones de {name}",
+      "edit": "Editar",
+      "duplicate": "Duplicar",
+      "delete": "Eliminar",
+      "open_source": "Abrir origen",
+      "open_destination_named": "Abrir destino {location}",
+      "show_in_sync": "Mostrar {count} archivos sincronizados",
+      "hide_in_sync": "Ocultar archivos sincronizados",
+      "copy_name": "{name} (copia)"
+    },
+    "delete": {
+      "title": "¿Eliminar la regla {name}?",
+      "message": "Los archivos ya escritos en los destinos se conservan. Solo se eliminan la regla y su historial de sincronización.",
+      "confirm": "Eliminar regla"
+    },
+    "review": {
+      "button": "Revisar",
+      "button_aria": "Revisar {file}",
+      "title": "Revisar cambios",
+      "subtitle": "{rule} → {destination} · {file} · {status}",
+      "use_source": "Usar el origen",
+      "use_target": "Usar esta versión",
+      "keep_local": "Mantener local y dejar de sincronizar este archivo"
+    },
+    "toast": {
+      "synced": "Reglas sincronizadas: {written} escritos, {captured} capturados, {skipped} por revisar.",
+      "deleted": "Regla {name} eliminada.",
+      "resolved": "{file} resuelto.",
+      "saved_with_collisions": "Regla guardada, pero algunos destinos colisionan y quedan en pausa."
+    },
+    "editor": {
+      "title_new": "Nueva regla de sincronización",
+      "title_edit": "Editar regla de sincronización",
+      "name_label": "Nombre",
+      "name_placeholder": "p. ej. Instrucciones de agentes",
+      "enabled_label": "Activada",
+      "scope_label": "¿Dónde se guarda esta regla?",
+      "source_title": "Origen",
+      "detected_kind": "Detectado: {kind}",
+      "kind_label": "Tipo de contenido",
+      "exclude_label": "Patrones a excluir",
+      "exclude_placeholder": "*.log\nnode_modules",
+      "exclude_hint": "Un patrón por línea o separados por comas. Los archivos secretos (.env, *.pem, auth.json...) siempre se excluyen.",
+      "destinations_title": "Destinos",
+      "destinations_hint": "Elige una ubicación y el nombre final. AgentSync sugiere una ruta cuando reconoce la carpeta.",
+      "add_destination": "Añadir destino",
+      "destination_legend": "Destino {index}",
+      "destination_enabled": "Destino activado",
+      "remove_destination": "Quitar destino {index}",
+      "suggesting": "Buscando la mejor ubicación...",
+      "detected_chip": "Detectado: {label}",
+      "generic_chip": "Copia genérica",
+      "suggestion_edited": "Editado por ti",
+      "path_label": "Ruta y nombre final",
+      "path_placeholder": "p. ej. CLAUDE.md o skills/mi-skill",
+      "path_hint": "Relativa a la ubicación. Para un archivo, es el nombre que tendrá allí.",
+      "path_preview": "Se escribirá en {path}",
+      "mode_label": "Modo",
+      "mode_forced": "Las transformaciones siempre usan modo unidireccional.",
+      "transform_label": "Transformación",
+      "transform_hint": "Combina solo las entradas que gestiona AgentSync y conserva el resto del archivo.",
+      "transform_key_label": "Clave",
+      "transform_key_placeholder": "p. ej. mcpServers",
+      "ignored_title": "Archivos que se mantienen locales",
+      "resume_syncing": "Volver a sincronizar",
+      "save": "Guardar regla",
+      "saved": "Regla guardada.",
+      "collisions_title": "Regla guardada con colisiones",
+      "collisions_desc": "Estos destinos escriben en el mismo lugar que otras reglas. Seguirán en pausa hasta que cambies una ruta o desactives uno de ellos.",
+      "collisions_ack": "Entendido",
+      "validation": {
+        "name_required": "Ponle un nombre a la regla.",
+        "source_required": "Elige un archivo o carpeta de origen.",
+        "local_needs_local_scope": "Los archivos de este PC solo pueden usarse en reglas guardadas en este PC.",
+        "repo_scope_needs_root": "Primero elige una carpeta de repositorio para compartir reglas.",
+        "destinations_required": "Añade al menos un destino.",
+        "location_required": "Elige una ubicación.",
+        "path_required": "Escribe la ruta o el nombre final.",
+        "path_relative": "Usa una ruta relativa sin '..'.",
+        "path_duplicate": "Otro destino ya usa esta ruta.",
+        "transform_key_required": "Escribe la clave donde combinar."
+      }
+    },
+    "location_select": {
+      "label": "Ubicación",
+      "placeholder": "Elige una ubicación",
+      "home_option": "home (tu carpeta de usuario: {path})",
+      "option": "{alias} ({path})",
+      "unmapped_option": "{alias} (sin configurar en este PC)",
+      "new_option": "Nueva ubicación..."
+    },
+    "source": {
+      "tabs_label": "Procedencia del origen",
+      "tab_repo": "Repositorio",
+      "tab_local": "Este PC",
+      "tab_subscription": "Suscripción",
+      "tree_label": "Archivos y carpetas",
+      "filter_label": "Filtrar",
+      "filter_placeholder": "Filtrar por nombre...",
+      "no_matches": "No hay archivos que coincidan.",
+      "repo_empty": "El repositorio está vacío. Añade archivos o impórtalos desde este PC.",
+      "repo_unavailable": "Elige una carpeta de repositorio para usar orígenes del repositorio.",
+      "expand": "Expandir",
+      "collapse": "Contraer",
+      "pick_file": "Elegir archivo",
+      "pick_folder": "Elegir carpeta",
+      "pick_file_title": "Elige el archivo de origen",
+      "pick_folder_title": "Elige la carpeta de origen",
+      "local_hint": "Los orígenes locales solo existen en este PC. Impórtalos al repositorio para compartirlos.",
+      "import_title": "Importar al repositorio",
+      "import_hint": "Copia el archivo o la carpeta al repositorio para versionarlo y tenerlo en todos tus PCs.",
+      "import_dir_label": "Carpeta del repositorio",
+      "import_dir_placeholder": "p. ej. shared",
+      "import_button": "Importar",
+      "import_success": "Importado como {path}.",
+      "subscription_label": "Suscripción",
+      "subscription_placeholder": "Elige una suscripción",
+      "no_subscriptions": "Aún no tienes suscripciones. Añade una en la pestaña Suscripciones.",
+      "subscription_empty": "Esta suscripción no tiene archivos."
+    }
+  }
+}

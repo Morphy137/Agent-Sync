@@ -1,0 +1,45 @@
+{
+  "locations": {
+    "title": "Ubicaciones",
+    "summary": "{count} en este PC",
+    "intro": "Las ubicaciones son nombres para carpetas de este PC (p. ej. claude → C:\\Users\\tu\\.claude). Las reglas usan estos nombres, así que las reglas compartidas funcionan en todos tus equipos cuando cada uno configura sus propias carpetas.",
+    "add": "Añadir ubicación",
+    "add_title": "Nueva ubicación",
+    "edit_title": "Editar ubicación {alias}",
+    "edit": "Editar",
+    "open": "Abrir carpeta",
+    "remove": "Quitar",
+    "remove_title": "¿Quitar la ubicación {alias}?",
+    "remove_desc": "Solo se quita el nombre. No se elimina ningún archivo.",
+    "remove_used": "{count} destino(s) de reglas usan esta ubicación y se omitirán en este PC hasta que la configures de nuevo. No se elimina ningún archivo.",
+    "builtin": "Integrada",
+    "detected": "Detectado: {label}",
+    "missing": "Carpeta no encontrada",
+    "used_by": "Usada por {count} destino(s)",
+    "unmapped_title": "Ubicaciones usadas por reglas pero sin configurar en este PC",
+    "unmapped_desc": "Elige una carpeta para cada una y esos destinos empezarán a sincronizarse aquí.",
+    "map_folder": "Elegir carpeta",
+    "recognizers_title": "Reconocedores de detección",
+    "recognizers_desc": "recognizers.json describe skills, configuraciones MCP, archivos de instrucciones y carpetas de herramientas conocidas. AgentSync lo usa para sugerir rutas. Edítalo para enseñarle herramientas nuevas.",
+    "recognizers_open": "Abrir archivo de reconocedores",
+    "toast": {
+      "saved": "Ubicación {alias} guardada.",
+      "removed": "Ubicación {alias} quitada."
+    },
+    "form": {
+      "group_label": "Datos de la ubicación",
+      "alias_label": "Nombre",
+      "alias_placeholder": "p. ej. claude, obsidian, proyecto-web",
+      "alias_hint": "Minúsculas, números, - y _. Usa el mismo nombre en todos tus PCs.",
+      "path_label": "Carpeta en este PC",
+      "path_placeholder": "Elige o escribe una carpeta",
+      "save": "Guardar ubicación",
+      "validation": {
+        "alias_required": "Escribe un nombre.",
+        "alias_reserved": "\"home\" está integrada y siempre apunta a tu carpeta de usuario.",
+        "alias_invalid": "Usa hasta 40 letras minúsculas, números, - o _.",
+        "path_required": "Elige una carpeta."
+      }
+    }
+  }
+}

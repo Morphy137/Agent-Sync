@@ -56,7 +56,7 @@
   }
 </script>
 
-<Modal {open} title={title ?? t("diff.title")} onclose={handleClose}>
+<Modal {open} size="lg" title={title ?? t("diff.title")} onclose={handleClose}>
   <div class="diff-modal">
     {#if subtitle}
       <p class="diff-subtitle">{subtitle}</p>
@@ -135,7 +135,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    min-width: min(760px, 80vw);
   }
 
   .diff-subtitle {

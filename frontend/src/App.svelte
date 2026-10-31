@@ -8,7 +8,6 @@
   import { Plus, RefreshCw, FolderSync, ChevronDown, ChevronRight } from "@lucide/svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import StatusBar from "./lib/components/StatusBar.svelte";
-  import Banner from "./lib/components/Banner.svelte";
   import ProfileCard from "./lib/components/ProfileCard.svelte";
   import WelcomeView from "./lib/components/WelcomeView.svelte";
   import SyncPreviewModal from "./lib/components/SyncPreviewModal.svelte";
@@ -26,11 +25,16 @@
   import SubscriptionsView from "./lib/views/SubscriptionsView.svelte";
   import LocationsView from "./lib/views/LocationsView.svelte";
   import RuleEditorModal from "./lib/components/rules/RuleEditorModal.svelte";
+  import RepoBanner from "./lib/components/remote/RepoBanner.svelte";
+  import ConnectRemoteModal from "./lib/components/remote/ConnectRemoteModal.svelte";
+  import RepoChangesModal from "./lib/components/remote/RepoChangesModal.svelte";
 
   let backupsList = $state<backup.BackupInfo[]>([]);
   let unconnectedOpen = $state(true);
   let disconnectModalConnection = $state<config.Connection | null>(null);
   let isDisconnecting = $state(false);
+  let connectRemoteOpen = $state(false);
+  let repoChangesOpen = $state(false);
 
   onMount(() => {
     appState.loadInitialData();
@@ -276,28 +280,60 @@
       {#if appState.config?.rootPath}
         <div class="banners-container">
           {#if appState.gitInfo && !appState.gitInfo.isRepo}
-            <Banner
+            <RepoBanner
               variant="warning"
               title={t("banners.not_repo.title")}
               message={t("banners.not_repo.message")}
-              actionLabel={t("banners.not_repo.button_init")}
-              onaction={handleInitRepo}
+              actions={[
+                {
+                  label: t("remote.banner.connect"),
+                  primary: true,
+                  onclick: () => (connectRemoteOpen = true),
+                },
+                { label: t("banners.not_repo.button_init"), onclick: handleInitRepo },
+              ]}
             />
           {:else if appState.gitInfo && !appState.gitInfo.hasUpstream}
-            <Banner
+            <RepoBanner
               variant="info"
               title={t("banners.no_remote.title")}
               message={t("banners.no_remote.message")}
-              actionLabel={t("banners.no_remote.button_add_remote")}
-              onaction={() => (appState.addRemoteModalOpen = true)}
+              actions={[
+                {
+                  label: t("remote.banner.connect"),
+                  primary: true,
+                  onclick: () => (connectRemoteOpen = true),
+                },
+              ]}
             />
           {:else if appState.statusPlan && appState.statusPlan.behind > 0}
-            <Banner
+            <RepoBanner
               variant="info"
               title={t("banners.remote_changes.title")}
               message={t("banners.remote_changes.message")}
-              actionLabel={t("banners.remote_changes.button_sync")}
-              onaction={handleSyncClick}
+              actions={[
+                { label: t("remote.banner.review"), onclick: () => (repoChangesOpen = true) },
+                {
+                  label: t("banners.remote_changes.button_sync"),
+                  primary: true,
+                  onclick: handleSyncClick,
+                },
+              ]}
+            />
+          {:else if (appState.statusPlan?.commitPreview?.length ?? 0) > 0}
+            <RepoBanner
+              variant="info"
+              title={t("remote.banner.local_changes_title")}
+              message={t("remote.banner.local_changes_message", {
+                count: appState.statusPlan?.commitPreview?.length ?? 0,
+              })}
+              actions={[
+                {
+                  label: t("remote.banner.review"),
+                  primary: true,
+                  onclick: () => (repoChangesOpen = true),
+                },
+              ]}
             />
           {/if}
         </div>
@@ -512,6 +548,24 @@
   />
 
   <RuleEditorModal />
+
+  <ConnectRemoteModal
+    open={connectRemoteOpen}
+    onclose={() => (connectRemoteOpen = false)}
+    onreview={() => {
+      connectRemoteOpen = false;
+      repoChangesOpen = true;
+    }}
+  />
+
+  <RepoChangesModal
+    open={repoChangesOpen}
+    onclose={() => (repoChangesOpen = false)}
+    onsync={() => {
+      repoChangesOpen = false;
+      handleSyncClick();
+    }}
+  />
 
   <Toast toasts={appState.toasts} ondismiss={(id) => appState.dismissToast(id)} />
 </div>

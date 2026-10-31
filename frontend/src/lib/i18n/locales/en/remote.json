@@ -1,0 +1,87 @@
+{
+  "remote": {
+    "banner": {
+      "connect": "Connect to remote repository",
+      "review": "Review changes",
+      "local_changes_title": "Local changes",
+      "local_changes_message": "{count} file(s) changed on this PC will be uploaded on the next Sync."
+    },
+    "url": {
+      "label": "Repository URL",
+      "placeholder": "https://github.com/user/agent-configs.git",
+      "hint": "HTTPS, SSH (git@host:user/repo.git) or a local path.",
+      "invalid": "This does not look like a repository URL."
+    },
+    "connect": {
+      "title": "Connect to remote repository",
+      "intro_not_repo": "This folder is not a git repository yet. AgentSync will set it up and connect it.",
+      "intro_repo": "Connect this repository to a remote to sync between computers.",
+      "point_keep_files": "Your local files are never deleted.",
+      "point_backup_branch": "If this folder has its own history, it is saved in a backup branch.",
+      "point_review": "Differences with the remote stay as local changes for you to review.",
+      "submit": "Connect",
+      "connecting": "Connecting...",
+      "connecting_hint": "Downloading the remote history. This can take a moment.",
+      "identity_retry": "Set your git name and email, then connect again.",
+      "result_title": "Connected",
+      "result_branch": "Branch: {branch}",
+      "remote_had_content": "The remote already had content; your folder now follows it.",
+      "remote_was_empty": "The remote was empty; your files were uploaded.",
+      "backup_branch_title": "Local history saved",
+      "backup_branch_hint": "Your previous commits are kept in this branch:",
+      "local_changes_title": "{count} local difference(s)",
+      "local_changes_hint": "Review them: keep yours to upload them on the next Sync, or take the repository version.",
+      "no_local_changes": "No local differences. Everything matches the remote.",
+      "review_changes": "Review changes",
+      "done": "Done",
+      "toast_success": "Repository connected."
+    },
+    "changes": {
+      "title": "Review changes",
+      "empty": "There are no changes to review.",
+      "legend_title": "In the comparisons:",
+      "legend_repository": "Repository: the last synced version",
+      "legend_local": "This PC: your files on disk",
+      "legend_remote": "Remote: the version on the server",
+      "incoming_title": "Incoming from the remote",
+      "incoming_behind": "{count} commit(s) to download",
+      "incoming_hint": "These files will be updated on this PC when you sync.",
+      "local_title": "Local changes ({count})",
+      "local_hint": "Keep yours to upload them on the next Sync, or take the repository version (a backup is made).",
+      "uploads_title": "Edited in connected folders ({count})",
+      "uploads_hint": "These edits will be copied into the repository and uploaded.",
+      "conflicts_title": "Conflicts ({count})",
+      "conflicts_hint": "Changed on both sides. You will choose a version in the Sync preview.",
+      "outside_title": "Other repository changes ({count})",
+      "outside_hint": "Files outside synced folders. Commit or discard them in git before syncing.",
+      "view_diff": "View changes",
+      "view_diff_for": "View changes in {path}",
+      "view_mine": "View mine",
+      "view_mine_for": "View my changes in {path}",
+      "view_remote": "View remote",
+      "view_remote_for": "View remote changes in {path}",
+      "keep_mine": "Keep mine",
+      "keep_mine_for": "Keep my version of {path}",
+      "kept_tag": "Will be uploaded",
+      "take_repo": "Take repository version",
+      "take_repo_for": "Take the repository version of {path}",
+      "discard_confirm": "Replace {path} with the repository version? A backup of your file is made first.",
+      "discard_confirm_label": "Confirm",
+      "discard_confirm_button": "Replace my file",
+      "discarded_toast": "{path} restored to the repository version.",
+      "sync_now": "Sync now"
+    },
+    "diff": {
+      "working_title": "Your changes",
+      "incoming_title": "Incoming changes"
+    },
+    "status": {
+      "added": "Added",
+      "modified": "Modified",
+      "changed": "Changed",
+      "deleted": "Deleted",
+      "renamed": "Renamed",
+      "untracked": "New"
+    }
+  }
+}

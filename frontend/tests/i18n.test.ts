@@ -58,6 +58,18 @@ describe("i18n Parity & Coverage", () => {
       "path_not_absolute",
       "clone_failed",
       "draft_not_found",
+      "rule_not_found",
+      "invalid_rule",
+      "source_not_found",
+      "source_read_only",
+      "location_unmapped",
+      "location_invalid",
+      "collision_detected",
+      "transform_failed",
+      "invalid_remote_url",
+      "subscription_not_found",
+      "remote_branch_not_found",
+      "recognizers_invalid",
       "unknown",
     ];
 

@@ -8,10 +8,12 @@
     open: boolean;
     title: string;
     onclose: () => void;
+    /** "lg" widens the dialog for editors and diffs. */
+    size?: "md" | "lg";
     children?: Snippet;
   }
 
-  let { open, title, onclose, children }: Props = $props();
+  let { open, title, onclose, size = "md", children }: Props = $props();
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key === "Escape" && open) {
@@ -27,6 +29,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="dialog"
+      class:dialog-lg={size === "lg"}
       onclick={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
@@ -69,6 +72,10 @@
     flex-direction: column;
     overflow: hidden;
     animation: modalEnter var(--duration-normal) var(--easing-out);
+  }
+
+  .dialog.dialog-lg {
+    max-width: 920px;
   }
 
   @keyframes modalEnter {

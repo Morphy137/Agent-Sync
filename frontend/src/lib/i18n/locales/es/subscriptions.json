@@ -1,0 +1,110 @@
+{
+  "subscriptions": {
+    "title": "Suscripciones",
+    "intro": "Sigue repositorios compartidos por otros, elige solo lo que necesitas y mantenlo actualizado.",
+    "summary": "{count} suscripción(es)",
+    "summary_updates": "{count} suscripción(es) · {updates} con actualizaciones",
+    "loading": "Cargando suscripciones...",
+    "add_button": "Añadir suscripción",
+    "check_all": "Comprobar todas",
+    "empty": {
+      "title": "Usa configuraciones compartidas por otros",
+      "description": "Pega la URL de un repositorio con skills, agentes o instrucciones y elige exactamente qué traer a este PC.",
+      "step_share_title": "1. Consigue el enlace",
+      "step_share_desc": "Alguien comparte la URL de su repositorio.",
+      "step_pick_title": "2. Elige lo que quieras",
+      "step_pick_desc": "Explóralo y sincroniza solo una skill, una carpeta o un único archivo.",
+      "step_update_title": "3. Mantente al día",
+      "step_update_desc": "Busca actualizaciones, revisa los cambios y aplícalos, o activa la actualización automática."
+    },
+    "add": {
+      "title": "Añadir suscripción",
+      "intro": "AgentSync descarga una copia de solo lectura. No se escribe nada en tus carpetas hasta que crees una regla con ella.",
+      "url_label": "URL del repositorio",
+      "name_label": "Nombre (opcional)",
+      "name_placeholder": "p. ej. Skills del equipo",
+      "name_hint": "Por defecto, el nombre del repositorio.",
+      "submit": "Añadir",
+      "submitting": "Añadiendo...",
+      "cloning": "Descargando el repositorio..."
+    },
+    "badge": {
+      "not_checked": "Sin comprobar",
+      "up_to_date": "Al día",
+      "offline": "Sin conexión",
+      "behind_one": "1 actualización",
+      "behind_other": "{count} actualizaciones"
+    },
+    "card": {
+      "last_checked": "Última comprobación",
+      "last_updated": "Última actualización",
+      "never": "Nunca",
+      "rules_none": "Aún no la usa ninguna regla",
+      "rules_one": "La usa 1 regla",
+      "rules_other": "La usan {count} reglas",
+      "check": "Buscar actualizaciones",
+      "update_now": "Actualizar ahora",
+      "browse": "Explorar y elegir",
+      "auto_update": "Actualización automática",
+      "auto_update_hint": "Aplica las actualizaciones automáticamente en las comprobaciones periódicas. Tus cambios locales nunca se sobrescriben.",
+      "remove_for": "Quitar {name}"
+    },
+    "incoming": {
+      "toggle_one": "1 archivo entrante",
+      "toggle_other": "{count} archivos entrantes",
+      "view_diff": "Ver cambios",
+      "view_diff_for": "Ver cambios en {path}"
+    },
+    "diff": {
+      "title": "Cambios entrantes · {name}"
+    },
+    "remove": {
+      "title": "¿Quitar {name}?",
+      "message": "Se elimina la copia descargada.",
+      "rules_one": "Se eliminará la regla que la usa.",
+      "rules_other": "Se eliminarán las {count} reglas que la usan.",
+      "files_kept": "Los archivos ya copiados en tus carpetas se conservan.",
+      "confirm": "Quitar suscripción"
+    },
+    "tree": {
+      "title": "Elegir de {name}",
+      "aria_label": "Contenido del repositorio",
+      "loading": "Cargando archivos...",
+      "empty": "Este repositorio no tiene archivos.",
+      "filter_label": "Filtrar",
+      "filter_placeholder": "Filtrar por nombre...",
+      "no_matches": "No hay archivos que coincidan.",
+      "count": "{count} elementos",
+      "expand": "Expandir {name}",
+      "collapse": "Contraer {name}",
+      "select_prompt": "Selecciona un archivo o carpeta para sincronizarlo.",
+      "selected": "Seleccionado",
+      "picked": "Regla creada",
+      "read_only_hint": "Los archivos de una suscripción son de solo lectura: tus cambios locales se conservan y se marcan, nunca se envían de vuelta.",
+      "sync_file": "Sincronizar este archivo...",
+      "sync_folder": "Sincronizar esta carpeta...",
+      "sync_skill": "Sincronizar esta skill...",
+      "sync_mcp": "Sincronizar estos servidores MCP...",
+      "sync_instructions": "Sincronizar estas instrucciones..."
+    },
+    "kinds": {
+      "file": "Archivo",
+      "folder": "Carpeta",
+      "skill": "Skill",
+      "mcp": "MCP",
+      "instructions": "Instrucciones"
+    },
+    "toasts": {
+      "added": "Suscripción {name} añadida.",
+      "removed": "Suscripción {name} quitada.",
+      "up_to_date": "{name} está al día.",
+      "already_current": "{name} ya estaba al día.",
+      "updates_available": "{name} tiene {count} actualización(es).",
+      "offline": "No se pudo conectar con {name}. Revisa tu conexión.",
+      "updated": "{name} actualizada: {files} archivo(s) cambiados, {written} escritos.",
+      "skipped": "{skipped} archivo(s) necesitan revisión en Reglas de sincronización.",
+      "auto_on": "Actualización automática activada para {name}.",
+      "auto_off": "Actualización automática desactivada para {name}."
+    }
+  }
+}

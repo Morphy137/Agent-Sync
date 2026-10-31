@@ -1,0 +1,110 @@
+{
+  "subscriptions": {
+    "title": "Subscriptions",
+    "intro": "Follow repositories shared by others, pick only what you need and keep it updated.",
+    "summary": "{count} subscription(s)",
+    "summary_updates": "{count} subscription(s) · {updates} with updates",
+    "loading": "Loading subscriptions...",
+    "add_button": "Add subscription",
+    "check_all": "Check all",
+    "empty": {
+      "title": "Use configurations shared by others",
+      "description": "Paste the URL of a repository with skills, agents or instructions and choose exactly what to bring to this PC.",
+      "step_share_title": "1. Get the link",
+      "step_share_desc": "Someone shares the URL of their repository.",
+      "step_pick_title": "2. Pick what you want",
+      "step_pick_desc": "Browse it and sync only one skill, a folder or a single file.",
+      "step_update_title": "3. Stay updated",
+      "step_update_desc": "Check for updates, review the changes and apply them, or turn on auto-update."
+    },
+    "add": {
+      "title": "Add subscription",
+      "intro": "AgentSync downloads a read-only copy. Nothing is written to your folders until you create a rule from it.",
+      "url_label": "Repository URL",
+      "name_label": "Name (optional)",
+      "name_placeholder": "e.g. Team skills",
+      "name_hint": "Defaults to the repository name.",
+      "submit": "Add",
+      "submitting": "Adding...",
+      "cloning": "Downloading the repository..."
+    },
+    "badge": {
+      "not_checked": "Not checked yet",
+      "up_to_date": "Up to date",
+      "offline": "Offline",
+      "behind_one": "1 update",
+      "behind_other": "{count} updates"
+    },
+    "card": {
+      "last_checked": "Last checked",
+      "last_updated": "Last updated",
+      "never": "Never",
+      "rules_none": "Not used by any rule yet",
+      "rules_one": "Used by 1 rule",
+      "rules_other": "Used by {count} rules",
+      "check": "Check for updates",
+      "update_now": "Update now",
+      "browse": "Browse and pick",
+      "auto_update": "Auto-update",
+      "auto_update_hint": "Apply updates automatically during periodic checks. Your local edits are never overwritten.",
+      "remove_for": "Remove {name}"
+    },
+    "incoming": {
+      "toggle_one": "1 incoming file",
+      "toggle_other": "{count} incoming files",
+      "view_diff": "View changes",
+      "view_diff_for": "View changes in {path}"
+    },
+    "diff": {
+      "title": "Incoming changes · {name}"
+    },
+    "remove": {
+      "title": "Remove {name}?",
+      "message": "The downloaded copy is deleted.",
+      "rules_one": "The rule that uses it will be removed.",
+      "rules_other": "The {count} rules that use it will be removed.",
+      "files_kept": "Files already copied to your folders are kept.",
+      "confirm": "Remove subscription"
+    },
+    "tree": {
+      "title": "Pick from {name}",
+      "aria_label": "Repository contents",
+      "loading": "Loading files...",
+      "empty": "This repository has no files.",
+      "filter_label": "Filter",
+      "filter_placeholder": "Filter by name...",
+      "no_matches": "No matching files.",
+      "count": "{count} items",
+      "expand": "Expand {name}",
+      "collapse": "Collapse {name}",
+      "select_prompt": "Select a file or folder to sync it.",
+      "selected": "Selected",
+      "picked": "Rule created",
+      "read_only_hint": "Subscription files are read-only: your local edits are kept and flagged, never sent back.",
+      "sync_file": "Sync this file...",
+      "sync_folder": "Sync this folder...",
+      "sync_skill": "Sync this skill...",
+      "sync_mcp": "Sync these MCP servers...",
+      "sync_instructions": "Sync these instructions..."
+    },
+    "kinds": {
+      "file": "File",
+      "folder": "Folder",
+      "skill": "Skill",
+      "mcp": "MCP",
+      "instructions": "Instructions"
+    },
+    "toasts": {
+      "added": "Subscription {name} added.",
+      "removed": "Subscription {name} removed.",
+      "up_to_date": "{name} is up to date.",
+      "already_current": "{name} was already up to date.",
+      "updates_available": "{name} has {count} update(s).",
+      "offline": "Could not reach {name}. Check your connection.",
+      "updated": "{name} updated: {files} file(s) changed, {written} written.",
+      "skipped": "{skipped} file(s) need review in Sync rules.",
+      "auto_on": "Auto-update enabled for {name}.",
+      "auto_off": "Auto-update disabled for {name}."
+    }
+  }
+}
