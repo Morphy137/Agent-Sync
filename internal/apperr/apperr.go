@@ -46,6 +46,9 @@ const (
 	SubscriptionNotFound    = "subscription_not_found"
 	RemoteBranchNotFound    = "remote_branch_not_found"
 	RecognizersInvalid      = "recognizers_invalid"
+	ConfirmationRequired    = "confirmation_required"
+	DestinationNotFound     = "destination_not_found"
+	InvalidArgument         = "invalid_argument"
 	Unknown                 = "unknown"
 )
 

@@ -258,7 +258,37 @@ func normalizeRule(r *rules.Rule) {
 func (s *Service) SaveRule(rule rules.Rule, scope string) (*SaveRuleResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveRuleLocked(rule, scope)
+}
 
+// UpdateRule loads a stored rule, applies mutate and saves it back in the same scope, all under one lock
+// so concurrent editors (GUI, CLI, MCP server) cannot interleave between the read and the write.
+func (s *Service) UpdateRule(id string, mutate func(*rules.Rule) error) (*SaveRuleResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	repoFile, localFile, err := s.loadRuleFilesLocked()
+	if err != nil {
+		return nil, err
+	}
+	var rule rules.Rule
+	scope := rules.ScopeRepo
+	if idx := findRuleIndex(repoFile, id); idx >= 0 {
+		rule = repoFile.Rules[idx]
+	} else if idx := findRuleIndex(localFile, id); idx >= 0 {
+		rule = localFile.Rules[idx]
+		scope = rules.ScopeLocal
+	} else {
+		return nil, apperr.New(apperr.RuleNotFound).WithParam("rule", id)
+	}
+	if err := mutate(&rule); err != nil {
+		return nil, err
+	}
+	rule.ID = id
+	return s.saveRuleLocked(rule, scope)
+}
+
+func (s *Service) saveRuleLocked(rule rules.Rule, scope string) (*SaveRuleResult, error) {
 	if scope != rules.ScopeRepo && scope != rules.ScopeLocal {
 		return nil, apperr.New(apperr.InvalidRule).WithParam("reason", "invalid_scope")
 	}
