@@ -17,7 +17,7 @@
   import ChangelogModal from "./ChangelogModal.svelte";
   import { Star, Sparkles, GraduationCap } from "@lucide/svelte";
   import { api } from "../api";
-  import { latestVersion, parseChangelog } from "../changelog/parse";
+  import { updateState } from "../stores/updates.svelte";
 
   interface Props {
     open: boolean;
@@ -36,18 +36,23 @@
   let theme = $state<string>("system");
   let exclusionsOpen = $state(false);
   let changelogOpen = $state(false);
-  let appVersion = $state("");
 
   /** Project page; starring it helps others find AgentSync. */
   const PROJECT_URL = "https://github.com/Morphy137/Agent-Sync";
 
-  $effect(() => {
-    if (!open || appVersion) return;
-    void api
-      .getChangelog()
-      .then((markdown) => (appVersion = latestVersion(parseChangelog(markdown))))
-      .catch(() => (appVersion = ""));
-  });
+  const appVersion = $derived(updateState.info?.version ?? "");
+  const installMode = $derived(
+    updateState.info?.portable
+      ? "portable"
+      : updateState.info?.installed
+        ? "installed"
+        : "standalone"
+  );
+  let checkUpdates = $state(true);
+
+  function toast(type: "success" | "error" | "info", message: string) {
+    appState.addToast(type, message);
+  }
   let backupPath = $state<string>("");
   let backupRetention = $state<number>(20);
   let checkInterval = $state<number>(5);
@@ -76,6 +81,7 @@
         backupRetention = appState.config.backupRetention || 20;
         checkInterval = appState.config.checkIntervalMinutes ?? 5;
         confirmBeforeSync = appState.config.confirmBeforeSync ?? true;
+        checkUpdates = !appState.config.disableUpdateCheck;
         rootPath = appState.config.rootPath || "";
         initialRootPath = rootPath;
       }
@@ -133,6 +139,7 @@
         backupRetention: Number(backupRetention) || 20,
         checkIntervalMinutes: Number(checkInterval),
         confirmBeforeSync,
+        disableUpdateCheck: !checkUpdates,
       },
       gitUserName.trim(),
       gitUserEmail.trim(),
@@ -265,6 +272,49 @@
             <span class="app-version">{t("settings.app_version", { version: appVersion })}</span>
           {/if}
         </div>
+        <div class="update-row">
+          <div class="update-text">
+            <span class="update-title">
+              {updateState.available
+                ? t("updates.available_title", {
+                    version: updateState.status?.release?.version ?? "",
+                  })
+                : t(`updates.mode.${installMode}`)}
+            </span>
+            {#if updateState.info?.dataDir}
+              <span class="update-path" title={updateState.info.dataDir}>
+                {t("updates.data_dir", { path: updateState.info.dataDir })}
+              </span>
+            {/if}
+          </div>
+          {#if updateState.available}
+            <Button
+              variant="primary"
+              size="sm"
+              loading={updateState.installing}
+              disabled={updateState.installing}
+              onclick={() => updateState.install(toast)}
+            >
+              {updateState.canAutoInstall ? t("updates.install") : t("updates.download")}
+            </Button>
+          {:else}
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={updateState.checking}
+              disabled={updateState.checking}
+              onclick={() => updateState.check(true, toast)}
+            >
+              {t("updates.check_now")}
+            </Button>
+          {/if}
+        </div>
+        <Switch
+          label={t("updates.auto_check")}
+          checked={checkUpdates}
+          onchange={(checked) => (checkUpdates = checked)}
+        />
+
         <div class="help-actions">
           <Button variant="secondary" size="sm" onclick={() => (changelogOpen = true)}>
             <Sparkles size={14} />
@@ -349,6 +399,38 @@
   .app-version {
     font-size: var(--text-xs);
     color: var(--text-muted);
+  }
+
+  .update-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+  }
+
+  .update-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .update-title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--ink);
+  }
+
+  .update-path {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .help-actions {

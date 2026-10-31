@@ -15,6 +15,7 @@ Obsidian vault, …).
 | [docs/SYNC_RULES.md](docs/SYNC_RULES.md) | Sync rules, locations, scopes, modes, transforms, collisions, rule files |
 | [docs/RECOGNIZERS.md](docs/RECOGNIZERS.md) | Content/agent detection and the `recognizers.json` file |
 | [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md) | Remote connection, shared repositories (subscriptions), reviewing diffs |
+| [docs/INSTALL_AND_UPDATES.md](docs/INSTALL_AND_UPDATES.md) | Installer, portable mode, automatic updates and publishing releases |
 | [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md) | `agentsync-cli` commands and the MCP server for Claude Code, Codex and Gemini CLI |
 | [docs/design/sync-rules-spec.md](docs/design/sync-rules-spec.md) | Developer contract for the rules engine packages |
 

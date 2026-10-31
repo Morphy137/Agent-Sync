@@ -16,6 +16,7 @@
   import BackupsDrawer from "./lib/components/BackupsDrawer.svelte";
   import SettingsDrawer from "./lib/components/SettingsDrawer.svelte";
   import TutorialModal from "./lib/components/TutorialModal.svelte";
+  import { updateState } from "./lib/stores/updates.svelte";
   import NotificationCenter, {
     type AppNotification,
   } from "./lib/components/notifications/NotificationCenter.svelte";
@@ -260,6 +261,29 @@
   }
 
   /** Repository state shown as notifications (bell + closable popup) instead of page banners. */
+  const updateNotification = $derived.by((): AppNotification[] => {
+    const release = updateState.status?.release;
+    if (!updateState.available || !release) return [];
+    return [
+      {
+        id: `update_${release.version}`,
+        variant: "info",
+        title: t("updates.available_title", { version: release.version }),
+        message: updateState.canAutoInstall
+          ? t("updates.available_message")
+          : t("updates.available_manual_message"),
+        actions: [
+          { label: t("updates.view_notes"), onclick: () => updateState.openReleasePage() },
+          {
+            label: updateState.canAutoInstall ? t("updates.install") : t("updates.download"),
+            primary: true,
+            onclick: () => void updateState.install((type, msg) => appState.addToast(type, msg)),
+          },
+        ],
+      },
+    ];
+  });
+
   const repoNotifications = $derived.by((): AppNotification[] => {
     if (!appState.config?.rootPath) return [];
     const git = appState.gitInfo;
@@ -325,6 +349,8 @@
     return items;
   });
 
+  const allNotifications = $derived([...updateNotification, ...repoNotifications]);
+
   const connectedProfiles = $derived.by(() => {
     if (!appState.config?.connections) return [];
     return appState.config.connections.map((conn) => {
@@ -356,7 +382,7 @@
     onchangeRoot={handleSelectRoot}
   >
     {#snippet notifications()}
-      <NotificationCenter items={repoNotifications} />
+      <NotificationCenter items={allNotifications} />
     {/snippet}
   </TitleBar>
 
