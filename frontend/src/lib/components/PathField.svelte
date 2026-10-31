@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { describeError } from "../i18n/errors";
   import { FolderOpen } from "@lucide/svelte";
   import type { service } from "../../../wailsjs/go/models";
   import { InspectPath, SelectFolder, CreateFolder } from "../../../wailsjs/go/main/App";
@@ -98,7 +99,7 @@
       }
     } catch (err: unknown) {
       createError = t("path_field.browse_failed", {
-        error: String((err as Error)?.message ?? err),
+        error: describeError(err),
       });
     }
   }
@@ -114,8 +115,7 @@
         await inspectNow(created);
       }
     } catch (err: any) {
-      const msg = err?.message || err || "error";
-      createError = t("path_field.failed_create", { error: msg });
+      createError = t("path_field.failed_create", { error: describeError(err) });
     } finally {
       isCreating = false;
     }

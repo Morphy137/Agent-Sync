@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { describeError } from "../i18n/errors";
   import { Folder, FolderPlus, ArrowRight, ArrowLeft, Check, AlertCircle } from "@lucide/svelte";
   import type { service, profiles, orchestrator } from "../../../wailsjs/go/models";
   import {
@@ -140,7 +141,7 @@
         currentStep = 1;
       }
     } catch (err: any) {
-      errorMessage = err?.message || String(err);
+      errorMessage = describeError(err);
     }
   }
 
@@ -327,7 +328,7 @@
       resolutions = initialResolutions;
       currentStep = 3;
     } catch (err: any) {
-      errorMessage = err?.message || String(err);
+      errorMessage = describeError(err);
     } finally {
       isPreparingStep3 = false;
     }
@@ -361,7 +362,7 @@
       onsuccess?.();
       onclose();
     } catch (err: any) {
-      errorMessage = err?.message || String(err);
+      errorMessage = describeError(err);
     } finally {
       isCommitting = false;
     }

@@ -41,7 +41,7 @@ func Discover(rootPath string) ([]Profile, error) {
 		return nil, apperr.Wrap(apperr.WriteFailed, err)
 	}
 
-	var result []Profile
+	result := make([]Profile, 0)
 
 	for _, entry := range entries {
 		if !entry.IsDir() {

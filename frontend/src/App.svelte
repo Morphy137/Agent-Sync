@@ -247,7 +247,7 @@
   const connectedProfiles = $derived.by(() => {
     if (!appState.config?.connections) return [];
     return appState.config.connections.map((conn) => {
-      const prof = appState.profiles.find(
+      const prof = (appState.profiles ?? []).find(
         (p) => p.name.toLowerCase() === conn.profile.toLowerCase()
       ) || {
         name: conn.profile,
