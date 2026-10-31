@@ -83,15 +83,15 @@
     font-size: var(--text-sm);
   }
 
-  /* Primary: --ink background, --ink-contrast text, --primary-elev */
+  /* Primary: --accent background, --accent-contrast text, --primary-elev */
   .btn-primary {
-    background-color: var(--ink);
-    color: var(--ink-contrast);
+    background-color: var(--accent);
+    color: var(--accent-contrast);
     box-shadow: var(--primary-elev);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--ink-hover);
+    background-color: var(--accent-hover);
     transform: translateY(-1px);
   }
 

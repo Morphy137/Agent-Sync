@@ -68,7 +68,7 @@
   }
 
   .switch-track.checked {
-    background-color: var(--ink);
+    background-color: var(--accent);
   }
 
   .switch-thumb {

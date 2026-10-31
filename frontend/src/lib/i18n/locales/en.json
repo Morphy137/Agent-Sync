@@ -249,7 +249,20 @@
     "interval_one_minute": "Every minute",
     "interval_minutes": "Every {count} minutes",
     "confirm_root_change_title": "Change repository root folder?",
-    "confirm_root_change_msg": "Changing the repository root will reload configurations and connections."
+    "confirm_root_change_msg": "Changing the repository root will reload configurations and connections.",
+    "palette_label": "Color palette",
+    "git_identity_hint": "Read from git: this repository's settings, or your global git config if the repository has none. Saving stores them only in this repository and is used as the author of sync commits.",
+    "palette": {
+      "graphite": "Graphite",
+      "ocean": "Ocean",
+      "forest": "Forest",
+      "violet": "Violet",
+      "rose": "Rose",
+      "amber": "Amber",
+      "nord": "Nord",
+      "sepia": "Sepia",
+      "midnight": "Midnight"
+    }
   },
   "statusbar": {
     "branch": "{branch}",

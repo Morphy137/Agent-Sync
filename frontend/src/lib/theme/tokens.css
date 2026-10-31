@@ -39,6 +39,7 @@
   --duration-fast: 140ms;
   --duration-normal: 200ms;
   --easing-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: var(--easing-out);
 
   --win-close-hover-bg: #c42b1c;
   --win-close-hover-fg: #ffffff;
@@ -74,6 +75,15 @@
   --dot-up: #c08a2e;
   --dot-conflict: #c8473d;
   --dot-idle: #a0a0a6;
+
+  /* semantic aliases */
+  --border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --border-subtle: var(--hairline);
+  --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --success: var(--dot-ok);
+  --warning: var(--dot-up);
+  --danger: var(--dot-conflict);
+  --danger-bg: color-mix(in srgb, var(--dot-conflict) 12%, transparent);
 }
 
 [data-theme="dark"] {
@@ -111,4 +121,13 @@
   --dot-up: #d9a84e;
   --dot-conflict: #e0675c;
   --dot-idle: #5e5e66;
+
+  /* semantic aliases */
+  --border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --border-subtle: var(--hairline);
+  --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --success: var(--dot-ok);
+  --warning: var(--dot-up);
+  --danger: var(--dot-conflict);
+  --danger-bg: color-mix(in srgb, var(--dot-conflict) 12%, transparent);
 }
