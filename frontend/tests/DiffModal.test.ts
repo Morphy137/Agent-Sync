@@ -51,7 +51,7 @@ describe("DiffModal.svelte", () => {
       diff: { ...sampleDiff, binary: true },
       onclose: vi.fn(),
     });
-    expect(getByText(/binary or too large/)).toBeDefined();
+    expect(getByText(/can't be compared/)).toBeDefined();
   });
 
   it("lets the user edit and save a merged version", async () => {

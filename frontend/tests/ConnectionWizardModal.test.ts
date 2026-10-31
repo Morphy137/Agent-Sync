@@ -171,7 +171,7 @@ describe("ConnectionWizardModal.svelte", () => {
     // Verify Step 3 reached
     await waitFor(() => {
       expect(App.BeginConnection).toHaveBeenCalled();
-      expect(getByText("Review planned changes before establishing the connection.")).toBeDefined();
+      expect(getByText("Review the changes before connecting.")).toBeDefined();
       expect(getByText("settings.json")).toBeDefined();
       expect(getByText("Connect")).toBeDefined();
     });

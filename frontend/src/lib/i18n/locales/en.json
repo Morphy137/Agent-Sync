@@ -34,7 +34,7 @@
     "step1_name": "Repository Folder",
     "step2_name": "Target Folder",
     "step3_name": "Review",
-    "step1_subtitle": "Select an existing repository folder or create a new profile.",
+    "step1_subtitle": "Pick a repository folder or create one.",
     "existing_profiles": "Repository folders",
     "no_unconnected_profiles": "No unconnected repository folders available.",
     "already_connected_to": "Already connected to {target}",
@@ -42,31 +42,31 @@
     "create_new_folder": "Create new folder in repository",
     "new_folder_name_label": "Folder name",
     "new_folder_name_placeholder": "e.g. CLAUDE",
-    "step2_subtitle": "Choose the local configuration folder on this computer.",
+    "step2_subtitle": "Choose the folder on this PC.",
     "target_folder_label": "Local target folder",
     "what_to_sync_title": "Which files do you want to sync?",
     "start_empty": "Start with empty folder",
     "selection_summary": "{count} files selected ({size})",
     "cache_folder_reason": "Cache / temporary folder",
     "too_large_reason": "Folder exceeds size limit (>2000 files or >50MB)",
-    "step3_subtitle": "Review planned changes before establishing the connection.",
+    "step3_subtitle": "Review the changes before connecting.",
     "to_import": "Will be imported into repository",
     "to_create_in_target": "Will be created in local target folder",
     "to_overwrite": "Will be overwritten (with backup snapshot)",
     "differences_title": "File Differences",
-    "differences_desc": "These files exist in both locations with different contents. Choose which version to keep.",
+    "differences_desc": "These files differ. Choose which version to keep.",
     "apply_all_repo": "Use Repo for all",
     "apply_all_local": "Use Local for all",
     "choice_repo": "Repository",
     "choice_local": "This PC",
-    "sync_reminder": "After connecting, use Sync to upload these changes to the remote repository.",
+    "sync_reminder": "Use Sync afterwards to upload these changes.",
     "btn_next": "Next",
     "btn_back": "Back",
     "btn_connect": "Connect",
     "connecting": "Connecting...",
     "profile_required": "Please select or create a profile folder.",
     "target_required": "Please enter a valid target folder.",
-    "selection_required": "Select at least one file to import or check 'Start with empty folder'."
+    "selection_required": "Select a file or start with an empty folder."
   },
   "connections": {
     "title": "Connections",
@@ -79,9 +79,9 @@
     "change_target": "Change target folder",
     "disconnect": "Disconnect",
     "disconnect_confirm_title": "Disconnect profile {profile}?",
-    "disconnect_confirm_msg": "Files in your local folder will not be deleted. Baseline sync metadata will be removed.",
+    "disconnect_confirm_msg": "Your files are kept. Only the sync history is removed.",
     "empty_title": "Connect your first folder",
-    "empty_desc": "Synchronize your agent configurations across multiple computers seamlessly.",
+    "empty_desc": "Keep a folder in sync across your computers.",
     "card": {
       "not_connected": "Not connected",
       "managed_files_count": "{count} files",
@@ -100,13 +100,13 @@
   },
   "onboarding": {
     "title": "Welcome to AgentSync",
-    "subtitle": "Choose how you would like to set up your agent configuration repository.",
+    "subtitle": "Where should your configurations live?",
     "opt_existing_title": "Use existing folder",
-    "opt_existing_desc": "Select a local directory that already contains your configuration files or git repo.",
+    "opt_existing_desc": "Use a folder or git repository you already have.",
     "opt_create_title": "Create new folder",
-    "opt_create_desc": "Create a clean folder and initialize a new git repository for your agent settings.",
+    "opt_create_desc": "Start a new git repository.",
     "opt_clone_title": "Clone from remote (Second PC)",
-    "opt_clone_desc": "Clone an existing repository from GitHub or another remote to this computer.",
+    "opt_clone_desc": "Download a repository from GitHub or another remote.",
     "parent_folder_label": "Parent directory",
     "folder_name_label": "New folder name",
     "repo_url_label": "Repository URL (HTTPS or SSH)",
@@ -141,22 +141,22 @@
   "banners": {
     "not_repo": {
       "title": "Not a Git Repository",
-      "message": "This folder is not a git repository. Version control and cross-PC sync are inactive.",
+      "message": "Not a git repository. History and sync between PCs are off.",
       "button_init": "Initialize Repository"
     },
     "no_remote": {
       "title": "No Remote Configured",
-      "message": "No remote configured; synchronization between PCs is disabled.",
+      "message": "No remote. Sync between PCs is off.",
       "button_add_remote": "Add Remote"
     },
     "remote_changes": {
       "title": "Remote Updates Available",
-      "message": "There are incoming updates in the remote repository ready to download.",
+      "message": "New changes are available to download.",
       "button_sync": "Sync Now"
     },
     "identity_missing": {
       "title": "Git Identity Required",
-      "message": "Configure a git user name and email for this repository before committing changes.",
+      "message": "Set a git name and email before saving changes.",
       "button_configure": "Configure Identity"
     }
   },
@@ -175,7 +175,7 @@
   },
   "welcome": {
     "title": "Welcome to AgentSync",
-    "description": "Keep your global AI agent configuration files (Claude, Gemini, Codex, OpenCode) continuously synchronized across your computers with git-backed version control.",
+    "description": "Sync your files and agent settings across folders and computers.",
     "button_select_folder": "Select Agent Configurations Folder"
   },
   "preview": {
@@ -184,13 +184,13 @@
     "uploads_section": "Upload ({count})",
     "conflicts_section": "Conflicts ({count})",
     "commit_preview": "Files included in git commit",
-    "backups_notice": "Safety backups will be automatically created before applying overwrites.",
+    "backups_notice": "Overwritten files are backed up first.",
     "button_cancel": "Cancel",
     "button_sync": "Start Sync"
   },
   "conflicts": {
     "title": "Conflict Resolution",
-    "subtitle": "Choose which version to keep for each conflicting file:",
+    "subtitle": "Choose a version for each file:",
     "keep_repo": "Repository",
     "keep_local": "This PC",
     "apply_all_repo": "Apply Repository to all",
@@ -198,21 +198,21 @@
   },
   "initial_link": {
     "title": "Initial Link Detected",
-    "description": "The destination directory already contains files that differ from the repository. Choose how you want to proceed:",
+    "description": "This folder has files that differ from the repository.",
     "use_repo": "Use repository version (recommended)",
-    "use_repo_desc": "Overwrites local files with repository versions (safety backup created).",
+    "use_repo_desc": "Replace local files (a backup is made).",
     "use_local": "Use this PC's version",
-    "use_local_desc": "Overwrites repository files with local files on next sync.",
+    "use_local_desc": "Upload local files on the next sync.",
     "decide_later": "Decide later",
-    "decide_later_desc": "Keep both intact; mark connection as untracked difference.",
+    "decide_later_desc": "Keep both for now.",
     "button_confirm": "Confirm Link"
   },
   "backups": {
     "title": "Backups for {name}",
     "empty": "No backups found for this connection.",
     "button_restore": "Restore",
-    "confirm_restore": "Restore this backup? A snapshot of current files will be taken first. After restoring, Sync will upload this version to the repository.",
-    "restore_sync_notice": "After restoring, Sync will upload this version to the repository.",
+    "confirm_restore": "Restore this backup? Current files are backed up first.",
+    "restore_sync_notice": "Sync will upload the restored version.",
     "button_open_folder": "Open Folder",
     "files_count": "{count} files backed up",
     "reason_apply": "Local update",
@@ -249,9 +249,9 @@
     "interval_one_minute": "Every minute",
     "interval_minutes": "Every {count} minutes",
     "confirm_root_change_title": "Change repository root folder?",
-    "confirm_root_change_msg": "Changing the repository root will reload configurations and connections.",
+    "confirm_root_change_msg": "Connections will reload from the new folder.",
     "palette_label": "Color palette",
-    "git_identity_hint": "Read from git: this repository's settings, or your global git config if the repository has none. Saving stores them only in this repository and is used as the author of sync commits.",
+    "git_identity_hint": "Read from git. Saved only for this repository.",
     "palette": {
       "graphite": "Graphite",
       "ocean": "Ocean",
@@ -262,7 +262,9 @@
       "nord": "Nord",
       "sepia": "Sepia",
       "midnight": "Midnight"
-    }
+    },
+    "section_help": "Help",
+    "replay_tutorial": "Replay tutorial"
   },
   "statusbar": {
     "branch": "{branch}",
@@ -277,7 +279,7 @@
     "sync_success": "Synchronization completed successfully.",
     "save_success": "Settings saved successfully.",
     "disconnect_success": "Profile disconnected.",
-    "restore_success": "Backup restored. Sync will upload this version to the repository.",
+    "restore_success": "Backup restored. Sync to upload it.",
     "init_repo_success": "Git repository initialized.",
     "add_remote_success": "Remote added and synchronized.",
     "identity_saved": "Git identity saved for this repository.",
@@ -292,7 +294,7 @@
     "add_remote_placeholder": "https://github.com/user/agent-configs.git",
     "add_remote_submit": "Add Remote and Push",
     "git_identity_title": "Configure Git Identity",
-    "git_identity_description": "Git requires a name and email to create commits in this repository. These settings will be saved locally to this repository only.",
+    "git_identity_description": "Git needs a name and email to save changes in this repository.",
     "git_identity_submit": "Save Identity"
   },
   "errors": {

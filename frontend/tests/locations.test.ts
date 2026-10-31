@@ -70,7 +70,7 @@ describe("LocationsView.svelte", () => {
 
     const removeButtons = await findAllByRole("button", { name: "Remove" });
     await fireEvent.click(removeButtons[0]);
-    expect(await findByText(/2 rule destination\(s\) use this location/)).toBeDefined();
+    expect(await findByText(/2 destination\(s\) use it/)).toBeDefined();
 
     const confirm = getAllByText("Remove").at(-1)!;
     await fireEvent.click(confirm);

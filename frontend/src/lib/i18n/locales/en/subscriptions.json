@@ -1,7 +1,7 @@
 {
   "subscriptions": {
     "title": "Subscriptions",
-    "intro": "Follow repositories shared by others, pick only what you need and keep it updated.",
+    "intro": "Follow shared repositories and keep what you need.",
     "summary": "{count} subscription(s)",
     "summary_updates": "{count} subscription(s) · {updates} with updates",
     "loading": "Loading subscriptions...",
@@ -9,17 +9,17 @@
     "check_all": "Check all",
     "empty": {
       "title": "Use configurations shared by others",
-      "description": "Paste the URL of a repository with skills, agents or instructions and choose exactly what to bring to this PC.",
+      "description": "Paste a repository URL and pick what to bring.",
       "step_share_title": "1. Get the link",
       "step_share_desc": "Someone shares the URL of their repository.",
       "step_pick_title": "2. Pick what you want",
-      "step_pick_desc": "Browse it and sync only one skill, a folder or a single file.",
+      "step_pick_desc": "Choose a file or folder.",
       "step_update_title": "3. Stay updated",
-      "step_update_desc": "Check for updates, review the changes and apply them, or turn on auto-update."
+      "step_update_desc": "Review and apply updates."
     },
     "add": {
       "title": "Add subscription",
-      "intro": "AgentSync downloads a read-only copy. Nothing is written to your folders until you create a rule from it.",
+      "intro": "A read-only copy is downloaded. Nothing changes until you add a rule.",
       "url_label": "Repository URL",
       "name_label": "Name (optional)",
       "name_placeholder": "e.g. Team skills",
@@ -46,7 +46,7 @@
       "update_now": "Update now",
       "browse": "Browse and pick",
       "auto_update": "Auto-update",
-      "auto_update_hint": "Apply updates automatically during periodic checks. Your local edits are never overwritten.",
+      "auto_update_hint": "Apply updates automatically. Local edits are kept.",
       "remove_for": "Remove {name}"
     },
     "incoming": {
@@ -80,7 +80,7 @@
       "select_prompt": "Select a file or folder to sync it.",
       "selected": "Selected",
       "picked": "Rule created",
-      "read_only_hint": "Subscription files are read-only: your local edits are kept and flagged, never sent back.",
+      "read_only_hint": "Read-only. Local edits are kept, never sent back.",
       "sync_file": "Sync this file...",
       "sync_folder": "Sync this folder...",
       "sync_skill": "Sync this skill...",

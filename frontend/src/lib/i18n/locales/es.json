@@ -34,7 +34,7 @@
     "step1_name": "Carpeta del repositorio",
     "step2_name": "Carpeta destino",
     "step3_name": "Revisión",
-    "step1_subtitle": "Selecciona una carpeta existente del repositorio o crea un perfil nuevo.",
+    "step1_subtitle": "Elige una carpeta del repositorio o crea una.",
     "existing_profiles": "Carpetas del repositorio",
     "no_unconnected_profiles": "No hay carpetas del repositorio disponibles sin conectar.",
     "already_connected_to": "Ya conectada a {target}",
@@ -42,31 +42,31 @@
     "create_new_folder": "Crear nueva carpeta en el repositorio",
     "new_folder_name_label": "Nombre de la carpeta",
     "new_folder_name_placeholder": "ej. CLAUDE",
-    "step2_subtitle": "Elige la carpeta de configuración local en este equipo.",
+    "step2_subtitle": "Elige la carpeta en este PC.",
     "target_folder_label": "Carpeta local destino",
     "what_to_sync_title": "¿Qué archivos quieres sincronizar?",
     "start_empty": "Empezar con carpeta vacía",
     "selection_summary": "{count} archivos seleccionados ({size})",
     "cache_folder_reason": "Carpeta de caché o temporal",
     "too_large_reason": "Supera el límite de tamaño (>2000 archivos o >50MB)",
-    "step3_subtitle": "Revisa los cambios planificados antes de establecer la conexión.",
+    "step3_subtitle": "Revisa los cambios antes de conectar.",
     "to_import": "Se importarán al repositorio",
     "to_create_in_target": "Se crearán en el destino",
     "to_overwrite": "Se sobrescribirán (con copia de respaldo)",
     "differences_title": "Diferencias de archivos",
-    "differences_desc": "Estos archivos existen en ambas ubicaciones con contenido diferente. Elige qué versión conservar.",
+    "differences_desc": "Estos archivos son distintos. Elige qué versión conservar.",
     "apply_all_repo": "Repositorio para todos",
     "apply_all_local": "Este PC para todos",
     "choice_repo": "Repositorio",
     "choice_local": "Este PC",
-    "sync_reminder": "Después de conectar, usa Sincronizar para subir estos cambios al repositorio remoto.",
+    "sync_reminder": "Después usa Sincronizar para subir estos cambios.",
     "btn_next": "Siguiente",
     "btn_back": "Atrás",
     "btn_connect": "Conectar",
     "connecting": "Conectando...",
     "profile_required": "Selecciona o crea una carpeta de perfil.",
     "target_required": "Introduce una carpeta destino válida.",
-    "selection_required": "Selecciona al menos un archivo para importar o marca 'Empezar con carpeta vacía'."
+    "selection_required": "Selecciona un archivo o empieza con la carpeta vacía."
   },
   "connections": {
     "title": "Conexiones",
@@ -79,9 +79,9 @@
     "change_target": "Cambiar destino",
     "disconnect": "Desconectar",
     "disconnect_confirm_title": "¿Desconectar perfil {profile}?",
-    "disconnect_confirm_msg": "Los archivos de tu carpeta local no se borrarán. Solo se eliminarán los metadatos de sincronización.",
+    "disconnect_confirm_msg": "Tus archivos se conservan. Solo se borra el historial de sincronización.",
     "empty_title": "Conecta tu primera carpeta",
-    "empty_desc": "Sincroniza tus configuraciones de agentes entre varios equipos de manera sencilla.",
+    "empty_desc": "Mantén una carpeta sincronizada entre tus equipos.",
     "card": {
       "not_connected": "Sin conectar",
       "managed_files_count": "{count} archivos",
@@ -100,13 +100,13 @@
   },
   "onboarding": {
     "title": "Bienvenido a AgentSync",
-    "subtitle": "Elige cómo quieres configurar tu repositorio de ajustes de agentes.",
+    "subtitle": "¿Dónde guardarás tus configuraciones?",
     "opt_existing_title": "Usar una carpeta existente",
-    "opt_existing_desc": "Selecciona una carpeta local que ya contenga tus archivos o un repositorio git.",
+    "opt_existing_desc": "Usa una carpeta o repositorio git que ya tengas.",
     "opt_create_title": "Crear una carpeta nueva",
-    "opt_create_desc": "Crea una carpeta limpia e inicializa un nuevo repositorio git para tus ajustes.",
+    "opt_create_desc": "Empieza un repositorio git nuevo.",
     "opt_clone_title": "Clonar desde un remoto (Segundo PC)",
-    "opt_clone_desc": "Clona un repositorio existente desde GitHub u otro remoto a este equipo.",
+    "opt_clone_desc": "Descarga un repositorio de GitHub u otro remoto.",
     "parent_folder_label": "Carpeta contenedora",
     "folder_name_label": "Nombre de la nueva carpeta",
     "repo_url_label": "URL del repositorio (HTTPS o SSH)",
@@ -141,22 +141,22 @@
   "banners": {
     "not_repo": {
       "title": "No es un repositorio Git",
-      "message": "Esta carpeta no es un repositorio git. El control de versiones y la sincronización entre PCs están desactivados.",
+      "message": "No es un repositorio git. El historial y la sincronización entre PCs están desactivados.",
       "button_init": "Inicializar Repositorio"
     },
     "no_remote": {
       "title": "Sin remoto configurado",
-      "message": "Sin remoto configurado; la sincronización entre PCs está desactivada.",
+      "message": "Sin remoto. La sincronización entre PCs está desactivada.",
       "button_add_remote": "Agregar Remoto"
     },
     "remote_changes": {
       "title": "Actualizaciones remotas disponibles",
-      "message": "Hay cambios en el repositorio remoto listos para descargar.",
+      "message": "Hay cambios nuevos para descargar.",
       "button_sync": "Sincronizar Ahora"
     },
     "identity_missing": {
       "title": "Identidad Git requerida",
-      "message": "Configura un nombre y correo de usuario git para este repositorio antes de confirmar cambios.",
+      "message": "Configura un nombre y correo de git antes de guardar cambios.",
       "button_configure": "Configurar Identidad"
     }
   },
@@ -175,7 +175,7 @@
   },
   "welcome": {
     "title": "Bienvenido a AgentSync",
-    "description": "Mantén sincronizados los archivos de configuración global de tus agentes IA (Claude, Gemini, Codex, OpenCode) entre varios equipos con control de versiones en git.",
+    "description": "Sincroniza tus archivos y ajustes de agentes entre carpetas y equipos.",
     "button_select_folder": "Seleccionar Carpeta de Configuraciones"
   },
   "preview": {
@@ -184,13 +184,13 @@
     "uploads_section": "Subir ({count})",
     "conflicts_section": "Conflictos ({count})",
     "commit_preview": "Archivos incluidos en el commit de git",
-    "backups_notice": "Se crearán copias de seguridad antes de sobrescribir archivos.",
+    "backups_notice": "Se hace copia de los archivos antes de sobrescribirlos.",
     "button_cancel": "Cancelar",
     "button_sync": "Iniciar Sincronización"
   },
   "conflicts": {
     "title": "Resolución de Conflictos",
-    "subtitle": "Elige qué versión conservar para cada archivo en conflicto:",
+    "subtitle": "Elige una versión para cada archivo:",
     "keep_repo": "Repositorio",
     "keep_local": "Este PC",
     "apply_all_repo": "Aplicar Repositorio a todos",
@@ -198,21 +198,21 @@
   },
   "initial_link": {
     "title": "Vinculación Inicial Detectada",
-    "description": "La carpeta de destino ya contiene archivos que difieren del repositorio. Elige cómo deseas proceder:",
+    "description": "Esta carpeta tiene archivos distintos a los del repositorio.",
     "use_repo": "Usar versión del repositorio (recomendado)",
-    "use_repo_desc": "Sobrescribe los archivos locales con los del repositorio (crea backup previo).",
+    "use_repo_desc": "Reemplaza los archivos locales (se hace copia).",
     "use_local": "Usar versión de este PC",
-    "use_local_desc": "Sobrescribe los archivos del repositorio con los locales en la próxima sincronización.",
+    "use_local_desc": "Sube los archivos locales en la próxima sincronización.",
     "decide_later": "Decidir después",
-    "decide_later_desc": "Mantiene ambos intactos; la conexión queda marcada con diferencia no rastreada.",
+    "decide_later_desc": "Conserva ambos por ahora.",
     "button_confirm": "Confirmar Vinculación"
   },
   "backups": {
     "title": "Copias de seguridad para {name}",
     "empty": "No hay copias de seguridad para esta conexión.",
     "button_restore": "Restaurar",
-    "confirm_restore": "¿Restaurar esta copia de seguridad? Se creará una instantánea previa. Tras restaurar, Sincronizar subirá esta versión al repositorio.",
-    "restore_sync_notice": "Tras restaurar, Sincronizar subirá esta versión al repositorio.",
+    "confirm_restore": "¿Restaurar esta copia? Primero se guarda una copia de los archivos actuales.",
+    "restore_sync_notice": "Sincronizar subirá la versión restaurada.",
     "button_open_folder": "Abrir Carpeta",
     "files_count": "{count} archivos respaldados",
     "reason_apply": "Actualización local",
@@ -249,9 +249,9 @@
     "interval_one_minute": "Cada minuto",
     "interval_minutes": "Cada {count} minutos",
     "confirm_root_change_title": "¿Cambiar carpeta raíz del repositorio?",
-    "confirm_root_change_msg": "Cambiar la carpeta raíz recargará las configuraciones y conexiones.",
+    "confirm_root_change_msg": "Las conexiones se recargarán desde la nueva carpeta.",
     "palette_label": "Paleta de colores",
-    "git_identity_hint": "Se leen de git: la configuración de este repositorio o, si no tiene, tu configuración global de git. Al guardar se almacenan solo en este repositorio y se usan como autor de los commits de sincronización.",
+    "git_identity_hint": "Se leen de git. Se guardan solo para este repositorio.",
     "palette": {
       "graphite": "Grafito",
       "ocean": "Océano",
@@ -262,7 +262,9 @@
       "nord": "Nórdico",
       "sepia": "Sepia",
       "midnight": "Medianoche"
-    }
+    },
+    "section_help": "Ayuda",
+    "replay_tutorial": "Repetir tutorial"
   },
   "statusbar": {
     "branch": "{branch}",
@@ -277,7 +279,7 @@
     "sync_success": "Sincronización completada con éxito.",
     "save_success": "Ajustes guardados correctamente.",
     "disconnect_success": "Perfil desconectado.",
-    "restore_success": "Copia restaurada. Sincronizar subirá esta versión al repositorio.",
+    "restore_success": "Copia restaurada. Sincroniza para subirla.",
     "init_repo_success": "Repositorio git inicializado.",
     "add_remote_success": "Remoto agregado y sincronizado.",
     "identity_saved": "Identidad git guardada en este repositorio.",
@@ -292,7 +294,7 @@
     "add_remote_placeholder": "https://github.com/usuario/agent-configs.git",
     "add_remote_submit": "Agregar Remoto y Subir",
     "git_identity_title": "Configurar Identidad Git",
-    "git_identity_description": "Git necesita un nombre y correo electrónico para crear commits en este repositorio. Estos datos se guardarán localmente solo en este repositorio.",
+    "git_identity_description": "Git necesita un nombre y correo para guardar cambios en este repositorio.",
     "git_identity_submit": "Guardar Identidad"
   },
   "errors": {

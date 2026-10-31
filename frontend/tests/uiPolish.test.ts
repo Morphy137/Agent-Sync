@@ -130,9 +130,7 @@ describe("GitignoreModal.svelte", () => {
       missingRecommended: [],
     });
     const { findByText, getByRole } = render(GitignoreModal, { open: true, onclose: vi.fn() });
-    expect(
-      await findByText("2 recommended exclusion(s) missing (secrets, logs, caches).")
-    ).toBeDefined();
+    expect(await findByText("2 recommended exclusion(s) missing.")).toBeDefined();
     await fireEvent.click(getByRole("button", { name: "Add recommended" }));
     await waitFor(() => expect(mockApi.addRecommendedGitignore).toHaveBeenCalled());
     expect(await findByText("All recommended exclusions are present.")).toBeDefined();

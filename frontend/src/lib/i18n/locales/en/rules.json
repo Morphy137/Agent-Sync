@@ -1,24 +1,24 @@
 {
   "rules": {
     "title": "Sync rules",
-    "intro": "Each rule writes one file or folder to as many places as you want, each with the name it needs.",
+    "intro": "Copy a file or folder to several places.",
     "summary": "{rules} rules · {pending} pending · {conflicts} need review",
     "loading": "Loading rules...",
     "new_button": "New rule",
     "sync_button": "Sync rules",
     "empty": {
       "title": "Write once, sync everywhere",
-      "description": "Create a rule to copy a file such as AGENTS.md into CLAUDE.md, GEMINI.md or any other folder, or share a whole skills folder. Edits flow back and every change is backed up.",
+      "description": "Write one file or folder to several places and keep them in sync.",
       "action": "Create your first rule"
     },
     "unmapped": {
       "title": "{count} location(s) not set on this PC",
-      "message": "Rules using {aliases} are skipped on this computer until you choose their folders.",
+      "message": "{aliases} not set on this PC. Those rules are paused.",
       "action": "Set locations"
     },
     "collisions": {
       "banner_title": "{count} collision(s) detected",
-      "banner_message": "Some destinations would write to the same place. They are paused until you change the rules.",
+      "banner_message": "Some destinations overlap and are paused.",
       "involved": "Involved",
       "connection_ref": "Folder connection {profile}",
       "edit_rule": "Edit {name}",
@@ -30,18 +30,18 @@
         "case_conflict": "Names differ only by case"
       },
       "hint": {
-        "same_target": "Two destinations write the same file. Change one path or disable one destination.",
-        "folder_overlap": "A folder destination contains another destination. Use separate folders or exclude the file.",
-        "cycle": "A destination points at (or inside) a rule source, which would loop forever.",
-        "inside_repo": "Destinations cannot be inside the repository; sources live there.",
-        "case_conflict": "Windows and macOS treat these names as the same file. Use one spelling."
+        "same_target": "Two destinations write the same file.",
+        "folder_overlap": "One destination is inside another.",
+        "cycle": "A destination points back to a source.",
+        "inside_repo": "Destinations can't be inside the repository.",
+        "case_conflict": "Names differ only in upper/lower case."
       }
     },
     "scope": {
       "repo": "Shared (repository)",
       "local": "This PC only",
-      "repo_hint": "Stored in agentsync.rules.json inside the repository and synced to all your computers.",
-      "local_hint": "Stored only on this computer. Use it for local sources, subscriptions or machine-specific tweaks."
+      "repo_hint": "Shared with all your computers.",
+      "local_hint": "Only on this computer."
     },
     "origin": {
       "repo": "Repository",
@@ -62,9 +62,9 @@
       "create_only": "Create only"
     },
     "mode_hint": {
-      "two_way": "Edits in this destination flow back to the source and to the other destinations.",
-      "one_way": "The source always wins; local edits are flagged for review.",
-      "create_only": "Written only if the file does not exist yet; never overwritten."
+      "two_way": "Edits flow both ways.",
+      "one_way": "The source always wins.",
+      "create_only": "Written once, never overwritten."
     },
     "transform": {
       "none": "No transform (plain copy)",
@@ -111,7 +111,7 @@
     },
     "delete": {
       "title": "Delete rule {name}?",
-      "message": "Files already written to the destinations are kept. Only the rule and its sync history are removed.",
+      "message": "Written files are kept.",
       "confirm": "Delete rule"
     },
     "review": {
@@ -127,7 +127,7 @@
       "synced": "Rules synced: {written} written, {captured} captured, {skipped} need review.",
       "deleted": "Rule {name} deleted.",
       "resolved": "{file} resolved.",
-      "saved_with_collisions": "Rule saved, but some destinations collide and are paused."
+      "saved_with_collisions": "Rule saved. Overlapping destinations are paused."
     },
     "editor": {
       "title_new": "New sync rule",
@@ -141,9 +141,9 @@
       "kind_label": "Content type",
       "exclude_label": "Exclude patterns",
       "exclude_placeholder": "*.log\nnode_modules",
-      "exclude_hint": "One pattern per line or separated by commas. Secret files (.env, *.pem, auth.json...) are always excluded.",
+      "exclude_hint": "One pattern per line. Secrets are always excluded.",
       "destinations_title": "Destinations",
-      "destinations_hint": "Choose a location and the final name. AgentSync suggests a path when it recognizes the folder.",
+      "destinations_hint": "Where to write it and with which name.",
       "add_destination": "Add destination",
       "destination_legend": "Destination {index}",
       "destination_enabled": "Destination enabled",
@@ -154,12 +154,12 @@
       "suggestion_edited": "Edited by you",
       "path_label": "Path and final name",
       "path_placeholder": "e.g. CLAUDE.md or skills/my-skill",
-      "path_hint": "Relative to the location. For a file, this is the name it will have there.",
+      "path_hint": "Path and name inside the location.",
       "path_preview": "Will be written to {path}",
       "mode_label": "Mode",
       "mode_forced": "Transforms always use one-way mode.",
       "transform_label": "Transform",
-      "transform_hint": "Merges only the entries AgentSync owns and keeps the rest of the file.",
+      "transform_hint": "Merges only its own entries; the rest is kept.",
       "transform_key_label": "Key",
       "transform_key_placeholder": "e.g. mcpServers",
       "ignored_title": "Files kept local",
@@ -167,12 +167,12 @@
       "save": "Save rule",
       "saved": "Rule saved.",
       "collisions_title": "Rule saved with collisions",
-      "collisions_desc": "These destinations write to the same place as other rules. They stay paused until you change a path or disable one of them.",
+      "collisions_desc": "These destinations overlap with other rules and stay paused.",
       "collisions_ack": "Understood",
       "validation": {
         "name_required": "Give the rule a name.",
         "source_required": "Choose a source file or folder.",
-        "local_needs_local_scope": "Files from this PC can only be used by rules stored on this PC.",
+        "local_needs_local_scope": "Files from this PC need a rule stored on this PC.",
         "repo_scope_needs_root": "Choose a repository folder first to share rules.",
         "destinations_required": "Add at least one destination.",
         "location_required": "Choose a location.",
@@ -199,7 +199,7 @@
       "filter_label": "Filter",
       "filter_placeholder": "Filter by name...",
       "no_matches": "No matching files.",
-      "repo_empty": "The repository is empty. Add files to it or import them from this PC.",
+      "repo_empty": "The repository is empty.",
       "repo_unavailable": "Choose a repository folder to use repository sources.",
       "expand": "Expand",
       "collapse": "Collapse",
@@ -207,16 +207,16 @@
       "pick_folder": "Choose folder",
       "pick_file_title": "Choose the source file",
       "pick_folder_title": "Choose the source folder",
-      "local_hint": "Local sources only exist on this PC. Import them into the repository to share them.",
+      "local_hint": "Only on this PC. Import it to share it.",
       "import_title": "Import into the repository",
-      "import_hint": "Copies the file or folder into the repository so it is versioned and available on every PC.",
+      "import_hint": "Copies it into the repository.",
       "import_dir_label": "Repository folder",
       "import_dir_placeholder": "e.g. shared",
       "import_button": "Import",
       "import_success": "Imported as {path}.",
       "subscription_label": "Subscription",
       "subscription_placeholder": "Choose a subscription",
-      "no_subscriptions": "You have no subscriptions yet. Add one in the Subscriptions tab.",
+      "no_subscriptions": "No subscriptions yet.",
       "subscription_empty": "This subscription has no files."
     }
   }

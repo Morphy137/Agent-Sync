@@ -1,7 +1,7 @@
 {
   "subscriptions": {
     "title": "Suscripciones",
-    "intro": "Sigue repositorios compartidos por otros, elige solo lo que necesitas y mantenlo actualizado.",
+    "intro": "Sigue repositorios compartidos y quédate con lo que necesites.",
     "summary": "{count} suscripción(es)",
     "summary_updates": "{count} suscripción(es) · {updates} con actualizaciones",
     "loading": "Cargando suscripciones...",
@@ -9,17 +9,17 @@
     "check_all": "Comprobar todas",
     "empty": {
       "title": "Usa configuraciones compartidas por otros",
-      "description": "Pega la URL de un repositorio con skills, agentes o instrucciones y elige exactamente qué traer a este PC.",
+      "description": "Pega la URL de un repositorio y elige qué traer.",
       "step_share_title": "1. Consigue el enlace",
       "step_share_desc": "Alguien comparte la URL de su repositorio.",
       "step_pick_title": "2. Elige lo que quieras",
-      "step_pick_desc": "Explóralo y sincroniza solo una skill, una carpeta o un único archivo.",
+      "step_pick_desc": "Elige un archivo o carpeta.",
       "step_update_title": "3. Mantente al día",
-      "step_update_desc": "Busca actualizaciones, revisa los cambios y aplícalos, o activa la actualización automática."
+      "step_update_desc": "Revisa y aplica actualizaciones."
     },
     "add": {
       "title": "Añadir suscripción",
-      "intro": "AgentSync descarga una copia de solo lectura. No se escribe nada en tus carpetas hasta que crees una regla con ella.",
+      "intro": "Se descarga una copia de solo lectura. Nada cambia hasta que crees una regla.",
       "url_label": "URL del repositorio",
       "name_label": "Nombre (opcional)",
       "name_placeholder": "p. ej. Skills del equipo",
@@ -46,7 +46,7 @@
       "update_now": "Actualizar ahora",
       "browse": "Explorar y elegir",
       "auto_update": "Actualización automática",
-      "auto_update_hint": "Aplica las actualizaciones automáticamente en las comprobaciones periódicas. Tus cambios locales nunca se sobrescriben.",
+      "auto_update_hint": "Aplica actualizaciones solas. Tus cambios se conservan.",
       "remove_for": "Quitar {name}"
     },
     "incoming": {
@@ -80,7 +80,7 @@
       "select_prompt": "Selecciona un archivo o carpeta para sincronizarlo.",
       "selected": "Seleccionado",
       "picked": "Regla creada",
-      "read_only_hint": "Los archivos de una suscripción son de solo lectura: tus cambios locales se conservan y se marcan, nunca se envían de vuelta.",
+      "read_only_hint": "Solo lectura. Tus cambios se conservan y no se envían.",
       "sync_file": "Sincronizar este archivo...",
       "sync_folder": "Sincronizar esta carpeta...",
       "sync_skill": "Sincronizar esta skill...",

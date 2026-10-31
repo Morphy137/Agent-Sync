@@ -2,11 +2,11 @@
   "diff": {
     "title": "Comparar cambios",
     "loading": "Cargando diferencias...",
-    "binary": "Este archivo es binario o demasiado grande para comparar. Elige una versión o abre los archivos directamente.",
+    "binary": "Este archivo no se puede comparar. Elige una versión o ábrelo.",
     "identical": "Ambas versiones son idénticas.",
     "summary": "{added} añadidas · {removed} eliminadas",
     "legend": "Izquierda: {left} · Derecha: {right}",
-    "transform_notice": "Este destino se genera con una transformación: a la izquierda lo que AgentSync escribiría y a la derecha el archivo actual.",
+    "transform_notice": "Izquierda: lo que escribiría AgentSync. Derecha: archivo actual.",
     "edit_button": "Editar versión combinada",
     "edit_cancel": "Volver a la comparación",
     "edit_save": "Guardar versión editada",
