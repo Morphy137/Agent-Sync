@@ -270,7 +270,8 @@
     "theme_follow_system": "Match system light/dark",
     "whats_new": "What's new",
     "star_github": "Star on GitHub",
-    "app_version": "Version {version}"
+    "app_version": "Version {version}",
+    "star_github_desc": "Like AgentSync? A star helps others find it."
   },
   "statusbar": {
     "branch": "{branch}",

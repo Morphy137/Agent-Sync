@@ -269,8 +269,9 @@
     "themes_more_title": "Temas",
     "theme_follow_system": "Seguir claro/oscuro del sistema",
     "whats_new": "Novedades",
-    "star_github": "Estrella en GitHub",
-    "app_version": "Versión {version}"
+    "star_github": "Dale una estrella en GitHub",
+    "app_version": "Versión {version}",
+    "star_github_desc": "¿Te gusta AgentSync? Una estrella ayuda a que más gente lo encuentre."
   },
   "statusbar": {
     "branch": "{branch}",

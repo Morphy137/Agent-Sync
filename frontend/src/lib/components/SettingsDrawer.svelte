@@ -324,11 +324,20 @@
             <GraduationCap size={14} />
             <span>{t("settings.replay_tutorial")}</span>
           </Button>
-          <Button variant="secondary" size="sm" onclick={() => api.openURL(PROJECT_URL)}>
-            <Star size={14} />
-            <span>{t("settings.star_github")}</span>
-          </Button>
         </div>
+
+        <button
+          type="button"
+          class="star-card"
+          aria-label={t("settings.star_github")}
+          onclick={() => api.openURL(PROJECT_URL)}
+        >
+          <span class="star-icon" aria-hidden="true"><Star size={18} /></span>
+          <span class="star-text">
+            <span class="star-title">{t("settings.star_github")}</span>
+            <span class="star-desc">{t("settings.star_github_desc")}</span>
+          </span>
+        </button>
       </div>
     </Card>
 
@@ -435,8 +444,66 @@
 
   .help-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
+  }
+
+  .star-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3);
+    border: none;
+    border-radius: var(--radius-md);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+    transition: box-shadow var(--duration-fast) var(--easing-out);
+  }
+
+  .star-card:hover {
+    box-shadow:
+      var(--sunken),
+      0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .star-card:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .star-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+
+  .star-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .star-title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .star-desc {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    line-height: 1.4;
   }
 
   .save-actions {
