@@ -11,6 +11,7 @@ This document is the map. Topic guides:
 | Sync rules, locations, modes, collisions, the rules files | [SYNC_RULES.md](SYNC_RULES.md) |
 | Content/agent detection and `recognizers.json` | [RECOGNIZERS.md](RECOGNIZERS.md) |
 | Subscriptions (shared repos), connecting to a remote, reviewing diffs | [REMOTES_AND_SUBSCRIPTIONS.md](REMOTES_AND_SUBSCRIPTIONS.md) |
+| CLI and MCP server for AI agents, running next to the GUI | [CLI_AND_MCP.md](CLI_AND_MCP.md) |
 | Binding implementation contract (developer reference) | [design/sync-rules-spec.md](design/sync-rules-spec.md) |
 
 ---
@@ -55,7 +56,8 @@ overridable with the `AGENTSYNC_CONFIG_DIR` environment variable (used by tests 
 |---|---|---|
 | UI | `frontend/src` (Svelte 5) | Views: Sync rules, Folder connections, Subscriptions, Locations; modals (rule editor, diff, sync preview, connect remote) |
 | Bindings | `app.go` | Thin Wails wrappers over `internal/service` (generated TS in `frontend/wailsjs`) |
-| Service | `internal/service` | Single mutex-guarded owner of config + state; orchestrates everything below; emits `status:changed` and `rules:changed` events |
+| Headless | `cmd/agentsync-cli`, `internal/cli`, `internal/mcpserver`, `internal/ops` | CLI and stdio MCP server over the same `internal/service` (see [CLI_AND_MCP.md](CLI_AND_MCP.md)) |
+| Service | `internal/service` | Single owner of config + state, guarded by a mutex plus a cross-process file lock (`internal/filelock`) shared with the CLI/MCP server; orchestrates everything below; emits `status:changed` and `rules:changed` events |
 | Rules | `internal/rules` | Rule model, storage, validation, folder walking, path resolution, collision detection |
 | Rule sync | `internal/rulesync` | 3-way status, sync (write/capture/delete) with backups, conflict resolution, diffs |
 | Detection | `internal/recognize` | Content-kind detection, agent-folder detection, placement suggestions (`recognizers.json`) |

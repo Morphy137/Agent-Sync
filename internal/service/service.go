@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"agentsync/internal/apperr"
@@ -131,7 +130,8 @@ type PendingLink struct {
 // Service owns the single in-memory *config.Config and *state.State instances
 // and serializes all state and git operations behind a global mutex (C3).
 type Service struct {
-	mu           sync.Mutex
+	mu           serviceLock
+	lastSnapshot snapshotHolder
 	cfg          *config.Config
 	st           *state.State
 	orch         *orchestrator.Orchestrator
@@ -143,7 +143,8 @@ type Service struct {
 	subUpdates   map[string]subscriptions.UpdateInfo
 }
 
-// New creates a new Service, loading config and state once into memory.
+// New creates a new Service, loading config and state into memory. The Service coordinates with
+// other AgentSync processes (GUI, CLI, MCP server) through a file lock in the config dir.
 func New(emitFunc func(eventName string, data any)) *Service {
 	cfg, err := config.Load()
 	if err != nil || cfg == nil {
@@ -154,7 +155,7 @@ func New(emitFunc func(eventName string, data any)) *Service {
 		st = state.NewState()
 	}
 
-	return &Service{
+	svc := &Service{
 		cfg:          cfg,
 		st:           st,
 		orch:         orchestrator.New(),
@@ -163,6 +164,8 @@ func New(emitFunc func(eventName string, data any)) *Service {
 		subUpdates:   make(map[string]subscriptions.UpdateInfo),
 		emitFunc:     emitFunc,
 	}
+	svc.enableSharedMode()
+	return svc
 }
 
 // NewWithInstances creates a Service with explicitly supplied config and state (for unit testing).
