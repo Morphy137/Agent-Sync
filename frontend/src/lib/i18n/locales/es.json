@@ -39,6 +39,8 @@
     "no_unconnected_profiles": "No hay carpetas del repositorio disponibles sin conectar.",
     "already_connected_to": "Ya conectada a {target}",
     "files_count": "{count} archivos",
+    "files_count_one": "{count} archivo",
+    "files_count_other": "{count} archivos",
     "create_new_folder": "Crear nueva carpeta en el repositorio",
     "new_folder_name_label": "Nombre de la carpeta",
     "new_folder_name_placeholder": "ej. CLAUDE",
@@ -72,6 +74,8 @@
     "title": "Conexiones",
     "unconnected_folders": "Carpetas sin conectar",
     "connected_count": "{connected} conectadas · {unconnected} sin conectar",
+    "connected_count_one": "{connected} conectada · {unconnected} sin conectar",
+    "connected_count_other": "{connected} conectadas · {unconnected} sin conectar",
     "add_connection": "Añadir conexión",
     "connect": "Conectar",
     "open_repo": "Abrir carpeta del repo",
@@ -85,6 +89,8 @@
     "card": {
       "not_connected": "Sin conectar",
       "managed_files_count": "{count} archivos",
+      "managed_files_count_one": "{count} archivo",
+      "managed_files_count_other": "{count} archivos",
       "button_connect": "Conectar",
       "button_update": "Actualizar",
       "button_backups": "Backups",
@@ -109,6 +115,7 @@
     "opt_clone_desc": "Descarga un repositorio de GitHub u otro remoto.",
     "parent_folder_label": "Carpeta contenedora",
     "folder_name_label": "Nombre de la nueva carpeta",
+    "invalid_folder_name": "Escribe un nombre de carpeta válido, sin nombres reservados ni caracteres no permitidos.",
     "repo_url_label": "URL del repositorio (HTTPS o SSH)",
     "repo_url_placeholder": "https://github.com/usuario/agent-configs.git",
     "btn_use_folder": "Seleccionar carpeta",
@@ -142,7 +149,7 @@
     "not_repo": {
       "title": "No es un repositorio Git",
       "message": "No es un repositorio git. El historial y la sincronización entre PCs están desactivados.",
-      "button_init": "Inicializar Repositorio"
+      "button_init": "Inicializar"
     },
     "no_remote": {
       "title": "Sin remoto configurado",
@@ -215,6 +222,8 @@
     "restore_sync_notice": "Sincronizar subirá la versión restaurada.",
     "button_open_folder": "Abrir Carpeta",
     "files_count": "{count} archivos respaldados",
+    "files_count_one": "{count} archivo respaldado",
+    "files_count_other": "{count} archivos respaldados",
     "reason_apply": "Actualización local",
     "reason_sync": "Sincronización completa",
     "reason_restore": "Instantánea previa a restauración",

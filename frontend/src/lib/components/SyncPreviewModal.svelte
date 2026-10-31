@@ -9,11 +9,12 @@
   interface Props {
     open: boolean;
     plan: orchestrator.SyncPlan | null;
+    syncing?: boolean;
     onclose: () => void;
     onconfirm: (resolutions: orchestrator.ConflictResolution[]) => void;
   }
 
-  let { open, plan, onclose, onconfirm }: Props = $props();
+  let { open, plan, syncing = false, onclose, onconfirm }: Props = $props();
 
   let resolutions = $state<Record<string, "keep_repo" | "keep_local">>({});
 
@@ -38,6 +39,7 @@
   }
 
   function handleConfirm() {
+    if (syncing) return;
     const list: orchestrator.ConflictResolution[] = [];
     if (plan?.conflicts) {
       for (const c of plan.conflicts) {
@@ -80,6 +82,7 @@
               <div class="conflict-control">
                 <SegmentedControl
                   size="sm"
+                  ariaLabel={`${conflict.profile}/${conflict.relPath}`}
                   value={resolutions[key] || "keep_repo"}
                   options={[
                     { value: "keep_repo", label: t("conflicts.keep_repo") },
@@ -139,7 +142,7 @@
       <Button variant="secondary" onclick={onclose}>
         {t("preview.button_cancel")}
       </Button>
-      <Button variant="primary" onclick={handleConfirm}>
+      <Button variant="primary" loading={syncing} onclick={handleConfirm}>
         {t("preview.button_sync")}
       </Button>
     </div>

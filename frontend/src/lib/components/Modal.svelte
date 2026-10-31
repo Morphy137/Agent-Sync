@@ -3,6 +3,7 @@
   import { X } from "@lucide/svelte";
   import IconButton from "./IconButton.svelte";
   import { t } from "../i18n";
+  import { overlay } from "./overlay";
 
   interface Props {
     open: boolean;
@@ -14,15 +15,7 @@
   }
 
   let { open, title, onclose, size = "md", children }: Props = $props();
-
-  function onKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape" && open) {
-      onclose();
-    }
-  }
 </script>
-
-<svelte:window onkeydown={onKeydown} />
 
 {#if open}
   <div class="backdrop" onclick={onclose} role="presentation">
@@ -33,11 +26,12 @@
       onclick={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
+      aria-label={title}
       tabindex="-1"
+      use:overlay={() => onclose()}
     >
       <header class="modal-header">
-        <h2 id="modal-title" class="modal-title">{title}</h2>
+        <h2 class="modal-title">{title}</h2>
         <IconButton label={t("common.close")} onclick={onclose}>
           <X size={18} />
         </IconButton>

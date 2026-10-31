@@ -67,7 +67,7 @@
       {/if}
       {#if status?.targetRoot}
         <IconButton
-          label={t("rules.card.open_destination_named", { name: destination.location })}
+          label={t("rules.card.open_destination_named", { location: destination.location })}
           onclick={() => onopen(status?.targetRoot ?? "")}
         >
           <FolderOpen size={14} />

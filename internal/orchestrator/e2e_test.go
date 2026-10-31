@@ -38,7 +38,7 @@ func TestE2EScenariosE1toE15(t *testing.T) {
 	pcBDir := filepath.Join(tempDir, "pc-b")
 
 	// 1. Bare remote
-	if err := exec.Command("git", "init", "--bare", bareRemote).Run(); err != nil {
+	if err := exec.Command("git", "init", "--bare", "--initial-branch", gitops.DefaultBranch, bareRemote).Run(); err != nil {
 		t.Fatalf("failed to init bare remote: %v", err)
 	}
 

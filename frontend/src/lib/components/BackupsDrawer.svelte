@@ -19,6 +19,10 @@
 
   let confirmingBackupId = $state<string | null>(null);
 
+  $effect(() => {
+    if (!open) confirmingBackupId = null;
+  });
+
   function confirmRestore(b: backup.BackupInfo) {
     onrestore(b.id);
     confirmingBackupId = null;
@@ -43,7 +47,9 @@
 
             <div class="card-body">
               <span class="file-count">
-                {t("backups.files_count", { count: b.files.length })}
+                {t(`backups.files_count_${b.files.length === 1 ? "one" : "other"}`, {
+                  count: b.files.length,
+                })}
               </span>
             </div>
 

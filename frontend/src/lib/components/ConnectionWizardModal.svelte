@@ -459,7 +459,9 @@
                     </span>
                   {:else}
                     <span class="profile-file-count">
-                      {t("wizard.files_count", { count: prof.fileCount })}
+                      {t(`wizard.files_count_${prof.fileCount === 1 ? "one" : "other"}`, {
+                        count: prof.fileCount,
+                      })}
                     </span>
                   {/if}
                 </div>
@@ -695,6 +697,7 @@
                   <div class="diff-item">
                     <code class="diff-relpath">{diff.relPath}</code>
                     <SegmentedControl
+                      ariaLabel={diff.relPath}
                       options={[
                         { value: "keep_repo", label: t("wizard.choice_repo") },
                         { value: "keep_local", label: t("wizard.choice_local") },

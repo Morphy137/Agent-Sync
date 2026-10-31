@@ -1,10 +1,12 @@
 {
   "remote": {
     "banner": {
-      "connect": "Connect to remote repository",
+      "connect": "Connect",
       "review": "Review changes",
       "local_changes_title": "Local changes",
-      "local_changes_message": "{count} local change(s) will upload on the next Sync."
+      "local_changes_message": "{count} local change(s) will upload on the next Sync.",
+      "local_changes_message_one": "{count} local change will upload on the next Sync.",
+      "local_changes_message_other": "{count} local changes will upload on the next Sync."
     },
     "url": {
       "label": "Repository URL",
