@@ -29,6 +29,7 @@ type SettingsPayload struct {
 	BackupRetention      int    `json:"backupRetention"`
 	CheckIntervalMinutes int    `json:"checkIntervalMinutes"`
 	ConfirmBeforeSync    bool   `json:"confirmBeforeSync"`
+	DisableUpdateCheck   bool   `json:"disableUpdateCheck"`
 }
 
 // InitialLinkResult represents the outcome of connecting a profile.
@@ -291,6 +292,7 @@ func (s *Service) UpdateSettings(payload SettingsPayload) (*config.Config, bool,
 		s.cfg.CheckIntervalMinutes = payload.CheckIntervalMinutes
 	}
 	s.cfg.ConfirmBeforeSync = payload.ConfirmBeforeSync
+	s.cfg.DisableUpdateCheck = payload.DisableUpdateCheck
 
 	if err := config.Save(s.cfg); err != nil {
 		return nil, false, err

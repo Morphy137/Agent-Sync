@@ -98,6 +98,7 @@ export namespace config {
 	    language: string;
 	    theme: string;
 	    tutorialCompleted: boolean;
+	    disableUpdateCheck: boolean;
 	    confirmBeforeSync: boolean;
 	    connections: Connection[];
 	    locations: Location[];
@@ -117,6 +118,7 @@ export namespace config {
 	        this.language = source["language"];
 	        this.theme = source["theme"];
 	        this.tutorialCompleted = source["tutorialCompleted"];
+	        this.disableUpdateCheck = source["disableUpdateCheck"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
 	        this.connections = this.convertValues(source["connections"], Connection);
 	        this.locations = this.convertValues(source["locations"], Location);
@@ -178,6 +180,63 @@ export namespace gitops {
 	        this.remoteHadContent = source["remoteHadContent"];
 	        this.backupBranch = source["backupBranch"];
 	        this.localChanges = this.convertValues(source["localChanges"], ChangedPath);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace main {
+	
+	export class AppInfo {
+	    version: string;
+	    installed: boolean;
+	    portable: boolean;
+	    dataDir: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.installed = source["installed"];
+	        this.portable = source["portable"];
+	        this.dataDir = source["dataDir"];
+	    }
+	}
+	export class UpdateStatus {
+	    current: string;
+	    available: boolean;
+	    release?: updater.Release;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.available = source["available"];
+	        this.release = this.convertValues(source["release"], updater.Release);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1107,6 +1166,7 @@ export namespace service {
 	    backupRetention: number;
 	    checkIntervalMinutes: number;
 	    confirmBeforeSync: boolean;
+	    disableUpdateCheck: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPayload(source);
@@ -1120,6 +1180,7 @@ export namespace service {
 	        this.backupRetention = source["backupRetention"];
 	        this.checkIntervalMinutes = source["checkIntervalMinutes"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
+	        this.disableUpdateCheck = source["disableUpdateCheck"];
 	    }
 	}
 	export class SourceTreeEntry {
@@ -1331,6 +1392,39 @@ export namespace syncer {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace updater {
+	
+	export class Release {
+	    version: string;
+	    tag: string;
+	    name: string;
+	    notes: string;
+	    pageUrl: string;
+	    publishedAt: string;
+	    prerelease: boolean;
+	    installerUrl: string;
+	    checksumsUrl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Release(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.tag = source["tag"];
+	        this.name = source["name"];
+	        this.notes = source["notes"];
+	        this.pageUrl = source["pageUrl"];
+	        this.publishedAt = source["publishedAt"];
+	        this.prerelease = source["prerelease"];
+	        this.installerUrl = source["installerUrl"];
+	        this.checksumsUrl = source["checksumsUrl"];
+	    }
 	}
 
 }
