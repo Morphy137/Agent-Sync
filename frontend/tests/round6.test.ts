@@ -47,6 +47,31 @@ describe("NotificationCenter.svelte", () => {
     expect(getByText("Sync between PCs is off.")).toBeDefined();
   });
 
+  it("hides the popup after a few seconds and keeps it under the bell", async () => {
+    vi.useFakeTimers();
+    try {
+      const { queryByRole, getByRole } = render(NotificationCenter, { items });
+      expect(queryByRole("status")).not.toBeNull();
+      await vi.advanceTimersByTimeAsync(6500);
+      expect(queryByRole("status")).toBeNull();
+      expect(getByRole("button", { name: "Notifications (1)" })).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes the popup when a dialog opens", async () => {
+    const { queryByRole } = render(NotificationCenter, { items });
+    expect(queryByRole("status")).not.toBeNull();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("aria-modal", "true");
+    document.body.appendChild(dialog);
+    await waitFor(() => expect(queryByRole("status")).toBeNull());
+    dialog.remove();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(queryByRole("status")).toBeNull();
+  });
+
   it("runs an action from the popup", async () => {
     const { getByRole } = render(NotificationCenter, { items });
     await fireEvent.click(getByRole("button", { name: "Connect" }));

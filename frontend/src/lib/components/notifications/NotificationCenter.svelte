@@ -16,6 +16,7 @@
 </script>
 
 <script lang="ts">
+  import { untrack } from "svelte";
   import { Bell, X } from "@lucide/svelte";
   import { t } from "../../i18n";
   import Button from "../Button.svelte";
@@ -28,12 +29,46 @@
 
   let { items }: Props = $props();
 
+  /** How long a popup stays before it tucks itself under the bell. */
+  const POPUP_DURATION_MS = 6000;
+  const MODAL_SELECTOR = '[aria-modal="true"]';
+
   let panelOpen = $state(false);
+  let hovered = $state(false);
+  /** True while any dialog or drawer is open; popups stay hidden meanwhile. */
+  let dialogOpen = $state(false);
   let container = $state<HTMLDivElement | undefined>();
   /** Popups the user closed; they stay listed under the bell. */
   let closedPopups = $state<string[]>([]);
 
-  const popup = $derived(items.find((item) => !closedPopups.includes(item.id)));
+  const popup = $derived(
+    dialogOpen ? undefined : items.find((item) => !closedPopups.includes(item.id))
+  );
+
+  // Hide the popup after a few seconds (paused while the pointer is over it).
+  $effect(() => {
+    const id = popup?.id;
+    if (!id || hovered) return;
+    const timer = setTimeout(() => closePopup(id), POPUP_DURATION_MS);
+    return () => clearTimeout(timer);
+  });
+
+  // Opening any window (settings, editors, dialogs) dismisses the current popup.
+  $effect(() => {
+    if (typeof MutationObserver === "undefined") return;
+    const update = () => {
+      const open = document.querySelector(MODAL_SELECTOR) !== null;
+      if (open && !dialogOpen) {
+        const visible = items.find((item) => !closedPopups.includes(item.id));
+        if (visible) closePopup(visible.id);
+      }
+      dialogOpen = open;
+    };
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true });
+    untrack(update);
+    return () => observer.disconnect();
+  });
 
   $effect(() => {
     // Forget closed popups whose situation is gone, so they show again if it comes back.
@@ -43,7 +78,9 @@
   });
 
   function closePopup(id: string) {
+    if (closedPopups.includes(id)) return;
     closedPopups = [...closedPopups, id];
+    hovered = false;
   }
 
   function runAction(item: AppNotification, action: NotificationAction) {
@@ -120,7 +157,13 @@
 </div>
 
 {#if popup && !panelOpen}
-  <div class="popup" role="status" use:portal>
+  <div
+    class="popup"
+    role="status"
+    use:portal
+    onpointerenter={() => (hovered = true)}
+    onpointerleave={() => (hovered = false)}
+  >
     {@render notificationBody(popup, true)}
   </div>
 {/if}

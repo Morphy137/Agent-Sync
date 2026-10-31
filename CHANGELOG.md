@@ -5,7 +5,7 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 ## [Unreleased]
 
 ### Added
-- Notification bell: repository messages appear as a small popup you can close and stay listed under the bell.
+- Notification bell: repository messages appear briefly as a popup and then stay listed under the bell.
 - Themes now change the whole app (background, surfaces and accent): White, Black, Nord, Rose and Green, plus more under "More".
 - Pick several files at once as a rule source, shown as a compact grid or list.
 - "New location" opens the folder picker and saves the location for you.
