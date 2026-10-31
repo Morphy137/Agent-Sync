@@ -32,7 +32,7 @@ Typical flow when the user asks to sync something:
 3. list_repo_tree / detect_source - find the source and what kind it is (skill, mcp, instructions...).
 4. suggest_placement (optional) - see where AgentSync would put it; add_rule fills omitted destination paths with this suggestion.
 5. add_rule, then sync_rules to write files now, or plan_sync + sync to also commit/push/pull the repository.
-Destructive tools (delete_rule, remove_destination, remove_subscription, discard_repo_file) require confirm=true: ask the user first.
+Destructive tools (delete_rule, remove_destination, remove_subscription, discard_repo_file, save_gitignore) require confirm=true: ask the user first.
 Errors look like "[code] {params}"; codes are stable identifiers (e.g. location_unmapped, rule_not_found).`
 
 // Server wraps an MCP server bound to an ops.API.
@@ -175,6 +175,17 @@ type ConfirmedSubscriptionInput struct {
 // URLInput carries a remote URL.
 type URLInput struct {
 	URL string `json:"url" jsonschema:"git remote URL (https or ssh)"`
+}
+
+// SaveGitignoreInput replaces .gitignore.
+type SaveGitignoreInput struct {
+	Content string `json:"content" jsonschema:"full new .gitignore content"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true; the whole file is replaced, ask the user first"`
+}
+
+// ExcludePathInput excludes a repository path.
+type ExcludePathInput struct {
+	Path string `json:"path" jsonschema:"file or folder inside the repository (repository-relative or absolute)"`
 }
 
 // RepoChangesInput lists repository changes.
@@ -526,6 +537,35 @@ func (s *Server) registerRepoTools() {
 		Description: "Show the diff of one repository file: working (last commit vs disk) or incoming (last commit vs remote).",
 		Annotations: readOnly,
 	}, handler(func(in RepoFileDiffInput) (rulesync.Diff, error) { return deref(a.RepoFileDiff(in.Path, in.Mode)) }))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "get_gitignore",
+		Description: "Show the repository .gitignore (files git never commits) and the recommended patterns it is missing.",
+		Annotations: readOnly,
+	}, handler(func(NoInput) (service.GitignorePayload, error) { return deref(a.Gitignore()) }))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "exclude_repo_path",
+		Description: "Add a repository file or folder to .gitignore so it is never committed (e.g. secrets, caches). Already committed files stay tracked until removed from git.",
+		Annotations: idempotent,
+	}, handler(func(in ExcludePathInput) (service.GitignorePayload, error) { return deref(a.ExcludeRepoPath(in.Path)) }))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "add_recommended_gitignore",
+		Description: "Append AgentSync's recommended .gitignore patterns (credentials, caches, OS files) that are still missing.",
+		Annotations: idempotent,
+	}, handler(func(NoInput) (service.GitignorePayload, error) { return deref(a.AddRecommendedGitignore()) }))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "save_gitignore",
+		Description: "Replace the whole repository .gitignore with new content. Prefer exclude_repo_path for single additions. Requires confirm=true.",
+		Annotations: destructive,
+	}, handler(func(in SaveGitignoreInput) (service.GitignorePayload, error) {
+		if err := requireConfirm(in.Confirm); err != nil {
+			return service.GitignorePayload{}, err
+		}
+		return deref(a.SaveGitignore(in.Content))
+	}))
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "discard_repo_file",

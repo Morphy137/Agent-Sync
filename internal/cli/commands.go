@@ -83,6 +83,11 @@ func init() {
 		{path: "repo discard", usage: "<path> --yes", desc: "cmd.repo_discard", run: cmdRepoDiscard},
 		{path: "repo connect", usage: "<url>", desc: "cmd.repo_connect", run: cmdRepoConnect},
 
+		{path: "repo gitignore show", desc: "cmd.gitignore_show", run: cmdGitignoreShow},
+		{path: "repo gitignore exclude", usage: "<path>", desc: "cmd.gitignore_exclude", run: cmdGitignoreExclude},
+		{path: "repo gitignore add-recommended", desc: "cmd.gitignore_recommended", run: cmdGitignoreRecommended},
+		{path: "repo gitignore save", usage: "--file FILE|- --yes", desc: "cmd.gitignore_save", run: cmdGitignoreSave},
+
 		{path: "mcp", desc: "cmd.mcp", raw: runMCP},
 		{path: "version", desc: "cmd.version", run: func(*env, []string) (any, error) { return map[string]string{"version": Version}, nil }},
 	}
@@ -559,4 +564,54 @@ func cmdRepoConnect(e *env, args []string) (any, error) {
 		return nil, err
 	}
 	return e.API().ConnectRemote(pos[0])
+}
+
+// ---- .gitignore ----
+
+func cmdGitignoreShow(e *env, args []string) (any, error) {
+	if _, err := expectArgs(newFlags("repo gitignore show"), args); err != nil {
+		return nil, err
+	}
+	return e.API().Gitignore()
+}
+
+func cmdGitignoreExclude(e *env, args []string) (any, error) {
+	pos, err := expectArgs(newFlags("repo gitignore exclude"), args, "<path>")
+	if err != nil {
+		return nil, err
+	}
+	return e.API().ExcludeRepoPath(pos[0])
+}
+
+func cmdGitignoreRecommended(e *env, args []string) (any, error) {
+	if _, err := expectArgs(newFlags("repo gitignore add-recommended"), args); err != nil {
+		return nil, err
+	}
+	return e.API().AddRecommendedGitignore()
+}
+
+func cmdGitignoreSave(e *env, args []string) (any, error) {
+	fs := newFlags("repo gitignore save")
+	file := fs.String("file", "", "")
+	yes := fs.Bool("yes", false, "")
+	if _, err := expectArgs(fs, args); err != nil {
+		return nil, err
+	}
+	if *file == "" {
+		return nil, usagef("repo gitignore save: --file is required")
+	}
+	if err := requireYes("repo gitignore save", *yes); err != nil {
+		return nil, err
+	}
+	var data []byte
+	var err error
+	if *file == stdinPath {
+		data, err = io.ReadAll(stdin)
+	} else {
+		data, err = os.ReadFile(*file)
+	}
+	if err != nil {
+		return nil, usagef("--file: %v", err)
+	}
+	return e.API().SaveGitignore(string(data))
 }

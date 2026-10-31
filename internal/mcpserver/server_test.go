@@ -253,6 +253,7 @@ func TestErrorsAndConfirmGuards(t *testing.T) {
 	}{
 		{"remove_subscription", map[string]any{"id": "s_x"}},
 		{"discard_repo_file", map[string]any{"path": "AGENTS.md"}},
+		{"save_gitignore", map[string]any{"content": "x\n"}},
 	} {
 		res := f.call(t, tc.tool, tc.args, nil)
 		if !res.IsError || !strings.Contains(errorText(res), "confirmation_required") {
@@ -262,5 +263,25 @@ func TestErrorsAndConfirmGuards(t *testing.T) {
 	res = f.call(t, "remove_subscription", map[string]any{"id": "s_x", "confirm": true}, nil)
 	if !res.IsError || !strings.Contains(errorText(res), "subscription_not_found") {
 		t.Fatalf("expected subscription_not_found, got %s", errorText(res))
+	}
+}
+
+func TestGitignoreTools(t *testing.T) {
+	f := newFixture(t)
+	f.mustCall(t, "set_root", map[string]any{"path": f.root}, nil)
+
+	var gi service.GitignorePayload
+	f.mustCall(t, "exclude_repo_path", map[string]any{"path": "secrets/token.txt"}, &gi)
+	if !strings.Contains(gi.Content, "secrets/token.txt") {
+		t.Fatalf("exclusion not written: %q", gi.Content)
+	}
+	f.mustCall(t, "add_recommended_gitignore", nil, &gi)
+	if len(gi.MissingRecommended) != 0 {
+		t.Fatalf("recommended patterns still missing: %v", gi.MissingRecommended)
+	}
+	f.mustCall(t, "save_gitignore", map[string]any{"content": "only-this\n", "confirm": true}, &gi)
+	f.mustCall(t, "get_gitignore", nil, &gi)
+	if strings.TrimSpace(gi.Content) != "only-this" {
+		t.Fatalf("save_gitignore: %q", gi.Content)
 	}
 }

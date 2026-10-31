@@ -107,6 +107,8 @@ Destructive tools need `confirm: true`, which the model is told to request only 
 | `connect_remote` | Attach the repository to a remote without losing local files | network |
 | `list_repo_changes` / `repo_file_diff` | Repository changes and per-file diffs | read-only |
 | `discard_repo_file` | Revert a local repository change (backup first) | **`confirm: true`** |
+| `get_gitignore` / `exclude_repo_path` / `add_recommended_gitignore` | Read `.gitignore`, exclude a repo path, add the recommended patterns | |
+| `save_gitignore` | Replace the whole `.gitignore` | **`confirm: true`** |
 
 Input and output JSON schemas are generated from the Go types and published through `tools/list`.
 Errors are returned as tool errors whose text starts with a stable code, e.g.
@@ -140,6 +142,7 @@ Exit codes: `0` success, `1` operation failed, `2` invalid command line.
 | `detect <path> [--origin O] [--subscription ID]` · `suggest <path> --location L` | Detection and placement |
 | `subscriptions list\|add <url> [--name N]\|check <id>\|update <id>\|auto-update <id> on\|off\|tree <id>\|remove <id> --yes` | Subscriptions |
 | `repo tree` · `repo changes [--fetch]` · `repo diff <path> [--mode working\|incoming]` · `repo discard <path> --yes` · `repo connect <url>` | Repository |
+| `repo gitignore show` · `repo gitignore exclude <path>` · `repo gitignore add-recommended` · `repo gitignore save --file FILE\|- --yes` | Repository exclusions |
 | `mcp` | Run the MCP server on stdio |
 
 Example:

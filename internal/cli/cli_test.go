@@ -251,6 +251,28 @@ func TestSubscriptionAndRepoGuards(t *testing.T) {
 	}
 }
 
+func TestGitignoreCommands(t *testing.T) {
+	f := newFixture(t)
+	mustJSON(t, nil, "root", "set", f.root)
+
+	var gi service.GitignorePayload
+	mustJSON(t, &gi, "repo", "gitignore", "exclude", "cache")
+	if !strings.Contains(gi.Content, "cache") {
+		t.Fatalf("exclude: %q", gi.Content)
+	}
+	code, env := runJSON(t, nil, "repo", "gitignore", "save", "--file", "-")
+	if code != ExitError || env.Error.Code != "confirmation_required" {
+		t.Fatalf("save without --yes: %d %+v", code, env.Error)
+	}
+	stdin = strings.NewReader("replaced\n")
+	t.Cleanup(func() { stdin = os.Stdin })
+	mustJSON(t, &gi, "repo", "gitignore", "save", "--file", "-", "--yes")
+	mustJSON(t, &gi, "repo", "gitignore", "show")
+	if strings.TrimSpace(gi.Content) != "replaced" {
+		t.Fatalf("show after save: %q", gi.Content)
+	}
+}
+
 func TestParseHelpers(t *testing.T) {
 	res, err := parseResolutions([]string{"CLAUDE:sub/a.md=keep_local"})
 	if err != nil || len(res) != 1 || res[0].Profile != "CLAUDE" || res[0].RelPath != "sub/a.md" || res[0].Resolution != "keep_local" {

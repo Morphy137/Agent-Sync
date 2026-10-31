@@ -129,6 +129,10 @@ func render(w io.Writer, lang string, result any) {
 	case *service.SubscriptionUpdateResult:
 		p.list("label.changed", v.ChangedFiles)
 		p.applyResult(&v.Applied)
+	case *service.GitignorePayload:
+		p.field("label.path", v.Path)
+		p.line("%s", strings.TrimRight(v.Content, "\r\n"))
+		p.list("label.missing_recommended", v.MissingRecommended)
 	case *ops.RepoChanges:
 		p.repoChanges(v)
 	case *rulesync.Diff:

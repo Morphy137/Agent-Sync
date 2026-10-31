@@ -501,6 +501,28 @@ func (a *API) DiscardRepoFile(relPath string) error {
 	return a.svc.DiscardRepoFile(relPath)
 }
 
+// ---- Repository exclusions (.gitignore) ----
+
+// Gitignore returns the repository .gitignore and the recommended patterns it lacks.
+func (a *API) Gitignore() (*service.GitignorePayload, error) {
+	return a.svc.GetGitignore()
+}
+
+// SaveGitignore replaces the repository .gitignore with content.
+func (a *API) SaveGitignore(content string) (*service.GitignorePayload, error) {
+	return a.svc.SaveGitignore(content)
+}
+
+// AddRecommendedGitignore appends every recommended pattern still missing from .gitignore.
+func (a *API) AddRecommendedGitignore() (*service.GitignorePayload, error) {
+	return a.svc.AddRecommendedGitignore()
+}
+
+// ExcludeRepoPath adds a repository file or folder (absolute or repository-relative) to .gitignore.
+func (a *API) ExcludeRepoPath(p string) (*service.GitignorePayload, error) {
+	return a.svc.ExcludeRepoPath(strings.TrimSpace(p))
+}
+
 func nonNil[T any](s []T) []T {
 	if s == nil {
 		return []T{}
