@@ -15,6 +15,7 @@ Obsidian vault, …).
 | [docs/SYNC_RULES.md](docs/SYNC_RULES.md) | Sync rules, locations, scopes, modes, transforms, collisions, rule files |
 | [docs/RECOGNIZERS.md](docs/RECOGNIZERS.md) | Content/agent detection and the `recognizers.json` file |
 | [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md) | Remote connection, shared repositories (subscriptions), reviewing diffs |
+| [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md) | `agentsync-cli` commands and the MCP server for Claude Code, Codex and Gemini CLI |
 | [docs/design/sync-rules-spec.md](docs/design/sync-rules-spec.md) | Developer contract for the rules engine packages |
 
 ---
@@ -66,6 +67,7 @@ Obsidian vault, …).
 - **MCP Config Merging:** `json_merge` / `toml_merge` transforms write only the MCP servers AgentSync owns into `~/.claude.json`, `settings.json` or `config.toml`, preserving everything else.
 - **Collision Warnings:** Two rules targeting the same file, overlapping folders, cycles or case conflicts are always reported and block the involved destinations — never resolved silently.
 - **Subscriptions:** Paste the URL of a shared repository, pick only the folders/files you want (e.g. one skill) and stay updated; incoming changes are listed with diffs. See [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md).
+- **CLI & MCP Server for AI Agents:** `agentsync-cli` runs every operation headless (with `--json` output), and `agentsync-cli mcp` lets Claude Code, Codex or Gemini CLI set up and run syncs from plain-language requests through the same service the GUI uses. GUI and CLI can run at the same time safely (cross-process file lock). See [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md).
 - **Lossless Remote Connection & Diff Review:** Connect a folder to a remote even if it is not a repo yet; local history is kept in a backup branch and local differences are reviewed file by file in a diff view (keep yours, take the repository version, or edit a merged version).
 - **Connection-Centric Dashboard & Step-by-Step Connection Wizard:** Focuses on active connections between repository profiles and local target directories. Includes a 3-step Connection Wizard (repository profile selection/creation -> target folder selection with live validation & selective file import -> diff preview & conflict resolution) with pre-action safety backups.
 - **PathField Component & Universal Folder Navigation:** Every path input throughout the app (onboarding, wizard, settings) supports direct manual typing, live inspection and validation, native system folder picker dialogs, suggestions chips (Claude Code, Gemini, Codex, OpenCode), and inline folder creation.
@@ -108,6 +110,12 @@ wails build -clean
 The resulting binary will be placed at:
 ```
 build/bin/agentsync.exe
+```
+
+The headless CLI / MCP server is a separate console binary:
+
+```powershell
+go build -o build/bin/agentsync-cli.exe ./cmd/agentsync-cli
 ```
 
 ---
