@@ -383,3 +383,22 @@ Built 'C:\Users\Morphy\Desktop\Morphy\Personal Projects\agents-app\build\bin\age
 - Gemini CLI treats a bare `url` as SSE; Codex expects `http_headers` (see `docs/RECOGNIZERS.md`).
 - Symlink handling in rule folder walks is untested on this machine (symlink creation requires a privilege on Windows).
 - SSH prompts (passphrase/host key) are not disabled with `BatchMode`; a credential manager window can still appear.
+
+---
+
+# Round 5 — Review feedback (UI polish, exclusions, themes, test isolation)
+
+## 1. Fixes
+
+| # | Issue | Root cause | Fix |
+|---|---|---|---|
+| 1, 10 | Wizard showed `[root_not_found] {"path":"…\Temp\TestE2E…"}`; backups pointed to `%TEMP%` | Go tests could write into the real config dir (`%APPDATA%/AgentSync`) when a test did not set `AGENTSYNC_CONFIG_DIR` early enough | `internal/testenv` + a `TestMain` in every Go test package points `AGENTSYNC_CONFIG_DIR` and `AGENTSYNC_HOME_OVERRIDE` at a throwaway dir before any test runs. UI errors now go through `describeError()` (translated, never raw codes) |
+| 2, 5 | Whole UI selectable; browser context menu (Reload/Inspect) | WebView defaults | Global `user-select: none`, re-enabled for inputs, paragraphs, code, paths and descriptions; `contextMenu.ts` blocks the menu except on editable fields or selected text |
+| 3 | `.gitignore` too thin, no way to edit it | — | Expanded default template (OS files, secrets, logs, caches); Settings → Repository → **Edit exclusions** (`GitignoreModal`): editor, "Add recommended", "Exclude a folder/file…" (anchored `/path/` patterns, `.git` and paths outside the repo rejected) |
+| 4, 12 | Disconnect dialog stuck; Folder connections tab blank | `profiles.Discover` returned a nil slice → `null` in JS → `null.find` threw inside a `$derived`, freezing rendering | `Discover` returns `[]`; store and view guard `null` |
+| 6 | Layout jumps when content changes | Centered dialogs re-centered on every height change; scrollbars appearing; unbreakable paths widened containers; undefined CSS tokens (`--danger`, `--danger-bg`, `--border`, …) | Dialogs are top-anchored (large ones have a fixed height); `scrollbar-gutter: stable`; `overflow-wrap: break-word`; missing tokens defined |
+| 7 | Native dropdowns | — | `Select.svelte` is now a custom combobox/listbox (keyboard, type-ahead, fixed-position popup); `LocationSelect` uses it |
+| 8 | Location "Name" field rejected `AGENTS.md` | The field is the location **alias** (an ID), not the file name | Field renamed "Location alias", folder first, alias suggested from the folder name and slugified while typing; the final file name stays in "Path and final name" |
+| 9 | Git name/email looked hardcoded | They are read from git (repo config, else global) | Hint under the fields explains the source and that saving writes the repo-local config |
+| 11 | More themes | — | Palettes (`graphite`, `ocean`, `forest`, `violet`, `rose`, `amber`, `nord`, `sepia`, `midnight`) independent from light/dark; stored as `config.palette`; tokens in `frontend/src/lib/theme/palettes.css`; primary buttons/switches use `--accent` |
+| 13 | CLI / MCP for agents | — | Developed in a separate session on branch `feature/cli-mcp` |

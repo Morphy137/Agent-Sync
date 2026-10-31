@@ -413,6 +413,27 @@ export function normalizeAlias(alias: string): string {
   return alias.trim().toLowerCase();
 }
 
+/** Coerces free text into a valid alias shape while typing ("My Vault" -> "my-vault"). */
+export function slugifyAlias(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^[-_]+/, "")
+    .slice(0, MAX_ALIAS_LENGTH);
+}
+
+/** Suggests an alias from a folder path ("C:/Users/me/.claude" -> "claude"). */
+export function aliasFromFolder(path: string): string {
+  const base =
+    path
+      .trim()
+      .replace(/[\\/]+$/, "")
+      .split(/[\\/]/)
+      .pop() ?? "";
+  return slugifyAlias(base.replace(/^\.+/, "")).replace(/[-_]+$/, "");
+}
+
 /** Returns a translation key describing why the alias is invalid, or null. */
 export function aliasError(alias: string): string | null {
   const normalized = normalizeAlias(alias);

@@ -5,7 +5,7 @@
   import Button from "../Button.svelte";
   import Input from "../Input.svelte";
   import PathField from "../PathField.svelte";
-  import { aliasError, normalizeAlias } from "./ruleUi";
+  import { aliasError, aliasFromFolder, normalizeAlias, slugifyAlias } from "./ruleUi";
 
   interface Props {
     initialAlias?: string;
@@ -34,6 +34,19 @@
   let alias = $state(initial.alias);
   let folder = $state(initial.path);
   let showErrors = $state(false);
+  /** Stops auto-suggesting the alias from the folder once the user typed one. */
+  let aliasTouched = $state(Boolean(initial.alias));
+
+  function handleFolderChange(value: string) {
+    folder = value;
+    if (aliasLocked || aliasTouched) return;
+    alias = aliasFromFolder(value);
+  }
+
+  function handleAliasInput(value: string) {
+    aliasTouched = true;
+    alias = slugifyAlias(value);
+  }
   let saving = $state(false);
 
   const aliasErrorKey = $derived(aliasLocked ? null : aliasError(alias));
@@ -59,31 +72,31 @@
 
 <div class="location-form" class:compact role="group" aria-label={t("locations.form.group_label")}>
   <div class="field">
-    <Input
-      label={t("locations.form.alias_label")}
-      value={alias}
-      placeholder={t("locations.form.alias_placeholder")}
-      disabled={aliasLocked}
-      oninput={(v) => (alias = v)}
-    />
-    {#if showErrors && aliasErrorKey}
-      <p class="field-error" role="alert">{t(aliasErrorKey)}</p>
-    {:else}
-      <p class="field-hint">{t("locations.form.alias_hint")}</p>
-    {/if}
-  </div>
-
-  <div class="field">
     <PathField
       label={t("locations.form.path_label")}
       value={folder}
       mode="root"
       allowCreate
       placeholder={t("locations.form.path_placeholder")}
-      onchange={(v) => (folder = v)}
+      onchange={handleFolderChange}
     />
     {#if showErrors && pathMissing}
       <p class="field-error" role="alert">{t("locations.form.validation.path_required")}</p>
+    {/if}
+  </div>
+
+  <div class="field">
+    <Input
+      label={t("locations.form.alias_label")}
+      value={alias}
+      placeholder={t("locations.form.alias_placeholder")}
+      disabled={aliasLocked}
+      oninput={handleAliasInput}
+    />
+    {#if showErrors && aliasErrorKey}
+      <p class="field-error" role="alert">{t(aliasErrorKey)}</p>
+    {:else}
+      <p class="field-hint">{t("locations.form.alias_hint")}</p>
     {/if}
   </div>
 

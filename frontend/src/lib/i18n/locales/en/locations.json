@@ -28,9 +28,9 @@
     },
     "form": {
       "group_label": "Location details",
-      "alias_label": "Name",
+      "alias_label": "Location alias",
       "alias_placeholder": "e.g. claude, obsidian, web-project",
-      "alias_hint": "Lowercase letters, numbers, - and _. Use the same name on every PC.",
+      "alias_hint": "Short ID that rules use to refer to this folder (not a file name). It is suggested from the folder; use the same alias on every PC.",
       "path_label": "Folder on this PC",
       "path_placeholder": "Choose or type a folder",
       "save": "Save location",
