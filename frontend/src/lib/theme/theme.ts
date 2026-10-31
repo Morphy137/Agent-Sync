@@ -48,3 +48,35 @@ export function initTheme(initialMode: ThemeMode = "system") {
     });
   }
 }
+
+export const PALETTES = [
+  "graphite",
+  "ocean",
+  "forest",
+  "violet",
+  "rose",
+  "amber",
+  "nord",
+  "sepia",
+  "midnight",
+] as const;
+export type Palette = (typeof PALETTES)[number];
+export const DEFAULT_PALETTE: Palette = "graphite";
+
+const PALETTE_STORAGE_KEY = "agentsync_palette";
+
+export function isPalette(value: string): value is Palette {
+  return (PALETTES as readonly string[]).includes(value);
+}
+
+export function applyPalette(value: string) {
+  const palette = isPalette(value) ? value : DEFAULT_PALETTE;
+  if (typeof document !== "undefined") {
+    document.documentElement.setAttribute("data-palette", palette);
+  }
+  try {
+    localStorage?.setItem(PALETTE_STORAGE_KEY, palette);
+  } catch {
+    // ignore storage errors
+  }
+}

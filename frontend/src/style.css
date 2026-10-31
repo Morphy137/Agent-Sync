@@ -1,5 +1,6 @@
 @import "@fontsource-variable/inter";
 @import "./lib/theme/tokens.css";
+@import "./lib/theme/palettes.css";
 
 *,
 *::before,
@@ -19,6 +20,32 @@ body {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  /* long paths and JSON-ish details wrap instead of widening their container */
+  overflow-wrap: break-word;
+  /* desktop app: UI chrome is not selectable; content opts back in below */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+p,
+code,
+pre,
+.selectable,
+[class*="path"],
+[class*="desc"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+button *,
+[role="button"] *,
+[role="tab"] *,
+[role="option"] * {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #app {
@@ -43,4 +70,11 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-subtle);
+}
+
+/* Scroll areas keep their scrollbar slot so content does not shift when it appears. */
+.content-area,
+.drawer-body,
+.modal-body {
+  scrollbar-gutter: stable;
 }

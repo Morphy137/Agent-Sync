@@ -28,9 +28,9 @@
     },
     "form": {
       "group_label": "Datos de la ubicación",
-      "alias_label": "Nombre",
+      "alias_label": "Alias de la ubicación",
       "alias_placeholder": "p. ej. claude, obsidian, proyecto-web",
-      "alias_hint": "Minúsculas, números, - y _. Usa el mismo nombre en todos tus PCs.",
+      "alias_hint": "ID corto con el que las reglas se refieren a esta carpeta (no es un nombre de archivo). Se sugiere a partir de la carpeta; usa el mismo alias en todos tus PCs.",
       "path_label": "Carpeta en este PC",
       "path_placeholder": "Elige o escribe una carpeta",
       "save": "Guardar ubicación",

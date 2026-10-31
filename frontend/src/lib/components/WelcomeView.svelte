@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { describeError } from "../i18n/errors";
   import { Folder, FolderPlus, GitFork, AlertCircle, Sparkles } from "@lucide/svelte";
   import type { service } from "../../../wailsjs/go/models";
   import {
@@ -93,7 +94,7 @@
       await appState.refreshAll();
       onsuccess?.();
     } catch (err: any) {
-      errorMessage = err?.message || String(err);
+      errorMessage = describeError(err);
       appState.showError(err);
     } finally {
       isLoading = false;
@@ -122,7 +123,7 @@
       await appState.refreshAll();
       onsuccess?.();
     } catch (err: any) {
-      errorMessage = err?.message || String(err);
+      errorMessage = describeError(err);
       appState.showError(err);
     } finally {
       isLoading = false;
@@ -151,7 +152,7 @@
       await appState.refreshAll();
       onsuccess?.();
     } catch (err: any) {
-      errorMessage = err?.message || String(err);
+      errorMessage = describeError(err);
       appState.showError(err);
     } finally {
       isLoading = false;

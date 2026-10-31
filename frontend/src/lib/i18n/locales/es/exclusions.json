@@ -1,0 +1,20 @@
+{
+  "exclusions": {
+    "title": "Exclusiones del repositorio",
+    "open_button": "Editar exclusiones (.gitignore)",
+    "description": "Los archivos y carpetas listados aquí nunca se suben al repositorio. Un patrón por línea; las líneas que empiezan con # son comentarios.",
+    "editor_label": "Contenido de .gitignore",
+    "recommended_missing": "Faltan {count} exclusiones recomendadas (secretos, logs, cachés).",
+    "recommended_ok": "Están todas las exclusiones recomendadas.",
+    "add_recommended": "Añadir recomendadas",
+    "exclude_folder": "Excluir una carpeta...",
+    "exclude_file": "Excluir un archivo...",
+    "pick_folder_title": "Elige una carpeta del repositorio para excluir",
+    "pick_file_title": "Elige un archivo del repositorio para excluir",
+    "tracked_note": "Los archivos que ya se subieron siguen en el historial del repositorio hasta que los borres de él.",
+    "unsaved_note": "Guarda o descarta tus cambios antes de añadir exclusiones.",
+    "toast_saved": "Exclusiones guardadas.",
+    "toast_added": "Exclusión añadida: {pattern}",
+    "toast_recommended": "Exclusiones recomendadas añadidas."
+  }
+}

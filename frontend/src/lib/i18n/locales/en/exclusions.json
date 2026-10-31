@@ -1,0 +1,20 @@
+{
+  "exclusions": {
+    "title": "Repository exclusions",
+    "open_button": "Edit exclusions (.gitignore)",
+    "description": "Files and folders listed here are never committed or pushed. One pattern per line; lines starting with # are comments.",
+    "editor_label": ".gitignore content",
+    "recommended_missing": "{count} recommended exclusion(s) missing (secrets, logs, caches).",
+    "recommended_ok": "All recommended exclusions are present.",
+    "add_recommended": "Add recommended",
+    "exclude_folder": "Exclude a folder...",
+    "exclude_file": "Exclude a file...",
+    "pick_folder_title": "Choose a folder inside the repository to exclude",
+    "pick_file_title": "Choose a file inside the repository to exclude",
+    "tracked_note": "Files already committed stay in the repository history until you delete them from it.",
+    "unsaved_note": "Save or discard your edits before adding exclusions.",
+    "toast_saved": "Exclusions saved.",
+    "toast_added": "Exclusion added: {pattern}",
+    "toast_recommended": "Recommended exclusions added."
+  }
+}

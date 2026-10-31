@@ -25,6 +25,7 @@ import (
 type SettingsPayload struct {
 	Language             string `json:"language"`
 	Theme                string `json:"theme"`
+	Palette              string `json:"palette"`
 	BackupPath           string `json:"backupPath"`
 	BackupRetention      int    `json:"backupRetention"`
 	CheckIntervalMinutes int    `json:"checkIntervalMinutes"`
@@ -279,6 +280,9 @@ func (s *Service) UpdateSettings(payload SettingsPayload) (*config.Config, bool,
 	}
 	if payload.Theme != "" {
 		s.cfg.Theme = payload.Theme
+	}
+	if payload.Palette != "" {
+		s.cfg.Palette = payload.Palette
 	}
 	if payload.BackupPath != "" {
 		s.cfg.BackupPath = payload.BackupPath

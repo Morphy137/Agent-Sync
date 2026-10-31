@@ -97,6 +97,13 @@ export const api = {
   getRuleDiff: (ruleId: string, destId: string, relPath: string): Promise<rulesync.Diff> =>
     AppBindings.GetRuleDiff(ruleId, destId, relPath),
   listRepoTree: (): Promise<service.SourceTreeEntry[]> => AppBindings.ListRepoTree(),
+  getGitignore: (): Promise<service.GitignorePayload> => AppBindings.GetGitignore(),
+  saveGitignore: (content: string): Promise<service.GitignorePayload> =>
+    AppBindings.SaveGitignore(content),
+  addRecommendedGitignore: (): Promise<service.GitignorePayload> =>
+    AppBindings.AddRecommendedGitignore(),
+  excludeRepoPath: (path: string): Promise<service.GitignorePayload> =>
+    AppBindings.ExcludeRepoPath(path),
   importIntoRepo: (sourcePath: string, repoRelDir: string): Promise<string> =>
     AppBindings.ImportIntoRepo(sourcePath, repoRelDir),
   detectSource: (source: rules.Source): Promise<recognize.SourceInfo> =>

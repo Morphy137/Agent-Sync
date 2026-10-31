@@ -56,8 +56,10 @@
     inset: 0;
     background-color: var(--backdrop-overlay);
     display: flex;
-    align-items: center;
+    /* top-anchored: dialogs grow downward instead of re-centering on every content change */
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 8vh;
     z-index: 100;
   }
 
@@ -67,7 +69,7 @@
     box-shadow: var(--elev-3);
     width: 90%;
     max-width: 600px;
-    max-height: 85vh;
+    max-height: 84vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -76,6 +78,12 @@
 
   .dialog.dialog-lg {
     max-width: 920px;
+    height: 84vh;
+  }
+
+  .dialog-lg .modal-body {
+    flex: 1;
+    min-height: 0;
   }
 
   @keyframes modalEnter {

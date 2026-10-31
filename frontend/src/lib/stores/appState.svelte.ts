@@ -1,8 +1,9 @@
+import { describeError } from "../i18n/errors";
 import { api, parseError } from "../api";
 import type { config, service, orchestrator, profiles, rules } from "../../../wailsjs/go/models";
 import type { RuleScope } from "../api";
-import { initTheme } from "../theme/theme";
-import { setLocale, t } from "../i18n";
+import { initTheme, applyPalette } from "../theme/theme";
+import { setLocale } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
 export type AppView = "rules" | "connections" | "subscriptions" | "locations";
@@ -77,12 +78,7 @@ class AppState {
 
   showError(err: unknown): string {
     const parsed = parseError(err);
-    const translationKey = `errors.${parsed.code}`;
-    let msg = t(translationKey, parsed.params);
-    if (msg === translationKey) {
-      msg = parsed.message || t("errors.unknown");
-    }
-    this.addToast("error", msg);
+    this.addToast("error", describeError(err));
     if (parsed.code === "git_identity_missing") {
       this.gitIdentityModalOpen = true;
     }
@@ -97,6 +93,7 @@ class AppState {
 
       if (cfg) {
         initTheme((cfg.theme as any) || "system");
+        applyPalette(cfg.palette);
         setLocale((cfg.language as any) || "system");
       }
 
@@ -119,7 +116,7 @@ class AppState {
         api.getStatus(),
       ]);
       this.config = cfg;
-      this.profiles = profilesList;
+      this.profiles = profilesList ?? [];
       this.gitInfo = git;
       this.statusPlan = plan;
     } catch (err) {

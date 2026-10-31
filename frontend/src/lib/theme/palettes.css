@@ -1,0 +1,138 @@
+/*
+ * Color palettes. A palette only overrides the accent (primary buttons, switches, active
+ * states) and, for tinted palettes, the surface family. Light/dark mode stays independent.
+ */
+:root {
+  --accent: var(--ink);
+  --accent-hover: var(--ink-hover);
+  --accent-contrast: var(--ink-contrast);
+}
+
+/* accent-only palettes */
+[data-theme="light"][data-palette="ocean"] {
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="ocean"] {
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
+  --accent-contrast: #0a0f1a;
+}
+[data-theme="light"][data-palette="forest"] {
+  --accent: #15803d;
+  --accent-hover: #166534;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="forest"] {
+  --accent: #4ade80;
+  --accent-hover: #86efac;
+  --accent-contrast: #05140b;
+}
+[data-theme="light"][data-palette="violet"] {
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="violet"] {
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
+  --accent-contrast: #110a1f;
+}
+[data-theme="light"][data-palette="rose"] {
+  --accent: #e11d48;
+  --accent-hover: #be123c;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="rose"] {
+  --accent: #fb7185;
+  --accent-hover: #fda4af;
+  --accent-contrast: #1f070c;
+}
+[data-theme="light"][data-palette="amber"] {
+  --accent: #b45309;
+  --accent-hover: #92400e;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="amber"] {
+  --accent: #fbbf24;
+  --accent-hover: #fcd34d;
+  --accent-contrast: #1a1203;
+}
+
+/* tinted palettes: accent + surfaces */
+[data-theme="light"][data-palette="nord"] {
+  --canvas: #eceff4;
+  --surface: #f8f9fb;
+  --surface-sunken: #e5e9f0;
+  --ink: #2e3440;
+  --ink-hover: #3b4252;
+  --text-muted: #4c566a;
+  --text-subtle: #8f9bb3;
+  --accent: #5e81ac;
+  --accent-hover: #4c6d96;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="nord"] {
+  --canvas: #242933;
+  --surface: #2e3440;
+  --surface-sunken: #272c36;
+  --ink: #eceff4;
+  --ink-hover: #ffffff;
+  --ink-contrast: #2e3440;
+  --text-muted: #c0c8d6;
+  --text-subtle: #7b88a1;
+  --accent: #88c0d0;
+  --accent-hover: #a3d3e0;
+  --accent-contrast: #1c2028;
+}
+[data-theme="light"][data-palette="sepia"] {
+  --canvas: #f5efe4;
+  --surface: #fbf7ef;
+  --surface-sunken: #ede5d6;
+  --ink: #3b2f22;
+  --ink-hover: #2a2118;
+  --text-muted: #7a6650;
+  --text-subtle: #ae9b82;
+  --accent: #9a5b2a;
+  --accent-hover: #7f4920;
+  --accent-contrast: #fffaf2;
+}
+[data-theme="dark"][data-palette="sepia"] {
+  --canvas: #1b1610;
+  --surface: #261f17;
+  --surface-sunken: #1f1912;
+  --ink: #f1e6d4;
+  --ink-hover: #fff6e8;
+  --ink-contrast: #1b1610;
+  --text-muted: #bfae96;
+  --text-subtle: #7d6c58;
+  --accent: #d9a066;
+  --accent-hover: #e8b884;
+  --accent-contrast: #1b1610;
+}
+[data-theme="light"][data-palette="midnight"] {
+  --canvas: #eef1f8;
+  --surface: #ffffff;
+  --surface-sunken: #e6eaf4;
+  --ink: #111a33;
+  --ink-hover: #1b2648;
+  --text-muted: #56607a;
+  --text-subtle: #98a1b8;
+  --accent: #3b4ccf;
+  --accent-hover: #2f3eb0;
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-palette="midnight"] {
+  --canvas: #070b18;
+  --surface: #0f1530;
+  --surface-sunken: #0a0f22;
+  --ink: #e8ecff;
+  --ink-hover: #ffffff;
+  --ink-contrast: #070b18;
+  --text-muted: #9aa3c7;
+  --text-subtle: #56608a;
+  --accent: #7c8cff;
+  --accent-hover: #a1adff;
+  --accent-contrast: #070b18;
+}

@@ -249,7 +249,20 @@
     "interval_one_minute": "Cada minuto",
     "interval_minutes": "Cada {count} minutos",
     "confirm_root_change_title": "¿Cambiar carpeta raíz del repositorio?",
-    "confirm_root_change_msg": "Cambiar la carpeta raíz recargará las configuraciones y conexiones."
+    "confirm_root_change_msg": "Cambiar la carpeta raíz recargará las configuraciones y conexiones.",
+    "palette_label": "Paleta de colores",
+    "git_identity_hint": "Se leen de git: la configuración de este repositorio o, si no tiene, tu configuración global de git. Al guardar se almacenan solo en este repositorio y se usan como autor de los commits de sincronización.",
+    "palette": {
+      "graphite": "Grafito",
+      "ocean": "Océano",
+      "forest": "Bosque",
+      "violet": "Violeta",
+      "rose": "Rosa",
+      "amber": "Ámbar",
+      "nord": "Nórdico",
+      "sepia": "Sepia",
+      "midnight": "Medianoche"
+    }
   },
   "statusbar": {
     "branch": "{branch}",

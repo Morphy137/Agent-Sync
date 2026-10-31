@@ -97,6 +97,7 @@ export namespace config {
 	    checkIntervalMinutes: number;
 	    language: string;
 	    theme: string;
+	    palette: string;
 	    confirmBeforeSync: boolean;
 	    connections: Connection[];
 	    locations: Location[];
@@ -115,6 +116,7 @@ export namespace config {
 	        this.checkIntervalMinutes = source["checkIntervalMinutes"];
 	        this.language = source["language"];
 	        this.theme = source["theme"];
+	        this.palette = source["palette"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
 	        this.connections = this.convertValues(source["connections"], Connection);
 	        this.locations = this.convertValues(source["locations"], Location);
@@ -964,6 +966,24 @@ export namespace service {
 	        this.userEmail = source["userEmail"];
 	    }
 	}
+	export class GitignorePayload {
+	    path: string;
+	    exists: boolean;
+	    content: string;
+	    missingRecommended: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new GitignorePayload(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.exists = source["exists"];
+	        this.content = source["content"];
+	        this.missingRecommended = source["missingRecommended"];
+	    }
+	}
 	export class InitialLinkResult {
 	    pendingId: string;
 	    connection: config.Connection;
@@ -1081,6 +1101,7 @@ export namespace service {
 	export class SettingsPayload {
 	    language: string;
 	    theme: string;
+	    palette: string;
 	    backupPath: string;
 	    backupRetention: number;
 	    checkIntervalMinutes: number;
@@ -1094,6 +1115,7 @@ export namespace service {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.language = source["language"];
 	        this.theme = source["theme"];
+	        this.palette = source["palette"];
 	        this.backupPath = source["backupPath"];
 	        this.backupRetention = source["backupRetention"];
 	        this.checkIntervalMinutes = source["checkIntervalMinutes"];

@@ -43,10 +43,8 @@ const (
 	InitialCommitMessagePrefix = "chore(sync): initial commit from "
 	// UnknownHostname is used in commit messages when the hostname cannot be determined.
 	UnknownHostname = "unknown-host"
-	// DefaultGitignoreContent is written to new repositories when no .gitignore exists.
-	DefaultGitignoreContent = ".DS_Store\nThumbs.db\ndesktop.ini\n*.agentsync.tmp\n"
-	// gitignoreFileName is the name of the git ignore file.
-	gitignoreFileName = ".gitignore"
+	// GitignoreFileName is the name of the git ignore file.
+	GitignoreFileName = ".gitignore"
 	// pathspecBatchSize limits how many paths are passed to a single git invocation
 	// to stay well below command line length limits (notably on Windows).
 	pathspecBatchSize = 100
@@ -243,9 +241,96 @@ func initBare(runner *GitRunner) error {
 	return nil
 }
 
+// DefaultGitignoreContent is written to new repositories when no .gitignore exists.
+// Secrets are excluded by default because agent folders often sit next to tokens and keys.
+const DefaultGitignoreContent = `# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Secrets and credentials (never commit these)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+auth.json
+credentials*.json
+*.secret
+
+# Logs, caches and dependencies
+*.log
+logs/
+node_modules/
+__pycache__/
+.cache/
+tmp/
+
+# Editor swap files
+*.swp
+*~
+
+# AgentSync temporary files
+*.agentsync.tmp
+`
+
+// GitignorePatterns returns the non-comment, non-blank lines of a .gitignore body.
+func GitignorePatterns(content string) []string {
+	patterns := make([]string, 0)
+	for _, line := range strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		patterns = append(patterns, trimmed)
+	}
+	return patterns
+}
+
+// AppendGitignorePatterns appends the patterns missing from content, under an optional comment
+// header, and returns the new content plus the patterns that were actually added.
+func AppendGitignorePatterns(content, header string, patterns []string) (string, []string) {
+	existing := make(map[string]bool)
+	for _, p := range GitignorePatterns(content) {
+		existing[p] = true
+	}
+	added := make([]string, 0)
+	for _, p := range patterns {
+		p = strings.TrimSpace(p)
+		if p == "" || existing[p] {
+			continue
+		}
+		existing[p] = true
+		added = append(added, p)
+	}
+	if len(added) == 0 {
+		return content, added
+	}
+	var b strings.Builder
+	b.WriteString(content)
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		b.WriteString("\n")
+	}
+	if content != "" {
+		b.WriteString("\n")
+	}
+	if header != "" {
+		b.WriteString("# " + header + "\n")
+	}
+	for _, p := range added {
+		b.WriteString(p + "\n")
+	}
+	return b.String(), added
+}
+
 // writeDefaultGitignore writes the default .gitignore into root when none exists.
 func writeDefaultGitignore(root string) {
-	gitignorePath := filepath.Join(root, gitignoreFileName)
+	gitignorePath := filepath.Join(root, GitignoreFileName)
 	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
 		_ = os.WriteFile(gitignorePath, []byte(DefaultGitignoreContent), fsops.DefaultFilePerms)
 	}
@@ -264,7 +349,7 @@ func Init(root string) error {
 
 	writeDefaultGitignore(root)
 
-	if _, err := runner.runCmd("add", gitignoreFileName); err != nil {
+	if _, err := runner.runCmd("add", GitignoreFileName); err != nil {
 		return err
 	}
 

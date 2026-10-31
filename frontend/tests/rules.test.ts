@@ -194,9 +194,8 @@ describe("RuleEditorModal.svelte", () => {
     });
     const view = render(RuleEditorModal);
     await waitFor(() => expect(mockApi.detectSource).toHaveBeenCalled());
-    await fireEvent.change(await view.findByLabelText("Location"), {
-      target: { value: "claude" },
-    });
+    await fireEvent.click(await view.findByRole("combobox", { name: /^Location/ }));
+    await fireEvent.click(await view.findByRole("option", { name: /claude/ }));
     await view.findByText("Detected: Claude Code");
     return view;
   }
