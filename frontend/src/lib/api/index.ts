@@ -1,6 +1,7 @@
 import * as AppBindings from "../../../wailsjs/go/main/App";
 import { BrowserOpenURL } from "../../../wailsjs/runtime/runtime";
 import type {
+  main,
   config,
   service,
   orchestrator,
@@ -101,6 +102,9 @@ export const api = {
     AppBindings.GetRuleDiff(ruleId, destId, relPath),
   listRepoTree: (): Promise<service.SourceTreeEntry[]> => AppBindings.ListRepoTree(),
   getChangelog: (): Promise<string> => AppBindings.GetChangelog(),
+  getAppInfo: (): Promise<main.AppInfo> => AppBindings.GetAppInfo(),
+  checkForUpdate: (): Promise<main.UpdateStatus> => AppBindings.CheckForUpdate(),
+  installUpdate: (): Promise<void> => AppBindings.InstallUpdate(),
   openURL: (url: string): void => BrowserOpenURL(url),
   setTutorialCompleted: (done: boolean): Promise<config.Config> =>
     AppBindings.SetTutorialCompleted(done),

@@ -34,6 +34,10 @@ export function ChangeTarget(arg1, arg2) {
   return window['go']['main']['App']['ChangeTarget'](arg1, arg2);
 }
 
+export function CheckForUpdate() {
+  return window['go']['main']['App']['CheckForUpdate']();
+}
+
 export function CheckRemote() {
   return window['go']['main']['App']['CheckRemote']();
 }
@@ -98,6 +102,10 @@ export function ExecuteSync(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSync'](arg1, arg2);
 }
 
+export function GetAppInfo() {
+  return window['go']['main']['App']['GetAppInfo']();
+}
+
 export function GetChangelog() {
   return window['go']['main']['App']['GetChangelog']();
 }
@@ -152,6 +160,10 @@ export function InitRepository() {
 
 export function InspectPath(arg1) {
   return window['go']['main']['App']['InspectPath'](arg1);
+}
+
+export function InstallUpdate() {
+  return window['go']['main']['App']['InstallUpdate']();
 }
 
 export function ListBackups(arg1) {

@@ -270,7 +270,8 @@
     "theme_follow_system": "Match system light/dark",
     "whats_new": "What's new",
     "star_github": "Star on GitHub",
-    "app_version": "Version {version}"
+    "app_version": "Version {version}",
+    "star_github_desc": "Like AgentSync? A star helps others find it."
   },
   "statusbar": {
     "branch": "{branch}",
@@ -343,7 +344,12 @@
     "subscription_not_found": "The subscription was not found.",
     "remote_branch_not_found": "The remote repository has no branches yet.",
     "recognizers_invalid": "recognizers.json is not valid. The default recognizers are being used.",
-    "unknown": "An unexpected error occurred."
+    "unknown": "An unexpected error occurred.",
+    "update_check_failed": "Could not check for updates. Check your internet connection and try again.",
+    "update_unavailable": "This version has no installer to download. Open the release page to update.",
+    "update_download_failed": "The update could not be downloaded. Try again later.",
+    "update_verify_failed": "The downloaded update failed its integrity check and was discarded.",
+    "update_manual_required": "This copy was not installed with the installer. Download the new version from the release page."
   },
   "notifications": {
     "title": "Notifications",
@@ -364,6 +370,24 @@
       "removed": "Removed",
       "security": "Security",
       "deprecated": "Deprecated"
+    }
+  },
+  "updates": {
+    "available_title": "Version {version} is available",
+    "available_message": "Install it now; AgentSync restarts when it is done.",
+    "available_manual_message": "Download it from the release page.",
+    "up_to_date": "You have the latest version ({version}).",
+    "install": "Install update",
+    "download": "Download",
+    "view_notes": "What's new",
+    "installing": "Downloading the update. AgentSync will restart.",
+    "check_now": "Check for updates",
+    "auto_check": "Check for updates automatically",
+    "data_dir": "Data: {path}",
+    "mode": {
+      "installed": "Installed · updates itself",
+      "portable": "Portable · data next to the program",
+      "standalone": "Not installed · manual updates"
     }
   }
 }

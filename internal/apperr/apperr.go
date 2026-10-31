@@ -2,6 +2,7 @@ package apperr
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -49,6 +50,11 @@ const (
 	ConfirmationRequired    = "confirmation_required"
 	DestinationNotFound     = "destination_not_found"
 	InvalidArgument         = "invalid_argument"
+	UpdateCheckFailed       = "update_check_failed"
+	UpdateUnavailable       = "update_unavailable"
+	UpdateDownloadFailed    = "update_download_failed"
+	UpdateVerifyFailed      = "update_verify_failed"
+	UpdateManualRequired    = "update_manual_required"
 	Unknown                 = "unknown"
 )
 
@@ -98,4 +104,10 @@ func (e *Error) WithParam(key, value string) *Error {
 	}
 	e.Params[key] = value
 	return e
+}
+
+// HasCode reports whether err (or an error it wraps) is an *Error with the given code.
+func HasCode(err error, code string) bool {
+	var target *Error
+	return errors.As(err, &target) && target.Code == code
 }

@@ -3,6 +3,7 @@ import { api, parseError } from "../api";
 import type { config, service, orchestrator, profiles, rules } from "../../../wailsjs/go/models";
 import type { RuleScope } from "../api";
 import { initTheme } from "../theme/theme";
+import { updateState } from "./updates.svelte";
 import { setLocale } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
@@ -107,6 +108,9 @@ class AppState {
         initTheme(cfg.theme || "system");
         setLocale((cfg.language as any) || "system");
       }
+
+      void updateState.loadInfo();
+      updateState.startAutoCheck(!cfg?.disableUpdateCheck);
 
       if (cfg?.rootPath) {
         await this.refreshAll();

@@ -4,6 +4,12 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+### Added
+- Installer: installs for your user without administrator rights, with Start menu and desktop shortcuts and the command line tool included.
+- Automatic updates: AgentSync checks for new versions and can install them and restart by itself.
+- Portable mode: put an empty file named `portable` next to `agentsync.exe` to keep all data beside the program.
+- Settings → Help & about shows the version, how this copy is installed and where your data is kept.
+
 ## [0.0.2] - 2026-10-31
 
 ### Added

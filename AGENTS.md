@@ -21,6 +21,13 @@ Instructions for AI coding agents working on AgentSync (Wails v2 + Go backend, S
   `wails.json` `info.productVersion`) and start a new empty `## [Unreleased]` section above it.
 - Internal-only changes (refactors, tests, CI) do not go in the changelog.
 
+## Releases
+
+See `docs/INSTALL_AND_UPDATES.md`. Bump `wails.json` `info.productVersion` and `frontend/package.json`,
+finalize the changelog section, merge into `main`, then push a `vX.Y.Z` tag: the Release workflow builds
+the installer and publishes the assets. The in-app updater downloads `agentsync-setup.exe` and checks it
+against `SHA256SUMS.txt`, so never rename those assets.
+
 ## Checks before finishing
 
 ```bash

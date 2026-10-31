@@ -70,6 +70,11 @@ describe("i18n Parity & Coverage", () => {
       "subscription_not_found",
       "remote_branch_not_found",
       "recognizers_invalid",
+      "update_check_failed",
+      "update_unavailable",
+      "update_download_failed",
+      "update_verify_failed",
+      "update_manual_required",
       "unknown",
     ];
 

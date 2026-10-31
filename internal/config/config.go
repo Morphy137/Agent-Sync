@@ -59,17 +59,23 @@ type Config struct {
 	Language             string `json:"language"`
 	Theme                string `json:"theme"`
 	// TutorialCompleted records that the first-run tutorial was finished or skipped.
-	TutorialCompleted bool           `json:"tutorialCompleted"`
-	ConfirmBeforeSync bool           `json:"confirmBeforeSync"`
-	Connections       []Connection   `json:"connections"`
-	Locations         []Location     `json:"locations"`
-	Subscriptions     []Subscription `json:"subscriptions"`
+	TutorialCompleted bool `json:"tutorialCompleted"`
+	// DisableUpdateCheck turns off the automatic check for new versions.
+	DisableUpdateCheck bool           `json:"disableUpdateCheck"`
+	ConfirmBeforeSync  bool           `json:"confirmBeforeSync"`
+	Connections        []Connection   `json:"connections"`
+	Locations          []Location     `json:"locations"`
+	Subscriptions      []Subscription `json:"subscriptions"`
 }
 
-// GetConfigDir returns the active configuration directory.
+// GetConfigDir returns the active configuration directory: AGENTSYNC_CONFIG_DIR, then the
+// portable data folder next to the executable, then the per-user config folder.
 func GetConfigDir() string {
 	if envDir := os.Getenv(ConfigEnvVar); envDir != "" {
 		return envDir
+	}
+	if portable := PortableDataDir(); portable != "" {
+		return portable
 	}
 	userDir, err := os.UserConfigDir()
 	if err != nil {
