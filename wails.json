@@ -13,7 +13,7 @@
   "info": {
     "companyName": "Mr Morphy",
     "productName": "AgentSync",
-    "productVersion": "0.0.1",
+    "productVersion": "0.0.2",
     "copyright": "Copyright © 2026 Mr Morphy",
     "comments": "Sync files and AI agent configurations across folders and computers"
   }

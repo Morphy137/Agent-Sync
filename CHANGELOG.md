@@ -4,6 +4,8 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-10-31
+
 ### Added
 - Notification bell: repository messages appear briefly as a popup and then stay listed under the bell.
 - Themes now change the whole app (background, surfaces and accent): White, Black, Nord, Rose and Green, plus more under "More".
@@ -19,6 +21,9 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 - Badges and chips use squared corners; option labels are centered.
 - Content detection is shown with a check mark (or a question mark when unknown).
 - Softer shadows, especially in dark themes and dialogs.
+
+### Fixed
+- The notification popup no longer turns see-through when the window loses focus.
 
 ### Removed
 - The separate color palette setting (now part of themes).
