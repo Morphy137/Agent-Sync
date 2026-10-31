@@ -82,6 +82,8 @@ export const api = {
   getGitInfo: (): Promise<service.GitInfoPayload> => AppBindings.GetGitInfo(),
   selectFolder: (title: string, defaultDir = ""): Promise<string> =>
     AppBindings.SelectFolder(title, defaultDir),
+  selectFiles: (title: string, defaultDir = ""): Promise<string[]> =>
+    AppBindings.SelectFiles(title, defaultDir),
   selectFile: (title: string, defaultDir = ""): Promise<string> =>
     AppBindings.SelectFile(title, defaultDir),
   openPath: (path: string): Promise<void> => AppBindings.OpenPath(path),

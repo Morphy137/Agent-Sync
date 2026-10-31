@@ -289,7 +289,7 @@
     width: 36px;
     height: 36px;
     flex-shrink: 0;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-md);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -349,7 +349,7 @@
     font-size: 11px;
     font-weight: var(--weight-medium);
     padding: 1px var(--space-2);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xs);
     background-color: var(--surface);
     box-shadow: var(--elev-1);
     color: var(--text-muted);

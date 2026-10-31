@@ -397,7 +397,7 @@
   .header-icon {
     width: 56px;
     height: 56px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-lg);
     background-color: var(--surface-sunken);
     box-shadow: var(--sunken);
     color: var(--accent);

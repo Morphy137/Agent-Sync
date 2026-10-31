@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, type Snippet } from "svelte";
   import {
     Check,
     ArrowDown,
@@ -32,9 +32,11 @@
     oncheckRemote: () => void;
     onopenSettings: () => void;
     onchangeRoot: () => void;
+    /** Notification bell rendered next to the settings button. */
+    notifications?: Snippet;
   }
 
-  let { onsync, oncheckRemote, onopenSettings, onchangeRoot }: Props = $props();
+  let { onsync, oncheckRemote, onopenSettings, onchangeRoot, notifications }: Props = $props();
 
   let isMaximised = $state(false);
   let isFocused = $state(true);
@@ -179,6 +181,8 @@
       </Button>
     {/if}
 
+    {@render notifications?.()}
+
     <IconButton label={t("titlebar.settings_button")} onclick={onopenSettings}>
       <Settings size={16} />
     </IconButton>
@@ -282,7 +286,7 @@
     background-color: var(--surface-sunken);
     box-shadow: var(--sunken);
     border: none;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
     padding: 3px var(--space-3);
     font-family: var(--font-mono);
     font-size: var(--text-xs);

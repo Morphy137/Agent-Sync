@@ -54,7 +54,8 @@
       "folder": "Carpeta",
       "skill": "Skill",
       "mcp": "Configuración MCP",
-      "instructions": "Instrucciones"
+      "instructions": "Instrucciones",
+      "files": "Archivos"
     },
     "mode": {
       "two_way": "Bidireccional",
@@ -150,7 +151,6 @@
       "remove_destination": "Quitar destino {index}",
       "suggesting": "Buscando la mejor ubicación...",
       "detected_chip": "Detectado: {label}",
-      "generic_chip": "Copia genérica",
       "suggestion_edited": "Editado por ti",
       "path_label": "Ruta y nombre final",
       "path_placeholder": "p. ej. CLAUDE.md o skills/mi-skill",
@@ -180,7 +180,9 @@
         "path_relative": "Usa una ruta relativa sin '..'.",
         "path_duplicate": "Otro destino ya usa esta ruta.",
         "transform_key_required": "Escribe la clave donde combinar."
-      }
+      },
+      "not_detected": "Tipo no detectado",
+      "selection_name": "{count} archivos"
     },
     "location_select": {
       "label": "Ubicación",
@@ -188,7 +190,8 @@
       "home_option": "home (tu carpeta de usuario: {path})",
       "option": "{alias} ({path})",
       "unmapped_option": "{alias} (sin configurar en este PC)",
-      "new_option": "Nueva ubicación..."
+      "new_option": "Nueva ubicación...",
+      "pick_title": "Elige una carpeta para la nueva ubicación"
     },
     "source": {
       "tabs_label": "Procedencia del origen",
@@ -203,9 +206,7 @@
       "repo_unavailable": "Elige una carpeta de repositorio para usar orígenes del repositorio.",
       "expand": "Expandir",
       "collapse": "Contraer",
-      "pick_file": "Elegir archivo",
       "pick_folder": "Elegir carpeta",
-      "pick_file_title": "Elige el archivo de origen",
       "pick_folder_title": "Elige la carpeta de origen",
       "local_hint": "Solo en este PC. Impórtalo para compartirlo.",
       "import_title": "Importar al repositorio",
@@ -217,7 +218,17 @@
       "subscription_label": "Suscripción",
       "subscription_placeholder": "Elige una suscripción",
       "no_subscriptions": "Aún no hay suscripciones.",
-      "subscription_empty": "Esta suscripción no tiene archivos."
+      "subscription_empty": "Esta suscripción no tiene archivos.",
+      "multi_label": "Elegir varios archivos",
+      "pick_files": "Elegir archivos",
+      "pick_files_title": "Elige uno o más archivos",
+      "selection_no_common_folder": "Los archivos deben estar en la misma unidad.",
+      "root_label": "Raíz del repositorio",
+      "selection_count": "{count} elemento(s)",
+      "view_label": "Vista",
+      "view_grid": "Vista de cuadrícula",
+      "view_list": "Vista de lista",
+      "remove_item": "Quitar {name}"
     }
   }
 }

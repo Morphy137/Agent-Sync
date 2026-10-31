@@ -339,6 +339,7 @@
 
 <style>
   .view {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -409,14 +410,18 @@
     gap: var(--space-3);
     padding: var(--space-8) var(--space-6);
     background-color: var(--surface);
-    border: 1px dashed var(--border-subtle, var(--hairline));
-    border-radius: var(--radius-xl);
+    box-shadow: var(--elev-1);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 540px;
+    /* centered in the free space below the header */
+    margin: auto;
   }
 
   .empty-icon {
     width: 56px;
     height: 56px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-lg);
     background-color: var(--surface-sunken);
     box-shadow: var(--sunken);
     display: flex;

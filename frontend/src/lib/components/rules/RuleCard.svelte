@@ -147,6 +147,11 @@
       <Badge mono>{rule.source.subscription}</Badge>
     {/if}
     <span class="source-path" title={sourcePath || rule.source.path}>{rule.source.path}</span>
+    {#if rule.source.include?.length}
+      <Badge tone="info" title={rule.source.include.join("\n")}>
+        {t("rules.editor.selection_name", { count: rule.source.include.length })}
+      </Badge>
+    {/if}
   </div>
 
   <div class="dest-section">

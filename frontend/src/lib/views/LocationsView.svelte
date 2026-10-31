@@ -202,6 +202,7 @@
 
 <style>
   .view {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);

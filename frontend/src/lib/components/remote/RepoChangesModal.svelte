@@ -488,7 +488,7 @@
     font-weight: var(--weight-medium);
     color: var(--dot-ok);
     padding: 1px var(--space-2);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xs);
     background-color: var(--surface);
     box-shadow: var(--elev-1);
   }

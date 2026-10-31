@@ -15,6 +15,9 @@
   import BackupsDrawer from "./lib/components/BackupsDrawer.svelte";
   import SettingsDrawer from "./lib/components/SettingsDrawer.svelte";
   import TutorialModal from "./lib/components/TutorialModal.svelte";
+  import NotificationCenter, {
+    type AppNotification,
+  } from "./lib/components/notifications/NotificationCenter.svelte";
   import AddRemoteModal from "./lib/components/AddRemoteModal.svelte";
   import GitIdentityModal from "./lib/components/GitIdentityModal.svelte";
   import Toast from "./lib/components/Toast.svelte";
@@ -26,7 +29,6 @@
   import SubscriptionsView from "./lib/views/SubscriptionsView.svelte";
   import LocationsView from "./lib/views/LocationsView.svelte";
   import RuleEditorModal from "./lib/components/rules/RuleEditorModal.svelte";
-  import RepoBanner from "./lib/components/remote/RepoBanner.svelte";
   import ConnectRemoteModal from "./lib/components/remote/ConnectRemoteModal.svelte";
   import RepoChangesModal from "./lib/components/remote/RepoChangesModal.svelte";
 
@@ -250,6 +252,72 @@
     return appState.statusPlan.connections.find((c) => c.connectionId === connId);
   }
 
+  /** Repository state shown as notifications (bell + closable popup) instead of page banners. */
+  const repoNotifications = $derived.by((): AppNotification[] => {
+    if (!appState.config?.rootPath) return [];
+    const git = appState.gitInfo;
+    const plan = appState.statusPlan;
+    const connect = {
+      label: t("remote.banner.connect"),
+      primary: true,
+      onclick: () => (connectRemoteOpen = true),
+    };
+    if (git && !git.isRepo) {
+      return [
+        {
+          id: "not_repo",
+          variant: "warning",
+          title: t("banners.not_repo.title"),
+          message: t("banners.not_repo.message"),
+          actions: [{ label: t("banners.not_repo.button_init"), onclick: handleInitRepo }, connect],
+        },
+      ];
+    }
+    const items: AppNotification[] = [];
+    if (git && !git.hasUpstream) {
+      items.push({
+        id: "no_remote",
+        variant: "info",
+        title: t("banners.no_remote.title"),
+        message: t("banners.no_remote.message"),
+        actions: [connect],
+      });
+    }
+    if (plan && plan.behind > 0) {
+      items.push({
+        id: "remote_changes",
+        variant: "info",
+        title: t("banners.remote_changes.title"),
+        message: t("banners.remote_changes.message"),
+        actions: [
+          { label: t("remote.banner.review"), onclick: () => (repoChangesOpen = true) },
+          {
+            label: t("banners.remote_changes.button_sync"),
+            primary: true,
+            onclick: handleSyncClick,
+          },
+        ],
+      });
+    }
+    const localCount = plan?.commitPreview?.length ?? 0;
+    if (localCount > 0) {
+      items.push({
+        id: "local_changes",
+        variant: "info",
+        title: t("remote.banner.local_changes_title"),
+        message: t("remote.banner.local_changes_message", { count: localCount }),
+        actions: [
+          {
+            label: t("remote.banner.review"),
+            primary: true,
+            onclick: () => (repoChangesOpen = true),
+          },
+        ],
+      });
+    }
+    return items;
+  });
+
   const connectedProfiles = $derived.by(() => {
     if (!appState.config?.connections) return [];
     return appState.config.connections.map((conn) => {
@@ -279,196 +347,144 @@
     oncheckRemote={() => appState.checkRemote()}
     onopenSettings={() => (appState.settingsDrawerOpen = true)}
     onchangeRoot={handleSelectRoot}
-  />
+  >
+    {#snippet notifications()}
+      <NotificationCenter items={repoNotifications} />
+    {/snippet}
+  </TitleBar>
 
   <main class="content-area">
     <div class="content-inner">
       {#if appState.config?.rootPath}
-        <div class="banners-container">
-          {#if appState.gitInfo && !appState.gitInfo.isRepo}
-            <RepoBanner
-              variant="warning"
-              title={t("banners.not_repo.title")}
-              message={t("banners.not_repo.message")}
-              actions={[
-                {
-                  label: t("remote.banner.connect"),
-                  primary: true,
-                  onclick: () => (connectRemoteOpen = true),
-                },
-                { label: t("banners.not_repo.button_init"), onclick: handleInitRepo },
-              ]}
-            />
-          {:else if appState.gitInfo && !appState.gitInfo.hasUpstream}
-            <RepoBanner
-              variant="info"
-              title={t("banners.no_remote.title")}
-              message={t("banners.no_remote.message")}
-              actions={[
-                {
-                  label: t("remote.banner.connect"),
-                  primary: true,
-                  onclick: () => (connectRemoteOpen = true),
-                },
-              ]}
-            />
-          {:else if appState.statusPlan && appState.statusPlan.behind > 0}
-            <RepoBanner
-              variant="info"
-              title={t("banners.remote_changes.title")}
-              message={t("banners.remote_changes.message")}
-              actions={[
-                { label: t("remote.banner.review"), onclick: () => (repoChangesOpen = true) },
-                {
-                  label: t("banners.remote_changes.button_sync"),
-                  primary: true,
-                  onclick: handleSyncClick,
-                },
-              ]}
-            />
-          {:else if (appState.statusPlan?.commitPreview?.length ?? 0) > 0}
-            <RepoBanner
-              variant="info"
-              title={t("remote.banner.local_changes_title")}
-              message={t("remote.banner.local_changes_message", {
-                count: appState.statusPlan?.commitPreview?.length ?? 0,
-              })}
-              actions={[
-                {
-                  label: t("remote.banner.review"),
-                  primary: true,
-                  onclick: () => (repoChangesOpen = true),
-                },
-              ]}
-            />
-          {/if}
-        </div>
-
         <ViewTabs value={appState.activeView} onchange={(view) => (appState.activeView = view)} />
 
-        {#if appState.activeView === "rules"}
-          <RulesView />
-        {:else if appState.activeView === "subscriptions"}
-          <SubscriptionsView />
-        {:else if appState.activeView === "locations"}
-          <LocationsView />
-        {:else}
-          <div class="connections-header">
-            <div class="connections-title-group">
-              <h2 class="section-title">{t("connections.title")}</h2>
-              <span class="section-summary">
-                {t("connections.connected_count", {
-                  connected: connectedProfiles.length,
-                  unconnected: unconnectedProfiles.length,
-                })}
-              </span>
-            </div>
-
-            <div class="connections-header-actions">
-              <IconButton
-                label={t("titlebar.check_remote")}
-                disabled={appState.isChecking}
-                onclick={() => appState.checkRemote()}
-              >
-                <RefreshCw size={16} class={appState.isChecking ? "spin" : ""} />
-              </IconButton>
-
-              <Button
-                variant="primary"
-                size="sm"
-                onclick={() => {
-                  appState.connectionWizardProfile = "";
-                  appState.connectionWizardReplacesId = "";
-                  appState.connectionWizardOpen = true;
-                }}
-              >
-                <Plus size={16} />
-                <span>{t("connections.add_connection")}</span>
-              </Button>
-            </div>
-          </div>
-
-          {#if connectedProfiles.length > 0}
-            <div class="profiles-grid">
-              {#each connectedProfiles as item (item.conn.id)}
-                {@const status = getStatusForConnection(item.conn.id)}
-                <ProfileCard
-                  profile={item.prof}
-                  connection={item.conn}
-                  {status}
-                  onconnect={handleConnectProfile}
-                  onupdate={handleUpdateConnection}
-                  onbackups={handleOpenBackups}
-                  onchangeTarget={handleChangeTarget}
-                  onopenExplorer={handleOpenExplorer}
-                  ondisconnect={handleDisconnect}
-                />
-              {/each}
-            </div>
+        <div class="view-area">
+          {#if appState.activeView === "rules"}
+            <RulesView />
+          {:else if appState.activeView === "subscriptions"}
+            <SubscriptionsView />
+          {:else if appState.activeView === "locations"}
+            <LocationsView />
           {:else}
-            <div class="empty-connections-card">
-              <div class="empty-icon-box">
-                <FolderSync size={32} />
+            <section class="connections-view">
+              <div class="connections-header">
+                <div class="connections-title-group">
+                  <h2 class="section-title">{t("connections.title")}</h2>
+                  <span class="section-summary">
+                    {t("connections.connected_count", {
+                      connected: connectedProfiles.length,
+                      unconnected: unconnectedProfiles.length,
+                    })}
+                  </span>
+                </div>
+
+                <div class="connections-header-actions">
+                  <IconButton
+                    label={t("titlebar.check_remote")}
+                    disabled={appState.isChecking}
+                    onclick={() => appState.checkRemote()}
+                  >
+                    <RefreshCw size={16} class={appState.isChecking ? "spin" : ""} />
+                  </IconButton>
+
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onclick={() => {
+                      appState.connectionWizardProfile = "";
+                      appState.connectionWizardReplacesId = "";
+                      appState.connectionWizardOpen = true;
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>{t("connections.add_connection")}</span>
+                  </Button>
+                </div>
               </div>
-              <h3 class="empty-title">{t("connections.empty_title")}</h3>
-              <p class="empty-desc">{t("connections.empty_desc")}</p>
-              <Button
-                variant="primary"
-                size="md"
-                onclick={() => {
-                  appState.connectionWizardProfile = "";
-                  appState.connectionWizardReplacesId = "";
-                  appState.connectionWizardOpen = true;
-                }}
-              >
-                <Plus size={16} />
-                <span>{t("connections.add_connection")}</span>
-              </Button>
-            </div>
-          {/if}
 
-          {#if unconnectedProfiles.length > 0}
-            <div class="unconnected-section">
-              <button
-                type="button"
-                class="unconnected-toggle"
-                onclick={() => (unconnectedOpen = !unconnectedOpen)}
-                aria-expanded={unconnectedOpen}
-              >
-                {#if unconnectedOpen}
-                  <ChevronDown size={16} />
-                {:else}
-                  <ChevronRight size={16} />
-                {/if}
-                <span class="unconnected-title">
-                  {t("connections.unconnected_folders")} ({unconnectedProfiles.length})
-                </span>
-              </button>
-
-              {#if unconnectedOpen}
-                <div class="unconnected-list">
-                  {#each unconnectedProfiles as prof (prof.name)}
-                    <div class="unconnected-row">
-                      <div class="unconnected-info">
-                        <span class="unconnected-name">{prof.name}</span>
-                        <span class="unconnected-count">
-                          · {t("wizard.files_count", { count: prof.fileCount })}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onclick={() => handleConnectProfile(prof.name)}
-                      >
-                        <span>{t("connections.connect")}</span>
-                      </Button>
-                    </div>
+              {#if connectedProfiles.length > 0}
+                <div class="profiles-grid">
+                  {#each connectedProfiles as item (item.conn.id)}
+                    {@const status = getStatusForConnection(item.conn.id)}
+                    <ProfileCard
+                      profile={item.prof}
+                      connection={item.conn}
+                      {status}
+                      onconnect={handleConnectProfile}
+                      onupdate={handleUpdateConnection}
+                      onbackups={handleOpenBackups}
+                      onchangeTarget={handleChangeTarget}
+                      onopenExplorer={handleOpenExplorer}
+                      ondisconnect={handleDisconnect}
+                    />
                   {/each}
                 </div>
+              {:else}
+                <div class="empty-connections-card">
+                  <div class="empty-icon-box">
+                    <FolderSync size={32} />
+                  </div>
+                  <h3 class="empty-title">{t("connections.empty_title")}</h3>
+                  <p class="empty-desc">{t("connections.empty_desc")}</p>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onclick={() => {
+                      appState.connectionWizardProfile = "";
+                      appState.connectionWizardReplacesId = "";
+                      appState.connectionWizardOpen = true;
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>{t("connections.add_connection")}</span>
+                  </Button>
+                </div>
               {/if}
-            </div>
+
+              {#if unconnectedProfiles.length > 0}
+                <div class="unconnected-section">
+                  <button
+                    type="button"
+                    class="unconnected-toggle"
+                    onclick={() => (unconnectedOpen = !unconnectedOpen)}
+                    aria-expanded={unconnectedOpen}
+                  >
+                    {#if unconnectedOpen}
+                      <ChevronDown size={16} />
+                    {:else}
+                      <ChevronRight size={16} />
+                    {/if}
+                    <span class="unconnected-title">
+                      {t("connections.unconnected_folders")} ({unconnectedProfiles.length})
+                    </span>
+                  </button>
+
+                  {#if unconnectedOpen}
+                    <div class="unconnected-list">
+                      {#each unconnectedProfiles as prof (prof.name)}
+                        <div class="unconnected-row">
+                          <div class="unconnected-info">
+                            <span class="unconnected-name">{prof.name}</span>
+                            <span class="unconnected-count">
+                              · {t("wizard.files_count", { count: prof.fileCount })}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onclick={() => handleConnectProfile(prof.name)}
+                          >
+                            <span>{t("connections.connect")}</span>
+                          </Button>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </section>
           {/if}
-        {/if}
+        </div>
       {:else}
         <WelcomeView onsuccess={handleWelcomeSuccess} />
       {/if}
@@ -594,18 +610,13 @@
   }
 
   .content-inner {
+    min-height: 100%;
     max-width: var(--content-max-width);
     margin: 0 auto;
     padding: var(--space-6) var(--space-8);
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-  }
-
-  .banners-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
   }
 
   .connections-header {
@@ -655,15 +666,26 @@
     text-align: center;
     padding: var(--space-8);
     background-color: var(--surface);
-    border: 1px dashed var(--border-subtle);
-    border-radius: var(--radius-xl);
+    box-shadow: var(--elev-1);
+    border-radius: var(--radius-lg);
     gap: var(--space-3);
+    width: 100%;
+    max-width: 540px;
+    margin: auto;
+  }
+
+  .view-area,
+  .connections-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
   }
 
   .empty-icon-box {
     width: 56px;
     height: 56px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-lg);
     background-color: var(--surface-sunken);
     display: flex;
     align-items: center;

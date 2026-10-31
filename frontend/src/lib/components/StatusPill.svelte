@@ -42,7 +42,7 @@
     align-items: center;
     gap: var(--space-2);
     padding: 3px var(--space-3);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xs);
     background-color: var(--surface-sunken);
     box-shadow: var(--sunken);
     color: var(--text-muted);

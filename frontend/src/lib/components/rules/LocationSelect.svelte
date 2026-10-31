@@ -1,15 +1,21 @@
 <script lang="ts">
+  import { api } from "../../api";
   import { t } from "../../i18n";
+  import { appState } from "../../stores/appState.svelte";
   import Select from "../Select.svelte";
-  import LocationForm from "./LocationForm.svelte";
-  import { BUILTIN_HOME_ALIAS, NEW_LOCATION_VALUE, type LocationOption } from "./ruleUi";
+  import {
+    BUILTIN_HOME_ALIAS,
+    NEW_LOCATION_VALUE,
+    type LocationOption,
+    uniqueAliasForFolder,
+  } from "./ruleUi";
 
   interface Props {
     value: string;
     locations: LocationOption[];
     error?: string;
     onselect: (alias: string) => void;
-    /** Called after a new location was saved from the inline form. */
+    /** Called after a new location was saved from a picked folder. */
     oncreated: (alias: string) => void;
   }
 
@@ -36,17 +42,48 @@
     { value: NEW_LOCATION_VALUE, label: t("rules.location_select.new_option") },
   ]);
 
+  function samePath(a: string, b: string): boolean {
+    const normalize = (p: string) =>
+      p
+        .replace(/[\\/]+$/, "")
+        .replace(/\\/g, "/")
+        .toLowerCase();
+    return normalize(a) === normalize(b);
+  }
+
+  /** "New location" opens the folder dialog and saves the folder as a location right away. */
+  async function createFromFolder() {
+    if (creating) return;
+    creating = true;
+    try {
+      const folder = await api.selectFolder(t("rules.location_select.pick_title"));
+      if (!folder) return;
+      const existing = locations.find((l) => l.mapped && samePath(l.path, folder));
+      if (existing) {
+        onselect(existing.alias);
+        return;
+      }
+      const alias = uniqueAliasForFolder(
+        folder,
+        locations.map((l) => l.alias)
+      );
+      await api.saveLocation(alias, folder);
+      appState.addToast("success", t("locations.toast.saved", { alias }));
+      appState.bumpRules();
+      oncreated(alias);
+    } catch (err) {
+      appState.showError(err);
+    } finally {
+      creating = false;
+    }
+  }
+
   function handleChange(alias: string) {
     if (alias === NEW_LOCATION_VALUE) {
-      creating = true;
+      void createFromFolder();
       return;
     }
     onselect(alias);
-  }
-
-  function handleCreated(alias: string) {
-    creating = false;
-    oncreated(alias);
   }
 </script>
 
@@ -57,13 +94,10 @@
     options={selectOptions}
     placeholder={t("rules.location_select.placeholder")}
     {error}
+    disabled={creating}
     variant="raised"
     onchange={handleChange}
   />
-
-  {#if creating}
-    <LocationForm compact oncancel={() => (creating = false)} onsaved={handleCreated} />
-  {/if}
 </div>
 
 <style>

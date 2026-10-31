@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { Plus, Sparkles } from "@lucide/svelte";
+  import { CheckCheck, CircleHelp, Plus } from "@lucide/svelte";
   import { rules } from "../../../../wailsjs/go/models";
   import { api, type RuleScope } from "../../api";
   import { appState } from "../../stores/appState.svelte";
@@ -11,7 +11,6 @@
   import Select from "../Select.svelte";
   import SegmentedControl from "../SegmentedControl.svelte";
   import Switch from "../Switch.svelte";
-  import Badge from "./Badge.svelte";
   import SourcePicker from "./SourcePicker.svelte";
   import DestinationEditor from "./DestinationEditor.svelte";
   import CollisionList from "./CollisionList.svelte";
@@ -40,6 +39,8 @@
   let errors = $state<RuleFormErrors>({ byDestination: {} });
   let showErrors = $state(false);
   let locations = $state<LocationOption[]>([]);
+  /** Pseudo kind shown for multi-file selections. */
+  const SELECTION_KIND = "files";
   let detectedKind = $state("");
   let suggestingKeys = $state<string[]>([]);
   let saving = $state(false);
@@ -117,6 +118,15 @@
   }
 
   async function detectSource(source: rules.Source, isNewSource: boolean) {
+    if (source.include?.length) {
+      // A selection of files always lands in a folder; there is nothing more to detect.
+      detectedKind = SELECTION_KIND;
+      form.sourceIsDir = true;
+      if (isNewSource && !form.name.trim()) {
+        form.name = t("rules.editor.selection_name", { count: source.include.length });
+      }
+      return;
+    }
     try {
       const info = await api.detectSource(source);
       detectedKind = info.kind;
@@ -270,16 +280,18 @@
 
       <section class="section">
         <h3 class="section-title">{t("rules.editor.source_title")}</h3>
-        <SourcePicker value={form.source} {hasRoot} onchange={handleSourceChange} />
+        <SourcePicker
+          value={form.source}
+          {hasRoot}
+          sourceIsFolder={form.sourceIsDir}
+          onchange={handleSourceChange}
+        />
         {#if errors.source}<p class="error">{t(errors.source)}</p>{/if}
         {#if form.source}
+          {@const detectedLabel = detectedKind
+            ? t("rules.editor.detected_kind", { kind: t(`rules.kind.${detectedKind}`) })
+            : t("rules.editor.not_detected")}
           <div class="detected">
-            {#if detectedKind}
-              <Badge tone="success">
-                <Sparkles size={12} aria-hidden="true" />
-                {t("rules.editor.detected_kind", { kind: t(`rules.kind.${detectedKind}`) })}
-              </Badge>
-            {/if}
             <div class="kind-select">
               <Select
                 label={t("rules.editor.kind_label")}
@@ -288,6 +300,19 @@
                 onchange={(kind) => (form.kind = kind)}
               />
             </div>
+            <span
+              class="detect-icon"
+              class:ok={Boolean(detectedKind)}
+              title={detectedLabel}
+              role="img"
+              aria-label={detectedLabel}
+            >
+              {#if detectedKind}
+                <CheckCheck size={18} />
+              {:else}
+                <CircleHelp size={18} />
+              {/if}
+            </span>
           </div>
         {/if}
         {#if form.sourceIsDir || isFolderKind(form.kind)}
@@ -404,7 +429,24 @@
   }
 
   .kind-select {
-    min-width: 200px;
+    width: 240px;
+  }
+
+  .detect-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--dot-up);
+    cursor: help;
+  }
+
+  .detect-icon.ok {
+    color: var(--dot-ok);
   }
 
   .field-label {

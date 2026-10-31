@@ -165,6 +165,59 @@ export function baseName(path: string): string {
   return parts[parts.length - 1] ?? "";
 }
 
+/** Root marker used by selections whose files sit directly in the repository root. */
+export const ROOT_SOURCE_PATH = ".";
+
+export interface FileSelection {
+  /** Folder that contains every selected file (relative, absolute, or "." for a root). */
+  base: string;
+  /** Selected files relative to base, forward slashes. */
+  include: string[];
+}
+
+/**
+ * Groups several picked files under their deepest common folder. Works for repository-relative
+ * paths ("skills/a.md") and absolute Windows or POSIX paths. Returns null when the files share
+ * no folder (e.g. different drives).
+ */
+export function selectionFromPaths(paths: string[], absolute: boolean): FileSelection | null {
+  const unique = [...new Set(paths.map((p) => p.replace(/\\/g, "/")))];
+  if (unique.length === 0) return null;
+  const split = unique.map((p) => p.split("/"));
+  const dirs = split.map((parts) => parts.slice(0, -1));
+  const common: string[] = [];
+  for (let i = 0; i < dirs[0].length; i++) {
+    const segment = dirs[0][i];
+    if (!dirs.every((d) => d[i] !== undefined && d[i].toLowerCase() === segment.toLowerCase()))
+      break;
+    common.push(segment);
+  }
+  if (absolute && common.length === 0) return null;
+  const include = split.map((parts) => parts.slice(common.length).join("/")).sort();
+  let base = common.join("/") || ROOT_SOURCE_PATH;
+  if (absolute) {
+    const usesBackslash = paths.some((p) => p.includes("\\"));
+    // "C:" alone is drive-relative on Windows; keep the root separator.
+    if (/^[A-Za-z]:$/.test(base)) base += "/";
+    if (usesBackslash) base = base.replace(/\//g, "\\");
+  }
+  return { base, include };
+}
+
+/** Files of a source for display: the selection entries, or the source path itself. */
+export function sourceFileList(source: rules.Source | null): string[] {
+  if (!source?.path) return [];
+  if (source.include?.length) return source.include;
+  return [source.path];
+}
+
+/** Lower-case extension without the dot ("" when none). */
+export function fileExtension(path: string): string {
+  const name = baseName(path);
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
 export function destinationLabel(dest: Pick<rules.Destination, "location" | "path">): string {
   return dest.path ? `${dest.location}/${dest.path}` : dest.location;
 }
@@ -359,6 +412,7 @@ export function buildRulePayload(form: RuleForm): rules.Rule {
       origin: source.origin,
       ...(source.origin === "subscription" ? { subscription: source.subscription } : {}),
       path: source.path,
+      ...(source.include?.length ? { include: [...source.include] } : {}),
     },
     kind: form.kind,
     ...(exclude.length > 0 ? { exclude } : {}),
@@ -432,6 +486,22 @@ export function aliasFromFolder(path: string): string {
       .split(/[\\/]/)
       .pop() ?? "";
   return slugifyAlias(base.replace(/^\.+/, "")).replace(/[-_]+$/, "");
+}
+
+/** Fallback alias when a folder name has no usable characters. */
+export const FALLBACK_LOCATION_ALIAS = "location";
+
+/** Suggests an alias for a folder that does not clash with existing ones ("claude", "claude-2"...). */
+export function uniqueAliasForFolder(folder: string, taken: string[]): string {
+  const suggested = aliasFromFolder(folder);
+  const base = !suggested || suggested === BUILTIN_HOME_ALIAS ? FALLBACK_LOCATION_ALIAS : suggested;
+  const used = new Set(taken);
+  if (!used.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const candidate = base.slice(0, MAX_ALIAS_LENGTH - suffix.length) + suffix;
+    if (!used.has(candidate)) return candidate;
+  }
 }
 
 /** Returns a translation key describing why the alias is invalid, or null. */

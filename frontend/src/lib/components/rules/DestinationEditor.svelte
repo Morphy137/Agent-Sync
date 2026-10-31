@@ -111,8 +111,6 @@
           <Sparkles size={12} aria-hidden="true" />
           {t("rules.editor.detected_chip", { label: draft.suggestion.label })}
         </Badge>
-      {:else}
-        <Badge>{t("rules.editor.generic_chip")}</Badge>
       {/if}
       {#if draft.touched}
         <span class="suggestion-note">{t("rules.editor.suggestion_edited")}</span>

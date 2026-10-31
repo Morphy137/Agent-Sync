@@ -2,7 +2,7 @@ import { describeError } from "../i18n/errors";
 import { api, parseError } from "../api";
 import type { config, service, orchestrator, profiles, rules } from "../../../wailsjs/go/models";
 import type { RuleScope } from "../api";
-import { initTheme, applyPalette } from "../theme/theme";
+import { initTheme } from "../theme/theme";
 import { setLocale } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
@@ -104,8 +104,7 @@ class AppState {
       this.config = cfg;
 
       if (cfg) {
-        initTheme((cfg.theme as any) || "system");
-        applyPalette(cfg.palette);
+        initTheme(cfg.theme || "system");
         setLocale((cfg.language as any) || "system");
       }
 

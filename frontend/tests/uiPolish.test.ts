@@ -4,7 +4,8 @@ import { setLocale } from "../src/lib/i18n";
 import { describeError } from "../src/lib/i18n/errors";
 import { shouldAllowContextMenu } from "../src/lib/contextMenu";
 import { aliasFromFolder, slugifyAlias } from "../src/lib/components/rules/ruleUi";
-import { applyPalette, DEFAULT_PALETTE } from "../src/lib/theme/theme";
+import { applyTheme, resolveTheme, FEATURED_THEME_IDS, THEMES } from "../src/lib/theme/theme";
+import { selectionFromPaths, uniqueAliasForFolder } from "../src/lib/components/rules/ruleUi";
 
 const mockApi = vi.hoisted(() => ({
   getGitignore: vi.fn(),
@@ -59,12 +60,56 @@ describe("location alias helpers", () => {
   });
 });
 
-describe("palettes", () => {
-  it("falls back to the default palette for unknown values", () => {
-    applyPalette("nope");
-    expect(document.documentElement.getAttribute("data-palette")).toBe(DEFAULT_PALETTE);
-    applyPalette("ocean");
-    expect(document.documentElement.getAttribute("data-palette")).toBe("ocean");
+describe("themes", () => {
+  it("applies a full color set and its light/dark scheme", () => {
+    applyTheme("nord");
+    const root = document.documentElement;
+    expect(root.getAttribute("data-theme")).toBe("nord");
+    expect(root.getAttribute("data-scheme")).toBe("dark");
+    expect(root.style.getPropertyValue("--canvas")).toBe("#242933");
+    applyTheme("sakura");
+    expect(root.getAttribute("data-scheme")).toBe("light");
+  });
+
+  it("resolves system and unknown ids to white or black", () => {
+    expect(["light", "dark"]).toContain(resolveTheme("system").id);
+    expect(["light", "dark"]).toContain(resolveTheme("nope").id);
+  });
+
+  it("features five themes and defines every color for all of them", () => {
+    expect(FEATURED_THEME_IDS).toEqual(["light", "dark", "nord", "rose", "forest"]);
+    for (const theme of THEMES) {
+      for (const value of Object.values(theme.colors)) {
+        expect(value).toMatch(/^#[0-9a-f]{6}$/i);
+      }
+    }
+  });
+});
+
+describe("multi-file selection", () => {
+  it("groups repository files under their common folder", () => {
+    expect(selectionFromPaths(["skills/a/one.md", "skills/b/two.md"], false)).toEqual({
+      base: "skills",
+      include: ["a/one.md", "b/two.md"],
+    });
+    expect(selectionFromPaths(["README.md", "docs/x.md"], false)).toEqual({
+      base: ".",
+      include: ["README.md", "docs/x.md"],
+    });
+  });
+
+  it("keeps Windows separators for local files and rejects different drives", () => {
+    expect(
+      selectionFromPaths([String.raw`C:\notes\a.txt`, String.raw`C:\notes\b.txt`], true)
+    ).toEqual({ base: String.raw`C:\notes`, include: ["a.txt", "b.txt"] });
+    expect(selectionFromPaths([String.raw`C:\a.txt`, String.raw`D:\b.txt`], true)).toBeNull();
+  });
+});
+
+describe("location aliases from folders", () => {
+  it("avoids clashes and the reserved home alias", () => {
+    expect(uniqueAliasForFolder(String.raw`C:\Users\me\.claude`, ["claude"])).toBe("claude-2");
+    expect(uniqueAliasForFolder("/home", [])).toBe("location");
   });
 });
 
