@@ -4,10 +4,12 @@
   interface Props {
     checked: boolean;
     label?: string;
+    /** Accessible name when the label is not shown. */
+    ariaLabel?: string;
     onchange?: (checked: boolean) => void;
   }
 
-  let { checked = false, label, onchange }: Props = $props();
+  let { checked = false, label, ariaLabel, onchange }: Props = $props();
 
   function toggle() {
     const next = !checked;
@@ -23,7 +25,7 @@
     type="button"
     role="switch"
     aria-checked={checked}
-    aria-label={label || t("common.toggle_switch")}
+    aria-label={label || ariaLabel || t("common.toggle_switch")}
     class="switch-track"
     class:checked
     onclick={toggle}

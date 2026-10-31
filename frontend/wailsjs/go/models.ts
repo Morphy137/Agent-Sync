@@ -97,7 +97,6 @@ export namespace config {
 	    checkIntervalMinutes: number;
 	    language: string;
 	    theme: string;
-	    palette: string;
 	    tutorialCompleted: boolean;
 	    confirmBeforeSync: boolean;
 	    connections: Connection[];
@@ -117,7 +116,6 @@ export namespace config {
 	        this.checkIntervalMinutes = source["checkIntervalMinutes"];
 	        this.language = source["language"];
 	        this.theme = source["theme"];
-	        this.palette = source["palette"];
 	        this.tutorialCompleted = source["tutorialCompleted"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
 	        this.connections = this.convertValues(source["connections"], Connection);
@@ -543,6 +541,7 @@ export namespace rules {
 	    origin: string;
 	    subscription?: string;
 	    path: string;
+	    include?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Source(source);
@@ -553,6 +552,7 @@ export namespace rules {
 	        this.origin = source["origin"];
 	        this.subscription = source["subscription"];
 	        this.path = source["path"];
+	        this.include = source["include"];
 	    }
 	}
 	export class Rule {
@@ -1103,7 +1103,6 @@ export namespace service {
 	export class SettingsPayload {
 	    language: string;
 	    theme: string;
-	    palette: string;
 	    backupPath: string;
 	    backupRetention: number;
 	    checkIntervalMinutes: number;
@@ -1117,7 +1116,6 @@ export namespace service {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.language = source["language"];
 	        this.theme = source["theme"];
-	        this.palette = source["palette"];
 	        this.backupPath = source["backupPath"];
 	        this.backupRetention = source["backupRetention"];
 	        this.checkIntervalMinutes = source["checkIntervalMinutes"];

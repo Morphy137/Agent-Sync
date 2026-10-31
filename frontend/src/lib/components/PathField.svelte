@@ -311,7 +311,7 @@
   .suggestion-chip {
     background-color: var(--surface);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xs);
     padding: 2px var(--space-2);
     font-size: var(--text-xs);
     color: var(--ink);

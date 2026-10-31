@@ -39,7 +39,7 @@
     },
     "scope": {
       "repo": "Shared (repository)",
-      "local": "This PC only",
+      "local": "Local",
       "repo_hint": "Shared with all your computers.",
       "local_hint": "Only on this computer."
     },
@@ -54,7 +54,8 @@
       "folder": "Folder",
       "skill": "Skill",
       "mcp": "MCP config",
-      "instructions": "Instructions"
+      "instructions": "Instructions",
+      "files": "Files"
     },
     "mode": {
       "two_way": "Two-way",
@@ -150,7 +151,6 @@
       "remove_destination": "Remove destination {index}",
       "suggesting": "Looking for the best placement...",
       "detected_chip": "Detected: {label}",
-      "generic_chip": "Generic copy",
       "suggestion_edited": "Edited by you",
       "path_label": "Path and final name",
       "path_placeholder": "e.g. CLAUDE.md or skills/my-skill",
@@ -180,7 +180,9 @@
         "path_relative": "Use a relative path without '..'.",
         "path_duplicate": "Another destination already uses this path.",
         "transform_key_required": "Enter the key to merge into."
-      }
+      },
+      "not_detected": "Type not detected",
+      "selection_name": "{count} files"
     },
     "location_select": {
       "label": "Location",
@@ -188,7 +190,8 @@
       "home_option": "home (your user folder: {path})",
       "option": "{alias} ({path})",
       "unmapped_option": "{alias} (not set on this PC)",
-      "new_option": "New location..."
+      "new_option": "New location...",
+      "pick_title": "Choose a folder for the new location"
     },
     "source": {
       "tabs_label": "Source origin",
@@ -203,9 +206,7 @@
       "repo_unavailable": "Choose a repository folder to use repository sources.",
       "expand": "Expand",
       "collapse": "Collapse",
-      "pick_file": "Choose file",
       "pick_folder": "Choose folder",
-      "pick_file_title": "Choose the source file",
       "pick_folder_title": "Choose the source folder",
       "local_hint": "Only on this PC. Import it to share it.",
       "import_title": "Import into the repository",
@@ -217,7 +218,19 @@
       "subscription_label": "Subscription",
       "subscription_placeholder": "Choose a subscription",
       "no_subscriptions": "No subscriptions yet.",
-      "subscription_empty": "This subscription has no files."
-    }
+      "subscription_empty": "This subscription has no files.",
+      "multi_label": "Select several files",
+      "pick_files": "Choose files",
+      "pick_files_title": "Choose one or more files",
+      "selection_no_common_folder": "The files must be on the same drive.",
+      "root_label": "Repository root",
+      "selection_count": "{count} item(s)",
+      "view_label": "View",
+      "view_grid": "Grid view",
+      "view_list": "List view",
+      "remove_item": "Remove {name}"
+    },
+    "layout_grid": "Grid view",
+    "layout_list": "List view"
   }
 }

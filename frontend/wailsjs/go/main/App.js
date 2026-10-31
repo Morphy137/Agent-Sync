@@ -98,6 +98,10 @@ export function ExecuteSync(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSync'](arg1, arg2);
 }
 
+export function GetChangelog() {
+  return window['go']['main']['App']['GetChangelog']();
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
@@ -220,6 +224,10 @@ export function SaveRule(arg1, arg2) {
 
 export function SelectFile(arg1, arg2) {
   return window['go']['main']['App']['SelectFile'](arg1, arg2);
+}
+
+export function SelectFiles(arg1, arg2) {
+  return window['go']['main']['App']['SelectFiles'](arg1, arg2);
 }
 
 export function SelectFolder(arg1, arg2) {

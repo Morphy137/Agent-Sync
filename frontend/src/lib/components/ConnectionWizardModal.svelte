@@ -773,7 +773,7 @@
   .step-circle {
     width: 24px;
     height: 24px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
     background-color: var(--surface-sunken);
     display: flex;
     align-items: center;
@@ -910,7 +910,7 @@
     color: var(--text-muted);
     background-color: var(--surface-sunken);
     padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xs);
   }
 
   .new-folder-input-box {

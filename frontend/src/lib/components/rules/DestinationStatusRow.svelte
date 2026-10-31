@@ -24,6 +24,10 @@
   const pendingFiles = $derived(files.filter((f) => f.status !== IN_SYNC));
   const inSyncCount = $derived(files.length - pendingFiles.length);
   const visibleFiles = $derived(showAll ? files : pendingFiles);
+  /** A file destination has one file: its status is shown inline instead of as a list. */
+  const singleFile = $derived(
+    files.length === 1 && files[0].relPath === destination.path.split("/").pop() ? files[0] : null
+  );
 </script>
 
 <div class="dest" class:dest-muted={destState === "disabled"}>
@@ -40,10 +44,27 @@
           {t(`rules.transform.${destination.transform.type}`)} · {destination.transform.key}
         </Badge>
       {/if}
-      <span class="dest-state">
-        <StatusDot tone={destStateTone(destState)} />
-        <span>{t(`rules.dest_state.${destState}`)}</span>
-      </span>
+      {#if singleFile && destState === "ready"}
+        <span class="dest-state">
+          <StatusDot tone={fileDotTone(singleFile.status)} />
+          <span>{t(`rules.file_status.${singleFile.status}`)}</span>
+        </span>
+        {#if needsReview(singleFile.status, rule, destination)}
+          <button
+            type="button"
+            class="review-btn"
+            aria-label={t("rules.review.button_aria", { file: singleFile.relPath })}
+            onclick={() => onreview(singleFile)}
+          >
+            {t("rules.review.button")}
+          </button>
+        {/if}
+      {:else}
+        <span class="dest-state">
+          <StatusDot tone={destStateTone(destState)} />
+          <span>{t(`rules.dest_state.${destState}`)}</span>
+        </span>
+      {/if}
       {#if status?.targetRoot}
         <IconButton
           label={t("rules.card.open_destination_named", { name: destination.location })}
@@ -55,7 +76,7 @@
     </div>
   </div>
 
-  {#if visibleFiles.length > 0}
+  {#if !singleFile && visibleFiles.length > 0}
     <ul class="file-list" aria-label={t("rules.card.files_label")}>
       {#each visibleFiles as file (file.relPath)}
         <li class="file-row">
@@ -81,7 +102,7 @@
     </ul>
   {/if}
 
-  {#if inSyncCount > 0}
+  {#if !singleFile && inSyncCount > 0}
     <button
       type="button"
       class="toggle-files"

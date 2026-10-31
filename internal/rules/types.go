@@ -50,6 +50,14 @@ type Source struct {
 	Origin       string `json:"origin"`
 	Subscription string `json:"subscription,omitempty"`
 	Path         string `json:"path"`
+	// Include, when set, turns a folder source into a selection: only these files (relative to
+	// Path, forward slashes) are synced, each keeping its relative path in the destination.
+	Include []string `json:"include,omitempty"`
+}
+
+// HasSelection reports whether the source syncs a chosen set of files instead of a whole path.
+func (s Source) HasSelection() bool {
+	return len(s.Include) > 0
 }
 
 // Transform converts the source before writing it into the destination file.

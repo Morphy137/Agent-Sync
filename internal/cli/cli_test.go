@@ -341,3 +341,28 @@ func TestMessageCatalogParity(t *testing.T) {
 		}
 	}
 }
+
+func TestRulesAddWithFileSelection(t *testing.T) {
+	f := newFixture(t)
+	if err := os.MkdirAll(filepath.Join(f.root, "notes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(f.root, "notes", "a.md"), "a")
+	mustWrite(t, filepath.Join(f.root, "notes", "b.md"), "b")
+	mustWrite(t, filepath.Join(f.root, "notes", "skip.md"), "s")
+	mustJSON(t, nil, "root", "set", f.root)
+	mustJSON(t, nil, "locations", "set", "claude", filepath.Join(f.home, ".claude"))
+
+	var saved service.SaveRuleResult
+	mustJSON(t, &saved, "rules", "add", "--source", "notes", "--include", "a.md", "--include", "b.md", "--to", "claude:picked")
+	if got := saved.Rule.Source.Include; len(got) != 2 {
+		t.Fatalf("include not stored: %+v", saved.Rule.Source)
+	}
+	mustJSON(t, nil, "sync", "--rules-only")
+	for name, want := range map[string]bool{"a.md": true, "b.md": true, "skip.md": false} {
+		_, err := os.Stat(filepath.Join(f.home, ".claude", "picked", name))
+		if (err == nil) != want {
+			t.Fatalf("%s present=%v, want %v", name, err == nil, want)
+		}
+	}
+}

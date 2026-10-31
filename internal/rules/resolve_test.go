@@ -348,3 +348,57 @@ func TestWalkSourceSymlinks(t *testing.T) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
+
+func TestResolveSelectionSyncsOnlyChosenFiles(t *testing.T) {
+	f := newFixture(t)
+	for _, name := range []string{"a.txt", "b.md", "c.txt", "nested/d.txt"} {
+		writeFile(t, filepath.Join(f.repo, "notes", filepath.FromSlash(name)), name)
+	}
+	r := sampleRule()
+	r.Source = rules.Source{Origin: rules.OriginRepo, Path: "notes", Include: []string{"a.txt", "nested/d.txt"}}
+	d := rules.Destination{ID: "d_1", Location: "claude", Path: "picked", Enabled: true}
+
+	res, err := rules.Resolve(f.env, r, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := relPaths(res.Pairs), []string{"a.txt", "nested/d.txt"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pairs = %v, want %v", got, want)
+	}
+	if !res.SourceIsDir || res.TargetRoot != filepath.Join(f.loc, "picked") {
+		t.Fatalf("unexpected target: %+v", res)
+	}
+}
+
+func TestResolveSelectionAtRepositoryRoot(t *testing.T) {
+	f := newFixture(t)
+	writeFile(t, filepath.Join(f.repo, "README.md"), "r")
+	writeFile(t, filepath.Join(f.repo, "other.md"), "o")
+	r := sampleRule()
+	r.Source = rules.Source{Origin: rules.OriginRepo, Path: ".", Include: []string{"README.md"}}
+	if err := rules.Validate(r, rules.ScopeRepo); err != nil {
+		t.Fatalf("root selection must be valid: %v", err)
+	}
+	res, err := rules.Resolve(f.env, r, rules.Destination{ID: "d_1", Location: "claude", Path: ".", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := relPaths(res.Pairs); !reflect.DeepEqual(got, []string{"README.md"}) {
+		t.Fatalf("pairs = %v", got)
+	}
+}
+
+func TestValidateSelectionRejectsUnsafeEntries(t *testing.T) {
+	for _, include := range [][]string{{"../escape.txt"}, {"a.txt", "a.txt"}, {""}} {
+		r := sampleRule()
+		r.Source = rules.Source{Origin: rules.OriginRepo, Path: "notes", Include: include}
+		if err := rules.Validate(r, rules.ScopeRepo); err == nil {
+			t.Fatalf("expected include %v to be rejected", include)
+		}
+	}
+	r := sampleRule()
+	r.Source = rules.Source{Origin: rules.OriginRepo, Path: "."}
+	if err := rules.Validate(r, rules.ScopeRepo); err == nil {
+		t.Fatal("the repository root without a selection must stay invalid")
+	}
+}

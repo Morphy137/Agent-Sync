@@ -141,7 +141,9 @@ func validateSource(src Source, scope string) error {
 		if src.Origin == OriginSubscription && strings.TrimSpace(src.Subscription) == "" {
 			return invalid(ReasonMissingSubscription)
 		}
-		if !isSafeSourceRelPath(src.Path) {
+		// A selection may live at the root of the repository or subscription.
+		rootSelection := src.HasSelection() && isRootPath(src.Path)
+		if !rootSelection && !isSafeSourceRelPath(src.Path) {
 			return invalid(ReasonInvalidSourcePath).WithParam("path", src.Path)
 		}
 	case OriginLocal:
@@ -154,7 +156,28 @@ func validateSource(src Source, scope string) error {
 	default:
 		return invalid(ReasonInvalidOrigin).WithParam("origin", src.Origin)
 	}
+	return validateInclude(src.Include)
+}
+
+func validateInclude(include []string) error {
+	seen := make(map[string]bool, len(include))
+	for _, entry := range include {
+		if !isSafeSourceRelPath(entry) {
+			return invalid(ReasonInvalidInclude).WithParam("path", entry)
+		}
+		normalized, _ := NormalizeRelPath(entry)
+		if seen[normalized] {
+			return invalid(ReasonInvalidInclude).WithParam("path", entry)
+		}
+		seen[normalized] = true
+	}
 	return nil
+}
+
+// isRootPath reports whether a relative source path points at the root itself.
+func isRootPath(p string) bool {
+	cleaned, err := NormalizeRelPath(p)
+	return err == nil && cleaned == currentDir
 }
 
 // isSafeSourceRelPath accepts non-empty relative paths without ".." that do not point at the root itself.

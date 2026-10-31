@@ -1,4 +1,5 @@
 import * as AppBindings from "../../../wailsjs/go/main/App";
+import { BrowserOpenURL } from "../../../wailsjs/runtime/runtime";
 import type {
   config,
   service,
@@ -82,6 +83,8 @@ export const api = {
   getGitInfo: (): Promise<service.GitInfoPayload> => AppBindings.GetGitInfo(),
   selectFolder: (title: string, defaultDir = ""): Promise<string> =>
     AppBindings.SelectFolder(title, defaultDir),
+  selectFiles: (title: string, defaultDir = ""): Promise<string[]> =>
+    AppBindings.SelectFiles(title, defaultDir),
   selectFile: (title: string, defaultDir = ""): Promise<string> =>
     AppBindings.SelectFile(title, defaultDir),
   openPath: (path: string): Promise<void> => AppBindings.OpenPath(path),
@@ -97,6 +100,8 @@ export const api = {
   getRuleDiff: (ruleId: string, destId: string, relPath: string): Promise<rulesync.Diff> =>
     AppBindings.GetRuleDiff(ruleId, destId, relPath),
   listRepoTree: (): Promise<service.SourceTreeEntry[]> => AppBindings.ListRepoTree(),
+  getChangelog: (): Promise<string> => AppBindings.GetChangelog(),
+  openURL: (url: string): void => BrowserOpenURL(url),
   setTutorialCompleted: (done: boolean): Promise<config.Config> =>
     AppBindings.SetTutorialCompleted(done),
   getGitignore: (): Promise<service.GitignorePayload> => AppBindings.GetGitignore(),

@@ -59,6 +59,8 @@ export function ExcludeRepoPath(arg1:string):Promise<service.GitignorePayload>;
 
 export function ExecuteSync(arg1:string,arg2:Array<orchestrator.ConflictResolution>):Promise<orchestrator.SyncResult>;
 
+export function GetChangelog():Promise<string>;
+
 export function GetConfig():Promise<config.Config>;
 
 export function GetGitInfo():Promise<service.GitInfoPayload>;
@@ -120,6 +122,8 @@ export function SaveLocation(arg1:string,arg2:string):Promise<config.Config>;
 export function SaveRule(arg1:rules.Rule,arg2:string):Promise<service.SaveRuleResult>;
 
 export function SelectFile(arg1:string,arg2:string):Promise<string>;
+
+export function SelectFiles(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function SelectFolder(arg1:string,arg2:string):Promise<string>;
 

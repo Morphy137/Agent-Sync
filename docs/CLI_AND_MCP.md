@@ -72,6 +72,13 @@ Command `agentsync-cli`, arguments `["mcp"]`, transport **stdio**. Optional envi
 `AGENTSYNC_CONFIG_DIR` (use another config folder, e.g. a sandbox) and `AGENTSYNC_HOME_OVERRIDE`
 (what the builtin `home` location points to).
 
+### Agent skill
+
+`skills/agentsync/SKILL.md` teaches an agent the workflow (status → locations → detect/suggest →
+add rule → sync), the safety rules and CLI fallbacks. Copy the `skills/agentsync` folder into your
+agent's skills folder (for example `~/.claude/skills/agentsync`) — or create an AgentSync rule that
+syncs it there.
+
 ### What to ask
 
 - "Sync `AGENTS.md` from my AgentSync repo to Claude as `CLAUDE.md` and to Gemini as `GEMINI.md`."
@@ -132,7 +139,7 @@ Exit codes: `0` success, `1` operation failed, `2` invalid command line.
 | `sync [--rules-only] [--fingerprint F] [--resolve PROFILE:RELPATH=keep_repo\|keep_local]…` | Run a sync |
 | `root set <folder>` | Set the repository root |
 | `rules list` · `rules show <id>` | Inspect rules |
-| `rules add --source PATH --to LOCATION[:PATH]… [--origin …] [--subscription ID] [--name N] [--scope repo\|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]… [--disabled]` | Create a rule |
+| `rules add --source PATH --to LOCATION[:PATH]… [--include FILE]… [--origin …] [--subscription ID] [--name N] [--scope repo\|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]… [--disabled]` | Create a rule |
 | `rules add --input FILE\|-` | Create a rule from JSON (same shape as the MCP `add_rule` input) |
 | `rules enable <id>` · `rules disable <id>` · `rules remove <id> --yes` | Change or delete a rule |
 | `rules diff <rule> <dest> [relPath]` · `rules resolve <rule> <dest> <relPath> --choice C [--content-file F]` | Conflicts |

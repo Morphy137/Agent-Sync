@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, FileText, Folder, Search } from "@lucide/svelte";
+  import { Check, ChevronDown, ChevronRight, FileText, Folder, Search } from "@lucide/svelte";
   import type { service } from "../../../../wailsjs/go/models";
   import { t } from "../../i18n";
   import Spinner from "../Spinner.svelte";
@@ -11,9 +11,22 @@
     loading?: boolean;
     emptyText: string;
     onselect: (entry: service.SourceTreeEntry) => void;
+    /** Multi-select mode: files get a checkbox and folders only expand. */
+    multi?: boolean;
+    checked?: string[];
+    oncheck?: (path: string) => void;
   }
 
-  let { entries, selected, loading = false, emptyText, onselect }: Props = $props();
+  let {
+    entries,
+    selected,
+    loading = false,
+    emptyText,
+    onselect,
+    multi = false,
+    checked = [],
+    oncheck,
+  }: Props = $props();
 
   /** Kinds worth highlighting; plain files and folders need no badge. */
   const HIGHLIGHT_KINDS = ["skill", "mcp", "instructions"];
@@ -77,7 +90,8 @@
   {:else}
     <ul class="tree" aria-label={t("rules.source.tree_label")}>
       {#each visible as entry (entry.path)}
-        {@const isSelected = entry.path === selected}
+        {@const isChecked = multi && !entry.isDir && checked.includes(entry.path)}
+        {@const isSelected = multi ? isChecked : entry.path === selected}
         {@const isOpen = expanded.includes(entry.path)}
         <li
           class="tree-row"
@@ -106,10 +120,21 @@
           <button
             type="button"
             class="entry"
-            aria-pressed={isSelected}
+            role={multi && !entry.isDir ? "checkbox" : undefined}
+            aria-checked={multi && !entry.isDir ? isChecked : undefined}
+            aria-pressed={multi ? undefined : isSelected}
             title={entry.path}
-            onclick={() => onselect(entry)}
+            onclick={() => {
+              if (!multi) onselect(entry);
+              else if (entry.isDir) toggle(entry.path);
+              else oncheck?.(entry.path);
+            }}
           >
+            {#if multi && !entry.isDir}
+              <span class="check-box" class:on={isChecked} aria-hidden="true">
+                {#if isChecked}<Check size={11} />{/if}
+              </span>
+            {/if}
             {#if entry.isDir}
               <Folder size={14} aria-hidden="true" />
             {:else}
@@ -127,6 +152,24 @@
 </div>
 
 <style>
+  .check-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--accent-contrast);
+  }
+
+  .check-box.on {
+    background-color: var(--accent);
+    box-shadow: none;
+  }
+
   .source-tree {
     display: flex;
     flex-direction: column;

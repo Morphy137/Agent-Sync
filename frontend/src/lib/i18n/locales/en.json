@@ -242,29 +242,35 @@
     "language_system": "System",
     "language_en": "English",
     "language_es": "Español",
-    "theme_system": "System",
-    "theme_light": "Light",
-    "theme_dark": "Dark",
     "interval_disabled": "Disabled",
     "interval_one_minute": "Every minute",
     "interval_minutes": "Every {count} minutes",
     "confirm_root_change_title": "Change repository root folder?",
     "confirm_root_change_msg": "Connections will reload from the new folder.",
-    "palette_label": "Color palette",
     "git_identity_hint": "Read from git. Saved only for this repository.",
-    "palette": {
-      "graphite": "Graphite",
-      "ocean": "Ocean",
-      "forest": "Forest",
-      "violet": "Violet",
-      "rose": "Rose",
-      "amber": "Amber",
+    "section_help": "Help & about",
+    "replay_tutorial": "Replay tutorial",
+    "themes": {
+      "light": "White",
+      "dark": "Black",
       "nord": "Nord",
-      "sepia": "Sepia",
-      "midnight": "Midnight"
+      "rose": "Rose",
+      "forest": "Green",
+      "ocean": "Ocean",
+      "violet": "Violet",
+      "amber": "Amber",
+      "midnight": "Midnight",
+      "snow": "Snow",
+      "sakura": "Sakura",
+      "sage": "Sage",
+      "sepia": "Sepia"
     },
-    "section_help": "Help",
-    "replay_tutorial": "Replay tutorial"
+    "themes_more": "More",
+    "themes_more_title": "Themes",
+    "theme_follow_system": "Match system light/dark",
+    "whats_new": "What's new",
+    "star_github": "Star on GitHub",
+    "app_version": "Version {version}"
   },
   "statusbar": {
     "branch": "{branch}",
@@ -338,5 +344,26 @@
     "remote_branch_not_found": "The remote repository has no branches yet.",
     "recognizers_invalid": "recognizers.json is not valid. The default recognizers are being used.",
     "unknown": "An unexpected error occurred."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bell_count": "Notifications ({count})",
+    "empty": "You're all caught up.",
+    "close": "Close notification"
+  },
+  "changelog": {
+    "title": "What's new",
+    "empty": "No changes listed yet.",
+    "unreleased": "Coming in the next version",
+    "version": "Version {version}",
+    "groups": {
+      "added": "New",
+      "changed": "Improved",
+      "fixed": "Fixed",
+      "removed": "Removed",
+      "security": "Security",
+      "deprecated": "Deprecated"
+    }
   }
 }

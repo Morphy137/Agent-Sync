@@ -587,12 +587,12 @@ func (s *Service) sourceAbsLocked(src rules.Source) (string, error) {
 		if s.cfg.RootPath == "" {
 			return "", apperr.New(apperr.RootNotFound)
 		}
-		return safeJoin(s.cfg.RootPath, rel)
+		return joinSourceRoot(s.cfg.RootPath, rel, src)
 	case rules.OriginSubscription:
 		if !s.hasSubscriptionLocked(src.Subscription) {
 			return "", apperr.New(apperr.SubscriptionNotFound).WithParam("subscription", src.Subscription)
 		}
-		return safeJoin(subscriptionsRoot(src.Subscription), rel)
+		return joinSourceRoot(subscriptionsRoot(src.Subscription), rel, src)
 	case rules.OriginLocal:
 		abs := filepath.Clean(expandPath(src.Path))
 		if !filepath.IsAbs(abs) {
@@ -601,6 +601,14 @@ func (s *Service) sourceAbsLocked(src rules.Source) (string, error) {
 		return abs, nil
 	}
 	return "", apperr.New(apperr.InvalidRule).WithParam("reason", "invalid_origin")
+}
+
+// joinSourceRoot resolves a source path; a file selection may point at the root itself.
+func joinSourceRoot(root, rel string, src rules.Source) (string, error) {
+	if src.HasSelection() && (rel == "" || filepath.Clean(rel) == ".") {
+		return filepath.Clean(root), nil
+	}
+	return safeJoin(root, rel)
 }
 
 // safeJoin joins a relative path under root and rejects escapes.

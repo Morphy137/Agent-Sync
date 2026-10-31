@@ -52,7 +52,7 @@ func init() {
 
 		{path: "rules list", desc: "cmd.rules_list", run: cmdRulesList},
 		{path: "rules show", usage: "<ruleId>", desc: "cmd.rules_show", run: cmdRulesShow},
-		{path: "rules add", usage: "--source PATH --to LOCATION[:PATH]... [--origin repo|local|subscription] [--subscription ID] [--name N] [--scope repo|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]... [--disabled] | --input FILE|-", desc: "cmd.rules_add", run: cmdRulesAdd},
+		{path: "rules add", usage: "--source PATH --to LOCATION[:PATH]... [--include FILE]... [--origin repo|local|subscription] [--subscription ID] [--name N] [--scope repo|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]... [--disabled] | --input FILE|-", desc: "cmd.rules_add", run: cmdRulesAdd},
 		{path: "rules remove", usage: "<ruleId> --yes", desc: "cmd.rules_remove", run: cmdRulesRemove},
 		{path: "rules enable", usage: "<ruleId>", desc: "cmd.rules_enable", run: cmdRulesToggle(true)},
 		{path: "rules disable", usage: "<ruleId>", desc: "cmd.rules_disable", run: cmdRulesToggle(false)},
@@ -243,9 +243,10 @@ func cmdRulesAdd(e *env, args []string) (any, error) {
 	mode := fs.String("mode", "", "")
 	transform := fs.String("transform", "", "")
 	disabled := fs.Bool("disabled", false, "")
-	var targets, excludes stringList
+	var targets, excludes, includes stringList
 	fs.Var(&targets, "to", "")
 	fs.Var(&excludes, "exclude", "")
+	fs.Var(&includes, "include", "")
 	if _, err := expectArgs(fs, args); err != nil {
 		return nil, err
 	}
@@ -266,7 +267,7 @@ func cmdRulesAdd(e *env, args []string) (any, error) {
 	}
 	in = ops.RuleInput{
 		Name: *name, Scope: *scope, Origin: *origin, Subscription: *subscription,
-		SourcePath: *source, Kind: *kind, Exclude: excludes, Disabled: *disabled,
+		SourcePath: *source, Include: includes, Kind: *kind, Exclude: excludes, Disabled: *disabled,
 	}
 	for _, t := range targets {
 		d := parseTarget(t)

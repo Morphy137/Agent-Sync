@@ -9,6 +9,7 @@ vi.mock("../wailsjs/go/main/App", () => ({
   InspectPath: vi.fn(),
   SelectFolder: vi.fn(),
   CreateFolder: vi.fn(),
+  GetChangelog: vi.fn().mockResolvedValue("## [0.0.1] - 2026-10-31\n### Added\n- First release\n"),
 }));
 
 describe("SettingsDrawer.svelte", () => {
@@ -59,7 +60,7 @@ describe("SettingsDrawer.svelte", () => {
     expect(getActiveLocale()).toBe("es");
 
     // Labels re-render live in the previewed language
-    const darkOption = getByText("Oscuro");
+    const darkOption = getByText("Negro");
     await fireEvent.click(darkOption);
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 

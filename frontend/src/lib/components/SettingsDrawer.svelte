@@ -2,7 +2,7 @@
   import type { service } from "../../../wailsjs/go/models";
   import { appState } from "../stores/appState.svelte";
   import { t, setLocale } from "../i18n";
-  import { applyTheme, applyPalette, PALETTES, DEFAULT_PALETTE } from "../theme/theme";
+  import { applyTheme } from "../theme/theme";
   import Drawer from "./Drawer.svelte";
   import Card from "./Card.svelte";
   import Button from "./Button.svelte";
@@ -13,6 +13,11 @@
   import PathField from "./PathField.svelte";
   import Modal from "./Modal.svelte";
   import GitignoreModal from "./GitignoreModal.svelte";
+  import ThemePicker from "./ThemePicker.svelte";
+  import ChangelogModal from "./ChangelogModal.svelte";
+  import { Star, Sparkles, GraduationCap } from "@lucide/svelte";
+  import { api } from "../api";
+  import { latestVersion, parseChangelog } from "../changelog/parse";
 
   interface Props {
     open: boolean;
@@ -29,8 +34,20 @@
 
   let language = $state<string>("system");
   let theme = $state<string>("system");
-  let palette = $state<string>(DEFAULT_PALETTE);
   let exclusionsOpen = $state(false);
+  let changelogOpen = $state(false);
+  let appVersion = $state("");
+
+  /** Project page; starring it helps others find AgentSync. */
+  const PROJECT_URL = "https://github.com/Morphy137/Agent-Sync";
+
+  $effect(() => {
+    if (!open || appVersion) return;
+    void api
+      .getChangelog()
+      .then((markdown) => (appVersion = latestVersion(parseChangelog(markdown))))
+      .catch(() => (appVersion = ""));
+  });
   let backupPath = $state<string>("");
   let backupRetention = $state<number>(20);
   let checkInterval = $state<number>(5);
@@ -45,7 +62,6 @@
   // Snapshots for revert on cancel (R5)
   let initialLanguage = $state<string>("system");
   let initialTheme = $state<string>("system");
-  let initialPalette = $state<string>(DEFAULT_PALETTE);
   let wasOpen = false;
 
   $effect(() => {
@@ -56,8 +72,6 @@
         theme = appState.config.theme || "system";
         initialLanguage = language;
         initialTheme = theme;
-        palette = appState.config.palette || DEFAULT_PALETTE;
-        initialPalette = palette;
         backupPath = appState.config.backupPath || "";
         backupRetention = appState.config.backupRetention || 20;
         checkInterval = appState.config.checkIntervalMinutes ?? 5;
@@ -81,12 +95,7 @@
 
   function handleThemeChange(val: string) {
     theme = val;
-    applyTheme(val as any);
-  }
-
-  function handlePaletteChange(val: string) {
-    palette = val;
-    applyPalette(val);
+    applyTheme(val);
   }
 
   function handleReplayTutorial() {
@@ -100,10 +109,7 @@
       setLocale(initialLanguage as any);
     }
     if (theme !== initialTheme) {
-      applyTheme(initialTheme as any);
-    }
-    if (palette !== initialPalette) {
-      applyPalette(initialPalette);
+      applyTheme(initialTheme);
     }
     onclose();
   }
@@ -119,12 +125,10 @@
   function doSave() {
     initialLanguage = language;
     initialTheme = theme;
-    initialPalette = palette;
     onsave(
       {
         language,
         theme,
-        palette,
         backupPath,
         backupRetention: Number(backupRetention) || 20,
         checkIntervalMinutes: Number(checkInterval),
@@ -145,36 +149,7 @@
       <div class="section-block">
         <h3 class="section-heading">{t("settings.section_appearance")}</h3>
 
-        <SegmentedControl
-          label={t("settings.theme_label")}
-          value={theme}
-          options={[
-            { value: "system", label: t("settings.theme_system") },
-            { value: "light", label: t("settings.theme_light") },
-            { value: "dark", label: t("settings.theme_dark") },
-          ]}
-          onchange={handleThemeChange}
-        />
-
-        <div class="palette-field" role="radiogroup" aria-label={t("settings.palette_label")}>
-          <span class="palette-label">{t("settings.palette_label")}</span>
-          <div class="palette-grid">
-            {#each PALETTES as option (option)}
-              <button
-                type="button"
-                role="radio"
-                class="palette-swatch"
-                class:selected={palette === option}
-                data-palette={option}
-                aria-checked={palette === option}
-                onclick={() => handlePaletteChange(option)}
-              >
-                <span class="swatch-dot" aria-hidden="true"></span>
-                <span class="swatch-name">{t(`settings.palette.${option}`)}</span>
-              </button>
-            {/each}
-          </div>
-        </div>
+        <ThemePicker value={theme} onchange={handleThemeChange} />
 
         <SegmentedControl
           label={t("settings.language_label")}
@@ -284,10 +259,26 @@
     <!-- 5. Help -->
     <Card padding="md">
       <div class="section-block">
-        <h3 class="section-heading">{t("settings.section_help")}</h3>
-        <Button variant="secondary" size="sm" onclick={handleReplayTutorial}>
-          {t("settings.replay_tutorial")}
-        </Button>
+        <div class="help-heading">
+          <h3 class="section-heading">{t("settings.section_help")}</h3>
+          {#if appVersion}
+            <span class="app-version">{t("settings.app_version", { version: appVersion })}</span>
+          {/if}
+        </div>
+        <div class="help-actions">
+          <Button variant="secondary" size="sm" onclick={() => (changelogOpen = true)}>
+            <Sparkles size={14} />
+            <span>{t("settings.whats_new")}</span>
+          </Button>
+          <Button variant="secondary" size="sm" onclick={handleReplayTutorial}>
+            <GraduationCap size={14} />
+            <span>{t("settings.replay_tutorial")}</span>
+          </Button>
+          <Button variant="secondary" size="sm" onclick={() => api.openURL(PROJECT_URL)}>
+            <Star size={14} />
+            <span>{t("settings.star_github")}</span>
+          </Button>
+        </div>
       </div>
     </Card>
 
@@ -300,6 +291,7 @@
 </Drawer>
 
 <GitignoreModal open={exclusionsOpen} onclose={() => (exclusionsOpen = false)} />
+<ChangelogModal open={changelogOpen} onclose={() => (changelogOpen = false)} />
 
 <Modal
   open={confirmRootModalOpen}
@@ -348,90 +340,21 @@
     line-height: 1.5;
   }
 
-  .palette-field {
+  .help-heading {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
+    align-items: baseline;
+    justify-content: space-between;
   }
 
-  .palette-label {
+  .app-version {
     font-size: var(--text-xs);
-    font-weight: var(--weight-medium);
     color: var(--text-muted);
   }
 
-  .palette-grid {
+  .help-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-2);
-  }
-
-  .palette-swatch {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    height: 32px;
-    padding: 0 var(--space-2);
-    border: none;
-    border-radius: var(--radius-sm);
-    background-color: var(--surface-sunken);
-    box-shadow: var(--sunken);
-    color: var(--ink);
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    cursor: pointer;
-  }
-
-  .palette-swatch.selected {
-    box-shadow: var(--focus-ring);
-  }
-
-  .palette-swatch:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
-  }
-
-  .swatch-dot {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    border-radius: var(--radius-full);
-    background-color: var(--swatch);
-  }
-
-  .palette-swatch[data-palette="graphite"] {
-    --swatch: #3a3a40;
-  }
-  .palette-swatch[data-palette="ocean"] {
-    --swatch: #2563eb;
-  }
-  .palette-swatch[data-palette="forest"] {
-    --swatch: #16a34a;
-  }
-  .palette-swatch[data-palette="violet"] {
-    --swatch: #7c3aed;
-  }
-  .palette-swatch[data-palette="rose"] {
-    --swatch: #e11d48;
-  }
-  .palette-swatch[data-palette="amber"] {
-    --swatch: #d97706;
-  }
-  .palette-swatch[data-palette="nord"] {
-    --swatch: #5e81ac;
-  }
-  .palette-swatch[data-palette="sepia"] {
-    --swatch: #9a5b2a;
-  }
-  .palette-swatch[data-palette="midnight"] {
-    --swatch: #3b4ccf;
-  }
-
-  .swatch-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .save-actions {

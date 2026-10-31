@@ -38,14 +38,16 @@
     background-color: var(--surface);
     box-shadow: var(--elev-1);
     border-radius: var(--radius-lg);
+    width: 100%;
     max-width: 540px;
-    margin: 0 auto;
+    /* centered in the free space of the view (vertically too) */
+    margin: auto;
   }
 
   .icon-wrap {
     width: 64px;
     height: 64px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-lg);
     background-color: var(--surface-sunken);
     box-shadow: var(--sunken);
     color: var(--text-muted);
