@@ -1,10 +1,12 @@
 {
   "remote": {
     "banner": {
-      "connect": "Conectar a repositorio remoto",
+      "connect": "Conectar",
       "review": "Revisar cambios",
       "local_changes_title": "Cambios locales",
-      "local_changes_message": "{count} cambio(s) local(es) se subirán al sincronizar."
+      "local_changes_message": "{count} cambio(s) local(es) se subirán al sincronizar.",
+      "local_changes_message_one": "{count} cambio local se subirá al sincronizar.",
+      "local_changes_message_other": "{count} cambios locales se subirán al sincronizar."
     },
     "url": {
       "label": "URL del repositorio",

@@ -213,8 +213,13 @@
     titleId="subscriptions-title"
     summary={items.length > 0
       ? pendingUpdates > 0
-        ? t("subscriptions.summary_updates", { count: items.length, updates: pendingUpdates })
-        : t("subscriptions.summary", { count: items.length })
+        ? t(`subscriptions.summary_updates_${items.length === 1 ? "one" : "other"}`, {
+            count: items.length,
+            updates: pendingUpdates,
+          })
+        : t(`subscriptions.summary_${items.length === 1 ? "one" : "other"}`, {
+            count: items.length,
+          })
       : undefined}
     primaryLabel={t("subscriptions.add_button")}
     onprimary={() => (addOpen = true)}
@@ -412,7 +417,8 @@
     margin: var(--space-2) 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    grid-auto-rows: 1fr;
     gap: var(--space-3);
     width: 100%;
     max-width: 760px;

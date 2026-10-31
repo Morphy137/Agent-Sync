@@ -4,6 +4,16 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-10-31
+
+### Changed
+- Refined the rule editor, subscription guidance, locations, notifications and GitHub star in Settings.
+- Updated the app icon.
+
+### Fixed
+- Improved keyboard navigation and focus in dialogs and controls.
+- Fixed local repository paths, restore confirmations and several labels and layout issues.
+
 ## [0.0.3] - 2026-10-31
 
 ### Added

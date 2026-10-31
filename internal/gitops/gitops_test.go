@@ -21,7 +21,7 @@ func TestGitOpsWithLocalBareRemote(t *testing.T) {
 	clientBDir := filepath.Join(tempDir, "client-b")
 
 	// 1. Initialize bare remote
-	cmd := exec.Command("git", "init", "--bare", bareRemote)
+	cmd := exec.Command("git", "init", "--bare", "--initial-branch", gitops.DefaultBranch, bareRemote)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to init bare remote: %v", err)
 	}

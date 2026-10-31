@@ -39,6 +39,8 @@
     "no_unconnected_profiles": "No unconnected repository folders available.",
     "already_connected_to": "Already connected to {target}",
     "files_count": "{count} files",
+    "files_count_one": "{count} file",
+    "files_count_other": "{count} files",
     "create_new_folder": "Create new folder in repository",
     "new_folder_name_label": "Folder name",
     "new_folder_name_placeholder": "e.g. CLAUDE",
@@ -72,6 +74,8 @@
     "title": "Connections",
     "unconnected_folders": "Unconnected folders",
     "connected_count": "{connected} connected · {unconnected} unconnected",
+    "connected_count_one": "{connected} connected · {unconnected} unconnected",
+    "connected_count_other": "{connected} connected · {unconnected} unconnected",
     "add_connection": "Add connection",
     "connect": "Connect",
     "open_repo": "Open repository folder",
@@ -85,6 +89,8 @@
     "card": {
       "not_connected": "Not connected",
       "managed_files_count": "{count} files",
+      "managed_files_count_one": "{count} file",
+      "managed_files_count_other": "{count} files",
       "button_connect": "Connect",
       "button_update": "Update",
       "button_backups": "Backups",
@@ -109,6 +115,7 @@
     "opt_clone_desc": "Download a repository from GitHub or another remote.",
     "parent_folder_label": "Parent directory",
     "folder_name_label": "New folder name",
+    "invalid_folder_name": "Enter a valid folder name without reserved names or invalid characters.",
     "repo_url_label": "Repository URL (HTTPS or SSH)",
     "repo_url_placeholder": "https://github.com/user/agent-configs.git",
     "btn_use_folder": "Select folder",
@@ -142,7 +149,7 @@
     "not_repo": {
       "title": "Not a Git Repository",
       "message": "Not a git repository. History and sync between PCs are off.",
-      "button_init": "Initialize Repository"
+      "button_init": "Initialize"
     },
     "no_remote": {
       "title": "No Remote Configured",
@@ -215,6 +222,8 @@
     "restore_sync_notice": "Sync will upload the restored version.",
     "button_open_folder": "Open Folder",
     "files_count": "{count} files backed up",
+    "files_count_one": "{count} file backed up",
+    "files_count_other": "{count} files backed up",
     "reason_apply": "Local update",
     "reason_sync": "Full sync",
     "reason_restore": "Pre-restore snapshot",

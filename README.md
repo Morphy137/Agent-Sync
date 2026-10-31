@@ -1,4 +1,4 @@
-# AgentSync
+# <img src="frontend/src/assets/app-icon.png" alt="" width="64"> AgentSync
 
 AgentSync is a high-performance, lightweight desktop application built with Go, Wails v2, and Svelte 5. It keeps your AI agent configuration files (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, prompt templates, custom slash commands, etc.) synchronized across multiple machines via a versioned Git root folder.
 
@@ -102,7 +102,8 @@ Obsidian vault, …).
 To regenerate the application icon and compile a standalone production binary:
 
 ```powershell
-# Optional: regenerate build/appicon.png from SVG
+# Optional: regenerate the Wails PNG and Windows ICO from frontend/src/assets/app-icon.png
+# Requires frontend dependencies (cd frontend; npm install; cd ..)
 node scripts/generate-icon.mjs
 
 # Compile production executable

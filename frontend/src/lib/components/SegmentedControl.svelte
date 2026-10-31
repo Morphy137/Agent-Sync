@@ -8,11 +8,13 @@
     options: SegmentOption[];
     value: string;
     label?: string;
+    ariaLabel?: string;
     size?: "sm" | "md";
     onchange: (val: string) => void;
   }
 
-  let { options, value, label, size = "md", onchange }: Props = $props();
+  let { options, value, label, ariaLabel, size = "md", onchange }: Props = $props();
+  const buttons: HTMLButtonElement[] = $state([]);
 
   const activeIndex = $derived(
     Math.max(
@@ -21,6 +23,19 @@
     )
   );
   const count = $derived(Math.max(1, options.length));
+
+  function handleKeydown(event: KeyboardEvent, index: number) {
+    const step = ["ArrowRight", "ArrowDown"].includes(event.key)
+      ? 1
+      : ["ArrowLeft", "ArrowUp"].includes(event.key)
+        ? -1
+        : 0;
+    if (!step || options.length === 0) return;
+    event.preventDefault();
+    const next = (index + step + options.length) % options.length;
+    onchange(options[next].value);
+    buttons[next]?.focus();
+  }
 </script>
 
 <div class="segmented-wrapper">
@@ -30,18 +45,21 @@
   <div
     class="segmented-track size-{size}"
     role="radiogroup"
-    aria-label={label}
+    aria-label={label || ariaLabel}
     style="--count: {count}; --active-index: {activeIndex};"
   >
     <div class="segmented-thumb" aria-hidden="true"></div>
-    {#each options as opt (opt.value)}
+    {#each options as opt, index (opt.value)}
       <button
+        bind:this={buttons[index]}
         type="button"
         role="radio"
         aria-checked={opt.value === value}
+        tabindex={index === activeIndex ? 0 : -1}
         class="segmented-option"
         class:active={opt.value === value}
         onclick={() => onchange(opt.value)}
+        onkeydown={(event) => handleKeydown(event, index)}
       >
         {opt.label}
       </button>
