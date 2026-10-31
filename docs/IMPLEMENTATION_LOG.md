@@ -346,3 +346,40 @@ Built 'C:\Users\Morphy\Desktop\Morphy\Personal Projects\agents-app\build\bin\age
    - Stale connection drafts in memory are bounded and pruned on service startup and periodic intervals (1-hour TTL), preventing unbounded memory growth even if client applications disconnect abruptly during draft preview.
 4. **Zero User Directory Mutation Guarantee:**
    - Verified that throughout all unit tests, integration tests, E2E suites, and build scripts, zero files in the user's actual configuration directories (`~/.claude`, `~/.gemini`, `~/.codex`, `%APPDATA%\AgentSync`) were touched or read. All file operations were executed strictly within OS temp directories (`t.TempDir()`) or the isolated `sandbox/` directory structure.
+
+---
+
+# Round 4 — Generic sync rules, recognizers, subscriptions & remote review
+
+## 1. Scope
+
+| Area | Result |
+|---|---|
+| UI fixes | Duplicated `connections` locale block merged (raw keys shown), reactive `t()` (mixed languages), card menu closes on outside click/Escape, folder dialogs start at the nearest existing folder and surface errors |
+| Generic rules | One source → N destinations with per-destination name, mode (two-way, one-way, create-only) and transforms; shared (`agentsync.rules.json`) and local (`rules.local.json`) scopes; location aliases per PC |
+| Detection | Data-driven `recognizers.json` (embedded defaults + user override) for skills, MCP configs, instructions and agent folders; defaults verified with Context7 |
+| Transforms | `json_merge` / `toml_merge` of managed MCP entries preserving the rest of each file |
+| Collisions | same target, folder overlap, cycle, inside repo, case conflict — always reported, involved destinations blocked |
+| Subscriptions | Read-only clones of shared repos, tree picker, update checks, incoming diffs, auto-update |
+| Remote | Lossless `ConnectRemote` (backup branch, local changes kept for review), per-file diff review, hardened git invocations |
+| Docs | `docs/ARCHITECTURE.md`, `docs/SYNC_RULES.md`, `docs/RECOGNIZERS.md`, `docs/REMOTES_AND_SUBSCRIPTIONS.md`, `docs/design/sync-rules-spec.md` |
+
+## 2. Decisions
+
+| Decision | Reason |
+|---|---|
+| Rules engine added next to legacy folder connections (not a rewrite) | Keeps the verified connection engine and its E2E tests intact; legacy targets participate in collision detection |
+| Rules run after the git sync in `ExecuteSync`; captures committed in a second commit | Distributes freshly pulled content and avoids invalidating the plan fingerprint mid-sync |
+| Locale namespaces in `locales/<locale>/<ns>.json` merged at load | Lets features add strings without editing one huge file; tests guard duplicates/overlaps |
+| Dot-folders kept in rule folder walks | `.claude/`, `.agents/` must be syncable; only `.git`, OS junk and temp files are skipped |
+| Rule backups under `<backupPath>/rules/<ruleId>__<destId>/` | Avoids sharing retention with legacy connections and `:` in Windows folder names |
+| `github.com/pelletier/go-toml/v2` added | Parsing/validating TOML for `toml_merge`; writing preserves the user's file byte-for-byte outside the managed block |
+| `diff` (jsdiff) added to the frontend | Line diffs for the shared diff view |
+
+## 3. Known limitations / follow-ups
+
+- Rule backups are created but not yet listed/restorable from the UI (legacy connection backups are).
+- `toml_merge` cannot merge into a file that defines the key as an inline table (`mcp_servers = {…}`); it reports `invalid_output_toml`.
+- Gemini CLI treats a bare `url` as SSE; Codex expects `http_headers` (see `docs/RECOGNIZERS.md`).
+- Symlink handling in rule folder walks is untested on this machine (symlink creation requires a privilege on Windows).
+- SSH prompts (passphrase/host key) are not disabled with `BatchMode`; a credential manager window can still appear.
