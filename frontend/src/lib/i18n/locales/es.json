@@ -242,29 +242,32 @@
     "language_system": "Sistema",
     "language_en": "English",
     "language_es": "Español",
-    "theme_system": "Sistema",
-    "theme_light": "Claro",
-    "theme_dark": "Oscuro",
     "interval_disabled": "Desactivado",
     "interval_one_minute": "Cada minuto",
     "interval_minutes": "Cada {count} minutos",
     "confirm_root_change_title": "¿Cambiar carpeta raíz del repositorio?",
     "confirm_root_change_msg": "Las conexiones se recargarán desde la nueva carpeta.",
-    "palette_label": "Paleta de colores",
     "git_identity_hint": "Se leen de git. Se guardan solo para este repositorio.",
-    "palette": {
-      "graphite": "Grafito",
-      "ocean": "Océano",
-      "forest": "Bosque",
-      "violet": "Violeta",
-      "rose": "Rosa",
-      "amber": "Ámbar",
-      "nord": "Nórdico",
-      "sepia": "Sepia",
-      "midnight": "Medianoche"
-    },
     "section_help": "Ayuda",
-    "replay_tutorial": "Repetir tutorial"
+    "replay_tutorial": "Repetir tutorial",
+    "themes": {
+      "light": "Blanco",
+      "dark": "Negro",
+      "nord": "Nórdico",
+      "rose": "Rosa",
+      "forest": "Verde",
+      "ocean": "Océano",
+      "violet": "Violeta",
+      "amber": "Ámbar",
+      "midnight": "Medianoche",
+      "snow": "Nieve",
+      "sakura": "Sakura",
+      "sage": "Salvia",
+      "sepia": "Sepia"
+    },
+    "themes_more": "Más",
+    "themes_more_title": "Temas",
+    "theme_follow_system": "Seguir claro/oscuro del sistema"
   },
   "statusbar": {
     "branch": "{branch}",
@@ -338,5 +341,12 @@
     "remote_branch_not_found": "El repositorio remoto aún no tiene ramas.",
     "recognizers_invalid": "recognizers.json no es válido. Se están usando los reconocedores por defecto.",
     "unknown": "Ocurrió un error inesperado."
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "bell": "Notificaciones",
+    "bell_count": "Notificaciones ({count})",
+    "empty": "No hay novedades.",
+    "close": "Cerrar notificación"
   }
 }
