@@ -402,3 +402,20 @@ Built 'C:\Users\Morphy\Desktop\Morphy\Personal Projects\agents-app\build\bin\age
 | 9 | Git name/email looked hardcoded | They are read from git (repo config, else global) | Hint under the fields explains the source and that saving writes the repo-local config |
 | 11 | More themes | — | Palettes (`graphite`, `ocean`, `forest`, `violet`, `rose`, `amber`, `nord`, `sepia`, `midnight`) independent from light/dark; stored as `config.palette`; tokens in `frontend/src/lib/theme/palettes.css`; primary buttons/switches use `--accent` |
 | 13 | CLI / MCP for agents | — | Developed in a separate session on branch `feature/cli-mcp` |
+
+---
+
+# Round 6 — Themes, notifications, multi-file sources, agent skill
+
+| # | Change |
+|---|---|
+| 1 | Repository state (not a repo, no remote, incoming changes, local changes) moved from page banners to a **notification bell** in the title bar plus a closable popup (`notifications/NotificationCenter.svelte`). A closed popup stays under the bell while the situation lasts. |
+| 2 | Views fill the window; empty states are centered vertically in the free space. |
+| 3 | Theme and palette merged into **themes**: full color sets (`theme.ts`, applied as CSS variables) with a light/dark scheme. Five featured (White, Black, Nord, Rose, Green) + "More" dialog (Ocean, Violet, Amber, Midnight, Snow, Sakura, Sage, Sepia) and a "match system" switch. Shadows depend on the scheme and were softened, mainly in dark themes and dialogs. `config.palette` removed. |
+| 4 | Content type selector on the left; detection shown as a green double check (tooltip "Detected: …") or a yellow question mark. |
+| 7 | "New location..." opens the folder dialog and saves the location immediately (alias from the folder name, made unique; an existing location for the same folder is reused). |
+| 8 | "Generic copy" chip removed. |
+| 9 | **Multi-file sources**: `rules.Source.Include` (validated, root selections allowed, resolved by filtering the folder walk). UI: "Select several files" checkboxes in repository/subscription trees, "Choose files" (native multi-select) for this PC, compact grid/list view with its own scroll and per-file removal. CLI `--include`, MCP `add_rule.include`. |
+| 10, 11 | Badges, chips and icon tiles use squared corners and the sunken style; option labels centered. |
+| 12 | `skills/agentsync/SKILL.md` for agents using the MCP server or CLI. |
+| 13 | View tabs have a sliding indicator (measured per tab width). |

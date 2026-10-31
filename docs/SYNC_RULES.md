@@ -18,6 +18,17 @@ the [recognizers](RECOGNIZERS.md), which *suggest* paths when they recognize con
 
 ---
 
+## File selections
+
+A rule can sync only some files of a folder: set `source.include` to the files (relative to
+`source.path`, forward slashes). Each file keeps its relative path inside the destination folder.
+Repository and subscription selections may use `"path": "."` for files at the root. In the app,
+turn on **Select several files** in the source tree, or use **Choose files** for files on this PC.
+
+```json
+{ "origin": "repo", "path": "notes", "include": ["a.md", "drafts/b.md"] }
+```
+
 ## Locations (per PC)
 
 Destinations never contain absolute paths. They reference a **location alias** that each PC maps
