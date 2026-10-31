@@ -32,7 +32,16 @@ Unicode true
 ####
 ## Include the wails tools
 ####
+## AgentSync: per-user install (no admin prompt) so the app can update itself silently.
+!define REQUEST_EXECUTION_LEVEL "user"
+!define WAILS_INSTALL_SCOPE "user"
+!define AGENTSYNC_REG_KEY "Software\AgentSync"
+!define AGENTSYNC_CLI "agentsync-cli.exe"
+## Time for the running app to close before its files are replaced during an update.
+!define AGENTSYNC_UPDATE_WAIT_MS 2500
+
 !include "wails_tools.nsh"
+!include "FileFunc.nsh"
 
 # The version information for this two must consist of 4 parts
 VIProductVersion "${INFO_PRODUCTVERSION}.0"
@@ -60,18 +69,20 @@ ManifestDPIAware true
 # !insertmacro MUI_PAGE_LICENSE "resources\eula.txt" # Adds a EULA page to the installer
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXECUTABLE}" # Offer to open AgentSync when done.
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
 
 !insertmacro MUI_UNPAGE_INSTFILES # Uinstalling page
 
 !insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
+!insertmacro MUI_LANGUAGE "Spanish" # Picked automatically on Spanish systems
 
 ## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
 #!uninstfinalize 'signtool --file "%1"'
 #!finalize 'signtool --file "%1"'
 
 Name "${INFO_PRODUCTNAME}"
-OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the installer's file.
+OutFile "..\..\bin\agentsync-setup.exe" # Stable name: the in-app updater downloads this asset.
 !ifdef WAILS_INSTALL_SCOPE
   !if "${WAILS_INSTALL_SCOPE}" == "user"
     InstallDir "$LOCALAPPDATA\Programs\${INFO_PRODUCTNAME}"
@@ -82,6 +93,18 @@ OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the inst
   InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}"
 !endif # Default installing folder ($PROGRAMFILES is Program Files folder).
 ShowInstDetails show # This will always show the installation details.
+# Silent updates reuse the folder chosen at the first install.
+InstallDirRegKey HKCU "${AGENTSYNC_REG_KEY}" "InstallDir"
+
+Function .onInstSuccess
+    # Updates started from the app pass /relaunch so AgentSync reopens when they finish.
+    ${GetParameters} $R0
+    ClearErrors
+    ${GetOptions} $R0 "/relaunch" $R1
+    ${IfNot} ${Errors}
+        Exec '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
+    ${EndIf}
+FunctionEnd
 
 Function .onInit
    !insertmacro wails.checkArchitecture
@@ -92,9 +115,19 @@ Section
 
     !insertmacro wails.webview2runtime
 
+    ${GetParameters} $R0
+    ClearErrors
+    ${GetOptions} $R0 "/relaunch" $R1
+    ${IfNot} ${Errors}
+        Sleep ${AGENTSYNC_UPDATE_WAIT_MS}
+    ${EndIf}
+
     SetOutPath $INSTDIR
 
     !insertmacro wails.files
+    !if /FileExists "..\..\bin\${AGENTSYNC_CLI}"
+        File "..\..\bin\${AGENTSYNC_CLI}" # Command line and MCP server for AI agents
+    !endif
 
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
@@ -103,6 +136,7 @@ Section
     !insertmacro wails.associateCustomProtocols
 
     !insertmacro wails.writeUninstaller
+    WriteRegStr HKCU "${AGENTSYNC_REG_KEY}" "InstallDir" "$INSTDIR"
 SectionEnd
 
 Section "uninstall"
@@ -119,4 +153,6 @@ Section "uninstall"
     !insertmacro wails.unassociateCustomProtocols
 
     !insertmacro wails.deleteUninstaller
+    # User data in %APPDATA%\AgentSync (config, rules, backups) is kept on purpose.
+    DeleteRegKey HKCU "${AGENTSYNC_REG_KEY}"
 SectionEnd

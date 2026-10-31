@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails and NSIS
+        shell: pwsh
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
+          choco install nsis --no-progress -y
+
+      - name: Check tag matches wails.json
+        shell: pwsh
+        run: |
+          $version = (Get-Content wails.json -Raw | ConvertFrom-Json).info.productVersion
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match wails.json version $version" }
+
+      - name: Test
+        shell: pwsh
+        run: |
+          go test ./...
+          cd frontend; npm ci; npx vitest run
+
+      - name: Build release assets
+        shell: pwsh
+        run: ./scripts/build-release.ps1
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          ./scripts/release-notes.ps1 -Version $version | Set-Content release-notes.md -Encoding utf8
+          gh release create "${{ github.ref_name }}" build/bin/agentsync-setup.exe build/bin/agentsync.exe build/bin/agentsync-cli.exe build/bin/SHA256SUMS.txt --title "AgentSync $version" --notes-file release-notes.md
