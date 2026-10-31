@@ -97,6 +97,8 @@ export const api = {
   getRuleDiff: (ruleId: string, destId: string, relPath: string): Promise<rulesync.Diff> =>
     AppBindings.GetRuleDiff(ruleId, destId, relPath),
   listRepoTree: (): Promise<service.SourceTreeEntry[]> => AppBindings.ListRepoTree(),
+  setTutorialCompleted: (done: boolean): Promise<config.Config> =>
+    AppBindings.SetTutorialCompleted(done),
   getGitignore: (): Promise<service.GitignorePayload> => AppBindings.GetGitignore(),
   saveGitignore: (content: string): Promise<service.GitignorePayload> =>
     AppBindings.SaveGitignore(content),

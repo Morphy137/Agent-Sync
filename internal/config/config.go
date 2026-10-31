@@ -52,18 +52,20 @@ type Subscription struct {
 
 // Config stores user preferences and configured connections.
 type Config struct {
-	Version              int            `json:"version"`
-	RootPath             string         `json:"rootPath"`
-	BackupPath           string         `json:"backupPath"`
-	BackupRetention      int            `json:"backupRetention"`
-	CheckIntervalMinutes int            `json:"checkIntervalMinutes"`
-	Language             string         `json:"language"`
-	Theme                string         `json:"theme"`
-	Palette              string         `json:"palette"`
-	ConfirmBeforeSync    bool           `json:"confirmBeforeSync"`
-	Connections          []Connection   `json:"connections"`
-	Locations            []Location     `json:"locations"`
-	Subscriptions        []Subscription `json:"subscriptions"`
+	Version              int    `json:"version"`
+	RootPath             string `json:"rootPath"`
+	BackupPath           string `json:"backupPath"`
+	BackupRetention      int    `json:"backupRetention"`
+	CheckIntervalMinutes int    `json:"checkIntervalMinutes"`
+	Language             string `json:"language"`
+	Theme                string `json:"theme"`
+	Palette              string `json:"palette"`
+	// TutorialCompleted records that the first-run tutorial was finished or skipped.
+	TutorialCompleted bool           `json:"tutorialCompleted"`
+	ConfirmBeforeSync bool           `json:"confirmBeforeSync"`
+	Connections       []Connection   `json:"connections"`
+	Locations         []Location     `json:"locations"`
+	Subscriptions     []Subscription `json:"subscriptions"`
 }
 
 // GetConfigDir returns the active configuration directory.

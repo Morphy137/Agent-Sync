@@ -246,6 +246,10 @@ export function SetSubscriptionAutoUpdate(arg1, arg2) {
   return window['go']['main']['App']['SetSubscriptionAutoUpdate'](arg1, arg2);
 }
 
+export function SetTutorialCompleted(arg1) {
+  return window['go']['main']['App']['SetTutorialCompleted'](arg1);
+}
+
 export function SuggestPlacement(arg1, arg2) {
   return window['go']['main']['App']['SuggestPlacement'](arg1, arg2);
 }

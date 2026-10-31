@@ -133,6 +133,8 @@ export function SetRootPath(arg1:string):Promise<config.Config>;
 
 export function SetSubscriptionAutoUpdate(arg1:string,arg2:boolean):Promise<config.Config>;
 
+export function SetTutorialCompleted(arg1:boolean):Promise<config.Config>;
+
 export function SuggestPlacement(arg1:rules.Source,arg2:string):Promise<recognize.Suggestion>;
 
 export function SyncRules():Promise<rulesync.ApplyResult>;

@@ -106,3 +106,16 @@ func TestGitignore_SaveNormalizesLineEndings(t *testing.T) {
 		t.Fatalf("unexpected content %q", data)
 	}
 }
+
+func TestSetTutorialCompleted_Persists(t *testing.T) {
+	svc, _ := newGitignoreService(t)
+	cfg, err := svc.SetTutorialCompleted(true)
+	if err != nil || !cfg.TutorialCompleted {
+		t.Fatalf("expected tutorial flag set, err=%v", err)
+	}
+	reloaded := service.New(func(string, any) {})
+	got, _ := reloaded.GetConfig()
+	if !got.TutorialCompleted {
+		t.Fatal("expected tutorial flag to be persisted")
+	}
+}

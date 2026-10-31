@@ -1,0 +1,36 @@
+{
+  "tutorial": {
+    "aria_label": "Tutorial",
+    "progress": "Paso {current} de {total}",
+    "skip": "Omitir",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "finish": "Empezar",
+    "steps": {
+      "welcome": {
+        "title": "Bienvenido a AgentSync",
+        "body": "Mantén archivos y carpetas sincronizados entre lugares y equipos."
+      },
+      "rules": {
+        "title": "Reglas",
+        "body": "Una regla copia un archivo o carpeta a varios lugares, cada uno con su nombre."
+      },
+      "locations": {
+        "title": "Ubicaciones",
+        "body": "Nombra tus carpetas una vez por PC. Las reglas usan esos nombres."
+      },
+      "sync": {
+        "title": "Sincronizar",
+        "body": "Aplica los cambios y los sube. Antes se hace copia de seguridad."
+      },
+      "subscriptions": {
+        "title": "Suscripciones",
+        "body": "Sigue repositorios compartidos y trae solo lo que necesites."
+      },
+      "done": {
+        "title": "Todo listo",
+        "body": "Puedes repetir este tutorial en Ajustes."
+      }
+    }
+  }
+}

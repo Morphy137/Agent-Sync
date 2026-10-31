@@ -229,6 +229,11 @@ func (a *App) GetRuleDiff(ruleID, destID, relPath string) (*rulesync.Diff, error
 // ListRepoTree lists repository entries with detected kinds for picking rule sources.
 func (a *App) ListRepoTree() ([]service.SourceTreeEntry, error) { return a.svc.ListRepoTree() }
 
+// SetTutorialCompleted stores whether the first-run tutorial should stay hidden.
+func (a *App) SetTutorialCompleted(done bool) (*config.Config, error) {
+	return a.svc.SetTutorialCompleted(done)
+}
+
 // GetGitignore returns the repository .gitignore and the recommended patterns it lacks.
 func (a *App) GetGitignore() (*service.GitignorePayload, error) { return a.svc.GetGitignore() }
 

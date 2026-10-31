@@ -299,6 +299,18 @@ func (s *Service) UpdateSettings(payload SettingsPayload) (*config.Config, bool,
 	return cloneConfig(s.cfg), intervalChanged, nil
 }
 
+// SetTutorialCompleted stores whether the first-run tutorial should stay hidden.
+func (s *Service) SetTutorialCompleted(done bool) (*config.Config, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cfg.TutorialCompleted = done
+	if err := config.Save(s.cfg); err != nil {
+		return nil, err
+	}
+	return cloneConfig(s.cfg), nil
+}
+
 // SetRootPath validates and sets the root path in the configuration.
 func (s *Service) SetRootPath(rootPath string) (*config.Config, error) {
 	s.mu.Lock()

@@ -14,6 +14,7 @@
   import ConnectionWizardModal from "./lib/components/ConnectionWizardModal.svelte";
   import BackupsDrawer from "./lib/components/BackupsDrawer.svelte";
   import SettingsDrawer from "./lib/components/SettingsDrawer.svelte";
+  import TutorialModal from "./lib/components/TutorialModal.svelte";
   import AddRemoteModal from "./lib/components/AddRemoteModal.svelte";
   import GitIdentityModal from "./lib/components/GitIdentityModal.svelte";
   import Toast from "./lib/components/Toast.svelte";
@@ -101,6 +102,11 @@
     } catch (err) {
       appState.showError(err);
     }
+  }
+
+  async function handleWelcomeSuccess() {
+    await appState.refreshAll();
+    if (!appState.config?.tutorialCompleted) appState.tutorialOpen = true;
   }
 
   function handleDisconnect(connectionId: string) {
@@ -464,7 +470,7 @@
           {/if}
         {/if}
       {:else}
-        <WelcomeView onsuccess={() => appState.refreshAll()} />
+        <WelcomeView onsuccess={handleWelcomeSuccess} />
       {/if}
     </div>
   </main>
@@ -526,6 +532,8 @@
     onrestore={handleRestoreBackup}
     onopenFolder={handleOpenExplorer}
   />
+
+  <TutorialModal open={appState.tutorialOpen} onfinish={() => appState.finishTutorial()} />
 
   <SettingsDrawer
     open={appState.settingsDrawerOpen}

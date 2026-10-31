@@ -63,6 +63,7 @@ class AppState {
   connectionWizardReplacesId = $state<string>("");
   addRemoteModalOpen = $state(false);
   gitIdentityModalOpen = $state(false);
+  tutorialOpen = $state(false);
 
   addToast(type: "success" | "error" | "info", message: string) {
     const id = Math.random().toString(36).slice(2, 9);
@@ -85,6 +86,17 @@ class AppState {
     return parsed.code;
   }
 
+  /** Closes the tutorial and remembers it on this PC so it does not reopen at startup. */
+  async finishTutorial() {
+    this.tutorialOpen = false;
+    if (this.config?.tutorialCompleted) return;
+    try {
+      this.config = await api.setTutorialCompleted(true);
+    } catch (err) {
+      this.showError(err);
+    }
+  }
+
   async loadInitialData() {
     try {
       this.isChecking = true;
@@ -99,6 +111,7 @@ class AppState {
 
       if (cfg?.rootPath) {
         await this.refreshAll();
+        if (!cfg.tutorialCompleted) this.tutorialOpen = true;
       }
     } catch (err) {
       this.showError(err);

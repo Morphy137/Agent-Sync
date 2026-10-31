@@ -98,6 +98,7 @@ export namespace config {
 	    language: string;
 	    theme: string;
 	    palette: string;
+	    tutorialCompleted: boolean;
 	    confirmBeforeSync: boolean;
 	    connections: Connection[];
 	    locations: Location[];
@@ -117,6 +118,7 @@ export namespace config {
 	        this.language = source["language"];
 	        this.theme = source["theme"];
 	        this.palette = source["palette"];
+	        this.tutorialCompleted = source["tutorialCompleted"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
 	        this.connections = this.convertValues(source["connections"], Connection);
 	        this.locations = this.convertValues(source["locations"], Location);

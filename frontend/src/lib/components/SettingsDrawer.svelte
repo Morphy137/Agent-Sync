@@ -89,6 +89,11 @@
     applyPalette(val);
   }
 
+  function handleReplayTutorial() {
+    handleClose();
+    appState.tutorialOpen = true;
+  }
+
   function handleClose() {
     // Revert unsaved theme & language (R5)
     if (language !== initialLanguage) {
@@ -275,6 +280,16 @@
         </div>
       </Card>
     {/if}
+
+    <!-- 5. Help -->
+    <Card padding="md">
+      <div class="section-block">
+        <h3 class="section-heading">{t("settings.section_help")}</h3>
+        <Button variant="secondary" size="sm" onclick={handleReplayTutorial}>
+          {t("settings.replay_tutorial")}
+        </Button>
+      </div>
+    </Card>
 
     <div class="save-actions">
       <Button variant="primary" onclick={handleSave}>

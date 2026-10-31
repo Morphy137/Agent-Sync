@@ -1,0 +1,36 @@
+{
+  "tutorial": {
+    "aria_label": "Tutorial",
+    "progress": "Step {current} of {total}",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Get started",
+    "steps": {
+      "welcome": {
+        "title": "Welcome to AgentSync",
+        "body": "Keep files and folders in sync across places and computers."
+      },
+      "rules": {
+        "title": "Rules",
+        "body": "A rule copies one file or folder to several places, each with its own name."
+      },
+      "locations": {
+        "title": "Locations",
+        "body": "Name your folders once per PC. Rules use those names."
+      },
+      "sync": {
+        "title": "Sync",
+        "body": "Sync applies changes and uploads them. Backups are made first."
+      },
+      "subscriptions": {
+        "title": "Subscriptions",
+        "body": "Follow shared repositories and bring only what you need."
+      },
+      "done": {
+        "title": "All set",
+        "body": "You can replay this tutorial in Settings."
+      }
+    }
+  }
+}
