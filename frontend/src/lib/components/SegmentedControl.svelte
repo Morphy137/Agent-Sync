@@ -12,13 +12,7 @@
     onchange: (val: string) => void;
   }
 
-  let {
-    options,
-    value,
-    label,
-    size = "md",
-    onchange,
-  }: Props = $props();
+  let { options, value, label, size = "md", onchange }: Props = $props();
 
   const activeIndex = $derived(
     Math.max(

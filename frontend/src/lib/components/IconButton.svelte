@@ -9,13 +9,7 @@
     children?: Snippet;
   }
 
-  let {
-    label,
-    disabled = false,
-    ariaExpanded,
-    onclick,
-    children,
-  }: Props = $props();
+  let { label, disabled = false, ariaExpanded, onclick, children }: Props = $props();
 </script>
 
 <button

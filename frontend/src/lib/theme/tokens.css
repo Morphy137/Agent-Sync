@@ -40,65 +40,75 @@
   --duration-normal: 200ms;
   --easing-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --win-close-hover-bg: #C42B1C;
-  --win-close-hover-fg: #FFFFFF;
+  --win-close-hover-bg: #c42b1c;
+  --win-close-hover-fg: #ffffff;
 }
 
 [data-theme="light"] {
-  --canvas: #F7F7F8;          /* window background */
-  --surface: #FFFFFF;         /* cards, buttons */
-  --surface-sunken: #F1F1F3;  /* inset tracks, file lists, inputs */
-  --ink: #0A0A0A;             /* primary text and primary button */
-  --ink-hover: #1A1A1A;
-  --ink-contrast: #FFFFFF;
-  --text-muted: #6B6B70;
-  --text-subtle: #A0A0A6;
+  --canvas: #f7f7f8; /* window background */
+  --surface: #ffffff; /* cards, buttons */
+  --surface-sunken: #f1f1f3; /* inset tracks, file lists, inputs */
+  --ink: #0a0a0a; /* primary text and primary button */
+  --ink-hover: #1a1a1a;
+  --ink-contrast: #ffffff;
+  --text-muted: #6b6b70;
+  --text-subtle: #a0a0a6;
   --hairline: rgba(0, 0, 0, 0.06);
   --focus-ring: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(10, 10, 10, 0.28);
   --backdrop-overlay: rgba(0, 0, 0, 0.35);
   --badge-overlay: color-mix(in srgb, var(--ink-contrast) 15%, transparent);
   --scrollbar-thumb: color-mix(in srgb, var(--text-subtle) 40%, transparent);
 
-  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.035);
-  --elev-2: 0 2px 4px rgba(0, 0, 0, 0.04), 0 8px 20px rgba(0, 0, 0, 0.07), 0 0 0 1px rgba(0, 0, 0, 0.035);
-  --elev-3: 0 6px 12px rgba(0, 0, 0, 0.05), 0 24px 56px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  --pressed: inset 0 1px 3px rgba(0, 0, 0, 0.10), inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --elev-1:
+    0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.035);
+  --elev-2:
+    0 2px 4px rgba(0, 0, 0, 0.04), 0 8px 20px rgba(0, 0, 0, 0.07), 0 0 0 1px rgba(0, 0, 0, 0.035);
+  --elev-3:
+    0 6px 12px rgba(0, 0, 0, 0.05), 0 24px 56px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --pressed: inset 0 1px 3px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.05);
   --sunken: inset 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
   --primary-elev: 0 1px 2px rgba(0, 0, 0, 0.24), 0 6px 16px rgba(0, 0, 0, 0.18);
 
-  --dot-ok: #3F9D6B;
-  --dot-down: #4A7BD0;
-  --dot-up: #C08A2E;
-  --dot-conflict: #C8473D;
-  --dot-idle: #A0A0A6;
+  --dot-ok: #3f9d6b;
+  --dot-down: #4a7bd0;
+  --dot-up: #c08a2e;
+  --dot-conflict: #c8473d;
+  --dot-idle: #a0a0a6;
 }
 
 [data-theme="dark"] {
-  --canvas: #08080A;
+  --canvas: #08080a;
   --surface: #131316;
-  --surface-sunken: #0C0C0E;
-  --ink: #F5F5F6;
-  --ink-hover: #FFFFFF;
-  --ink-contrast: #0A0A0A;
-  --text-muted: #9A9AA2;
-  --text-subtle: #5E5E66;
+  --surface-sunken: #0c0c0e;
+  --ink: #f5f5f6;
+  --ink-hover: #ffffff;
+  --ink-contrast: #0a0a0a;
+  --text-muted: #9a9aa2;
+  --text-subtle: #5e5e66;
   --hairline: rgba(255, 255, 255, 0.06);
-  --focus-ring: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(255, 255, 255, 0.30);
-  --backdrop-overlay: rgba(0, 0, 0, 0.60);
+  --focus-ring: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(255, 255, 255, 0.3);
+  --backdrop-overlay: rgba(0, 0, 0, 0.6);
   --badge-overlay: color-mix(in srgb, var(--ink-contrast) 15%, transparent);
   --scrollbar-thumb: color-mix(in srgb, var(--text-subtle) 40%, transparent);
 
   /* dark mode: top highlight + deep shadow */
-  --elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 18px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --elev-3: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --elev-1:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 1px 2px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  --elev-2:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 18px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  --elev-3:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 64px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
   --pressed: inset 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   --sunken: inset 0 1px 3px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
-  --primary-elev: 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  --primary-elev:
+    0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
 
-  --dot-ok: #5BBF8A;
-  --dot-down: #7AA2E8;
-  --dot-up: #D9A84E;
-  --dot-conflict: #E0675C;
-  --dot-idle: #5E5E66;
+  --dot-ok: #5bbf8a;
+  --dot-down: #7aa2e8;
+  --dot-up: #d9a84e;
+  --dot-conflict: #e0675c;
+  --dot-idle: #5e5e66;
 }

@@ -39,9 +39,28 @@
   let cloneFolderName = $state("agent-configs");
 
   const RESERVED_WINDOWS_NAMES = [
-    "CON", "PRN", "AUX", "NUL",
-    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "COM5",
+    "COM6",
+    "COM7",
+    "COM8",
+    "COM9",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "LPT4",
+    "LPT5",
+    "LPT6",
+    "LPT7",
+    "LPT8",
+    "LPT9",
   ];
   const INVALID_CHARS_REGEX = /[<>:"/\\|?*\x00-\x1F]/;
 
@@ -82,7 +101,12 @@
   }
 
   async function handleCreateNew() {
-    if (!createParentInfo?.exists || !createParentInfo?.isDir || !isValidName(createFolderName) || isLoading) {
+    if (
+      !createParentInfo?.exists ||
+      !createParentInfo?.isDir ||
+      !isValidName(createFolderName) ||
+      isLoading
+    ) {
       return;
     }
     isLoading = true;
@@ -118,7 +142,11 @@
     isLoading = true;
     errorMessage = null;
     try {
-      const cfg = await CloneRepository(cloneUrl.trim(), cloneParentDir.trim(), cloneFolderName.trim());
+      const cfg = await CloneRepository(
+        cloneUrl.trim(),
+        cloneParentDir.trim(),
+        cloneFolderName.trim()
+      );
       appState.config = cfg;
       await appState.refreshAll();
       onsuccess?.();
@@ -243,7 +271,10 @@
             <div class="form-actions">
               <Button
                 variant="primary"
-                disabled={!createParentInfo?.exists || !createParentInfo?.isDir || !isValidName(createFolderName) || isLoading}
+                disabled={!createParentInfo?.exists ||
+                  !createParentInfo?.isDir ||
+                  !isValidName(createFolderName) ||
+                  isLoading}
                 loading={isLoading}
                 onclick={handleCreateNew}
               >
@@ -315,7 +346,11 @@
             <div class="form-actions">
               <Button
                 variant="primary"
-                disabled={!cloneUrl.trim() || !cloneParentInfo?.exists || !cloneParentInfo?.isDir || !isValidName(cloneFolderName) || isLoading}
+                disabled={!cloneUrl.trim() ||
+                  !cloneParentInfo?.exists ||
+                  !cloneParentInfo?.isDir ||
+                  !isValidName(cloneFolderName) ||
+                  isLoading}
                 loading={isLoading}
                 onclick={handleCloneRepo}
               >
@@ -421,7 +456,9 @@
 
   .option-card.selected {
     border-color: var(--accent);
-    box-shadow: var(--elev-2), 0 0 0 1px var(--accent);
+    box-shadow:
+      var(--elev-2),
+      0 0 0 1px var(--accent);
     cursor: default;
   }
 

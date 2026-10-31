@@ -8,11 +8,7 @@
   let { size = "md" }: Props = $props();
 </script>
 
-<div
-  class="spinner spinner-{size}"
-  role="status"
-  aria-label={t("common.loading")}
-></div>
+<div class="spinner spinner-{size}" role="status" aria-label={t("common.loading")}></div>
 
 <style>
   .spinner {

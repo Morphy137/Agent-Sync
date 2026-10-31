@@ -18,7 +18,12 @@ export interface RuleEditorState {
 
 class AppState {
   activeView = $state<AppView>("rules");
-  ruleEditor = $state<RuleEditorState>({ open: false, rule: null, scope: "repo", presetSource: null });
+  ruleEditor = $state<RuleEditorState>({
+    open: false,
+    rule: null,
+    scope: "repo",
+    presetSource: null,
+  });
   /** Incremented whenever rules, locations or subscriptions change; views reload when it changes. */
   rulesVersion = $state(0);
 
@@ -125,10 +130,7 @@ class AppState {
   async checkRemote() {
     try {
       this.isChecking = true;
-      const [plan, git] = await Promise.all([
-        api.checkRemote(),
-        api.getGitInfo(),
-      ]);
+      const [plan, git] = await Promise.all([api.checkRemote(), api.getGitInfo()]);
       this.statusPlan = plan;
       this.gitInfo = git;
     } catch (err) {

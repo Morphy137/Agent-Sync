@@ -12,13 +12,7 @@
     onsubmit: (name: string, email: string) => void;
   }
 
-  let {
-    open,
-    initialName = "",
-    initialEmail = "",
-    onclose,
-    onsubmit,
-  }: Props = $props();
+  let { open, initialName = "", initialEmail = "", onclose, onsubmit }: Props = $props();
 
   let userName = $state("");
   let userEmail = $state("");
@@ -59,11 +53,7 @@
       <Button variant="secondary" onclick={onclose}>
         {t("common.cancel")}
       </Button>
-      <Button
-        variant="primary"
-        disabled={!userEmail.trim()}
-        onclick={handleSubmit}
-      >
+      <Button variant="primary" disabled={!userEmail.trim()} onclick={handleSubmit}>
         {t("dialogs.git_identity_submit")}
       </Button>
     </div>

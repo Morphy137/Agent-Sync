@@ -80,11 +80,7 @@
   const pendingCount = $derived.by(() => {
     if (!appState.statusPlan) return 0;
     const { downloads, uploads, conflicts } = appState.statusPlan;
-    return (
-      (downloads?.length || 0) +
-      (uploads?.length || 0) +
-      (conflicts?.length || 0)
-    );
+    return (downloads?.length || 0) + (uploads?.length || 0) + (conflicts?.length || 0);
   });
 
   // Middle truncation for root path chip
@@ -142,11 +138,7 @@
     {/if}
   </div>
 
-  <div
-    class="titlebar-right no-drag"
-    data-no-drag
-    style="--wails-draggable:no-drag"
-  >
+  <div class="titlebar-right no-drag" data-no-drag style="--wails-draggable:no-drag">
     {#if appState.config?.rootPath}
       <IconButton
         label={t("titlebar.check_remote")}
@@ -165,10 +157,7 @@
         loading={appState.isSyncing}
         onclick={onsync}
       >
-        <span
-          class="sync-icon"
-          class:conflict-icon={direction === "conflict"}
-        >
+        <span class="sync-icon" class:conflict-icon={direction === "conflict"}>
           {#if direction === "down"}
             <ArrowDown size={14} />
           {:else if direction === "up"}
@@ -210,12 +199,8 @@
       <button
         type="button"
         class="win-btn"
-        aria-label={isMaximised
-          ? t("titlebar.window_restore")
-          : t("titlebar.window_maximize")}
-        title={isMaximised
-          ? t("titlebar.window_restore")
-          : t("titlebar.window_maximize")}
+        aria-label={isMaximised ? t("titlebar.window_restore") : t("titlebar.window_maximize")}
+        title={isMaximised ? t("titlebar.window_restore") : t("titlebar.window_maximize")}
         onclick={handleToggleMaximise}
       >
         {#if isMaximised}

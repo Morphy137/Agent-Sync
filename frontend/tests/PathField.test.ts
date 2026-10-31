@@ -143,7 +143,11 @@ describe("PathField.svelte", () => {
 
   it("fills the input with the folder chosen in the browse dialog", async () => {
     vi.mocked(App.SelectFolder).mockResolvedValue("C:/picked/dir");
-    vi.mocked(App.InspectPath).mockResolvedValue({ exists: true, isDir: true, writable: true } as any);
+    vi.mocked(App.InspectPath).mockResolvedValue({
+      exists: true,
+      isDir: true,
+      writable: true,
+    } as any);
 
     const { getByRole, getByDisplayValue } = render(PathField, { value: "", mode: "target" });
     await fireEvent.click(getByRole("button", { name: "Browse" }));

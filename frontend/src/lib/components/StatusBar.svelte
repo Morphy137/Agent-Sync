@@ -8,9 +8,7 @@
   const ahead = $derived(appState.statusPlan?.ahead ?? appState.gitInfo?.ahead ?? 0);
   const behind = $derived(appState.statusPlan?.behind ?? appState.gitInfo?.behind ?? 0);
   const lastCheck = $derived(
-    appState.statusPlan?.lastCheckAt
-      ? formatDate(appState.statusPlan.lastCheckAt)
-      : ""
+    appState.statusPlan?.lastCheckAt ? formatDate(appState.statusPlan.lastCheckAt) : ""
   );
 </script>
 

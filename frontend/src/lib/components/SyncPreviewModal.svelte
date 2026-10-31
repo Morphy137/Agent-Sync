@@ -63,18 +63,10 @@
             <span>{t("preview.conflicts_section", { count: plan.conflicts.length })}</span>
           </div>
           <div class="quick-actions">
-            <Button
-              size="sm"
-              variant="ghost"
-              onclick={() => setAllResolutions("keep_repo")}
-            >
+            <Button size="sm" variant="ghost" onclick={() => setAllResolutions("keep_repo")}>
               {t("conflicts.apply_all_repo")}
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onclick={() => setAllResolutions("keep_local")}
-            >
+            <Button size="sm" variant="ghost" onclick={() => setAllResolutions("keep_local")}>
               {t("conflicts.apply_all_local")}
             </Button>
           </div>
@@ -93,8 +85,7 @@
                     { value: "keep_repo", label: t("conflicts.keep_repo") },
                     { value: "keep_local", label: t("conflicts.keep_local") },
                   ]}
-                  onchange={(val) =>
-                    (resolutions[key] = val as "keep_repo" | "keep_local")}
+                  onchange={(val) => (resolutions[key] = val as "keep_repo" | "keep_local")}
                 />
               </div>
             </div>

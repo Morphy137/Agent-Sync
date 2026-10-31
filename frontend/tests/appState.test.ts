@@ -21,12 +21,8 @@ describe("appState.svelte.ts", () => {
   it("handleStatusChanged replaces statusPlan and updates ahead/behind in gitInfo", () => {
     const newPlan: orchestrator.SyncPlan = {
       fingerprint: "fp-test-12345",
-      downloads: [
-        { profile: "CLAUDE", relPath: "CLAUDE.md", action: "create" },
-      ],
-      uploads: [
-        { profile: "GEMINI", relPath: "GEMINI.md", action: "upload" },
-      ],
+      downloads: [{ profile: "CLAUDE", relPath: "CLAUDE.md", action: "create" }],
+      uploads: [{ profile: "GEMINI", relPath: "GEMINI.md", action: "upload" }],
       conflicts: [
         {
           profile: "CODEX",

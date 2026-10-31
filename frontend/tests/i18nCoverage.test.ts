@@ -68,7 +68,11 @@ function findDuplicateJsonKeys(raw: string): string[] {
     }
     if (ch === "{") {
       const parent = stack[stack.length - 1];
-      const path = parent ? (parent.path ? `${parent.path}.${parent.lastKey}` : parent.lastKey) : "";
+      const path = parent
+        ? parent.path
+          ? `${parent.path}.${parent.lastKey}`
+          : parent.lastKey
+        : "";
       stack.push({ keys: new Set(), path, lastKey: "" });
     } else if (ch === "}") {
       stack.pop();

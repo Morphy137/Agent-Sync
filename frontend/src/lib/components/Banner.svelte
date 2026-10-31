@@ -9,13 +9,7 @@
     onaction?: () => void;
   }
 
-  let {
-    variant = "info",
-    title,
-    message,
-    actionLabel,
-    onaction,
-  }: Props = $props();
+  let { variant = "info", title, message, actionLabel, onaction }: Props = $props();
 </script>
 
 <div class="banner" role="alert">

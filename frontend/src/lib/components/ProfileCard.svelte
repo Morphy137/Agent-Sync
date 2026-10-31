@@ -57,12 +57,8 @@
   }
 
   const isConnected = $derived(!!connection);
-  const aggregateStatus = $derived(
-    status?.status || (isConnected ? "in_sync" : "not_connected")
-  );
-  const initialLetter = $derived(
-    (profile.name || "P").trim().charAt(0).toUpperCase()
-  );
+  const aggregateStatus = $derived(status?.status || (isConnected ? "in_sync" : "not_connected"));
+  const initialLetter = $derived((profile.name || "P").trim().charAt(0).toUpperCase());
 
   const targetFolderName = $derived.by(() => {
     if (!connection) return "";
@@ -121,12 +117,10 @@
     <div class="info-col">
       <div class="header-row">
         <span class="profile-name">
-          {profile.name}{#if connection && targetFolderName} ⇄ {targetFolderName}{/if}
+          {profile.name}{#if connection && targetFolderName}
+            ⇄ {targetFolderName}{/if}
         </span>
-        <StatusPill
-          status={aggregateStatus}
-          text={t(`status.${aggregateStatus}`)}
-        />
+        <StatusPill status={aggregateStatus} text={t(`status.${aggregateStatus}`)} />
       </div>
 
       {#if connection}
@@ -162,11 +156,7 @@
   <div class="card-actions">
     {#if !connection}
       <div class="actions-left">
-        <Button
-          variant="primary"
-          size="sm"
-          onclick={() => onconnect(profile.name)}
-        >
+        <Button variant="primary" size="sm" onclick={() => onconnect(profile.name)}>
           {t("connections.card.button_connect")}
         </Button>
       </div>
@@ -181,11 +171,7 @@
           {t("connections.card.button_update")}
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onclick={() => onbackups(connection.id, profile.name)}
-        >
+        <Button variant="ghost" size="sm" onclick={() => onbackups(connection.id, profile.name)}>
           {t("connections.card.button_backups")}
         </Button>
       </div>
@@ -201,12 +187,7 @@
 
         {#if menuOpen}
           <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <div
-            class="dropdown-menu"
-            onclick={closeMenu}
-            role="menu"
-            tabindex="-1"
-          >
+          <div class="dropdown-menu" onclick={closeMenu} role="menu" tabindex="-1">
             {#if profile.path}
               <button
                 type="button"

@@ -97,7 +97,9 @@
         await inspectNow(selected.trim());
       }
     } catch (err: unknown) {
-      createError = t("path_field.browse_failed", { error: String((err as Error)?.message ?? err) });
+      createError = t("path_field.browse_failed", {
+        error: String((err as Error)?.message ?? err),
+      });
     }
   }
 

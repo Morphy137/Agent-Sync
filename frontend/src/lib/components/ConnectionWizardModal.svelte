@@ -59,9 +59,28 @@
   let errorMessage = $state<string | null>(null);
 
   const RESERVED_WINDOWS_NAMES = [
-    "CON", "PRN", "AUX", "NUL",
-    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "COM5",
+    "COM6",
+    "COM7",
+    "COM8",
+    "COM9",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "LPT4",
+    "LPT5",
+    "LPT6",
+    "LPT7",
+    "LPT8",
+    "LPT9",
   ];
   const INVALID_CHARS_REGEX = /[<>:"/\\|?*\x00-\x1F]/;
 
@@ -87,10 +106,7 @@
 
   async function loadInitialData() {
     try {
-      const [profs, suggestions] = await Promise.all([
-        ListProfiles(),
-        DetectAgentFolders(),
-      ]);
+      const [profs, suggestions] = await Promise.all([ListProfiles(), DetectAgentFolders()]);
       availableProfiles = profs || [];
       detectedFolders = suggestions || [];
 
@@ -175,14 +191,22 @@
   // Step 2 target files loading
   const effectiveProfileFileCount = $derived.by(() => {
     if (isNewProfile) return 0;
-    const found = availableProfiles.find((p) => p.name.toLowerCase() === selectedProfile.toLowerCase());
+    const found = availableProfiles.find(
+      (p) => p.name.toLowerCase() === selectedProfile.toLowerCase()
+    );
     return found ? found.fileCount : 0;
   });
 
   const shouldOfferTargetImport = $derived(isNewProfile || effectiveProfileFileCount === 0);
 
   $effect(() => {
-    if (open && currentStep === 2 && shouldOfferTargetImport && targetInfo?.exists && targetInfo?.isDir) {
+    if (
+      open &&
+      currentStep === 2 &&
+      shouldOfferTargetImport &&
+      targetInfo?.exists &&
+      targetInfo?.isDir
+    ) {
       loadTargetEntries(targetPath);
     }
   });
@@ -248,7 +272,10 @@
       return false;
     }
     if (targetInfo.isInsideRoot) return false;
-    if (targetInfo.alreadyConnected && targetPath !== connectedProfilesMap[selectedProfile.toLowerCase()]) {
+    if (
+      targetInfo.alreadyConnected &&
+      targetPath !== connectedProfilesMap[selectedProfile.toLowerCase()]
+    ) {
       return false;
     }
     if (shouldOfferTargetImport && !startEmpty && selectedImportPaths.length === 0) {
@@ -440,10 +467,7 @@
           {/each}
 
           <!-- Option to create new folder in repository -->
-          <label
-            class="profile-radio-card new-folder-card"
-            class:selected={isNewProfile}
-          >
+          <label class="profile-radio-card new-folder-card" class:selected={isNewProfile}>
             <input
               type="radio"
               name="wizardProfile"
@@ -481,11 +505,7 @@
           <Button variant="secondary" onclick={handleClose}>
             {t("common.cancel")}
           </Button>
-          <Button
-            variant="primary"
-            disabled={!canAdvanceStep1}
-            onclick={goToStep2}
-          >
+          <Button variant="primary" disabled={!canAdvanceStep1} onclick={goToStep2}>
             <span>{t("wizard.btn_next")}</span>
             <ArrowRight size={16} />
           </Button>
@@ -527,7 +547,11 @@
                   <label
                     class="target-entry-row"
                     class:disabled={entry.tooLarge}
-                    title={entry.tooLarge ? (entry.reason === "cache_dir" ? t("wizard.cache_folder_reason") : t("wizard.too_large_reason")) : ""}
+                    title={entry.tooLarge
+                      ? entry.reason === "cache_dir"
+                        ? t("wizard.cache_folder_reason")
+                        : t("wizard.too_large_reason")
+                      : ""}
                   >
                     <input
                       type="checkbox"
@@ -538,7 +562,9 @@
                     <span class="entry-path">{entry.relPath}</span>
                     {#if entry.tooLarge}
                       <span class="entry-badge-too-large">
-                        {entry.reason === "cache_dir" ? t("wizard.cache_folder_reason") : t("wizard.too_large_reason")}
+                        {entry.reason === "cache_dir"
+                          ? t("wizard.cache_folder_reason")
+                          : t("wizard.too_large_reason")}
                       </span>
                     {:else if !entry.isDir}
                       <span class="entry-size">{(entry.size / 1024).toFixed(1)} KB</span>
@@ -885,7 +911,6 @@
     padding: 2px var(--space-2);
     border-radius: var(--radius-full);
   }
-
 
   .new-folder-input-box {
     display: flex;

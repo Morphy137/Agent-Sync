@@ -15,14 +15,7 @@
     onopenFolder: (path: string) => void;
   }
 
-  let {
-    open,
-    profileName,
-    backups,
-    onclose,
-    onrestore,
-    onopenFolder,
-  }: Props = $props();
+  let { open, profileName, backups, onclose, onrestore, onopenFolder }: Props = $props();
 
   let confirmingBackupId = $state<string | null>(null);
 
@@ -45,10 +38,7 @@
           <div class="backup-card">
             <div class="card-header">
               <span class="backup-date">{formatDate(b.createdAt)}</span>
-              <StatusPill
-                status="idle"
-                text={t(`backups.reason_${b.reason}`)}
-              />
+              <StatusPill status="idle" text={t(`backups.reason_${b.reason}`)} />
             </div>
 
             <div class="card-body">
@@ -61,37 +51,21 @@
               <div class="restore-confirm-box">
                 <p class="confirm-notice">{t("backups.confirm_restore")}</p>
                 <div class="confirm-actions">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onclick={() => (confirmingBackupId = null)}
-                  >
+                  <Button size="sm" variant="ghost" onclick={() => (confirmingBackupId = null)}>
                     {t("common.cancel")}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onclick={() => confirmRestore(b)}
-                  >
+                  <Button size="sm" variant="primary" onclick={() => confirmRestore(b)}>
                     {t("common.confirm")}
                   </Button>
                 </div>
               </div>
             {:else}
               <div class="card-actions">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onclick={() => onopenFolder(b.path)}
-                >
+                <Button size="sm" variant="ghost" onclick={() => onopenFolder(b.path)}>
                   <FolderOpen size={14} />
                   <span>{t("backups.button_open_folder")}</span>
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onclick={() => (confirmingBackupId = b.id)}
-                >
+                <Button size="sm" variant="secondary" onclick={() => (confirmingBackupId = b.id)}>
                   <RotateCcw size={14} />
                   <span>{t("backups.button_restore")}</span>
                 </Button>

@@ -76,13 +76,17 @@ describe("ConnectionWizardModal.svelte", () => {
     // Test invalid characters: "invalid*name"
     await fireEvent.input(input, { target: { value: "invalid*name" } });
     await waitFor(() => {
-      expect(getByText("The folder name contains invalid characters or is a reserved name.")).toBeDefined();
+      expect(
+        getByText("The folder name contains invalid characters or is a reserved name.")
+      ).toBeDefined();
     });
 
     // Test reserved name: "CON"
     await fireEvent.input(input, { target: { value: "CON" } });
     await waitFor(() => {
-      expect(getByText("The folder name contains invalid characters or is a reserved name.")).toBeDefined();
+      expect(
+        getByText("The folder name contains invalid characters or is a reserved name.")
+      ).toBeDefined();
     });
 
     // Test already exists: "CLAUDE"
