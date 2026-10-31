@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ViewHeader from "../components/ViewHeader.svelte";
   import { untrack } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { BellRing, Link2, ListFilter, Plus, RefreshCw, Rss } from "@lucide/svelte";
@@ -207,18 +208,18 @@
 </script>
 
 <section class="view" aria-labelledby="subscriptions-title">
-  <header class="view-header">
-    <div class="title-group">
-      <h2 id="subscriptions-title" class="section-title">{t("subscriptions.title")}</h2>
-      {#if items.length > 0}
-        <span class="section-summary">
-          {pendingUpdates > 0
-            ? t("subscriptions.summary_updates", { count: items.length, updates: pendingUpdates })
-            : t("subscriptions.summary", { count: items.length })}
-        </span>
-      {/if}
-    </div>
-    <div class="header-actions">
+  <ViewHeader
+    title={t("subscriptions.title")}
+    titleId="subscriptions-title"
+    summary={items.length > 0
+      ? pendingUpdates > 0
+        ? t("subscriptions.summary_updates", { count: items.length, updates: pendingUpdates })
+        : t("subscriptions.summary", { count: items.length })
+      : undefined}
+    primaryLabel={t("subscriptions.add_button")}
+    onprimary={() => (addOpen = true)}
+  >
+    {#snippet actions()}
       {#if items.length > 0}
         <IconButton
           label={t("subscriptions.check_all")}
@@ -228,12 +229,8 @@
           <RefreshCw size={16} class={checkingAll ? "spin" : ""} />
         </IconButton>
       {/if}
-      <Button variant="primary" size="sm" onclick={() => (addOpen = true)}>
-        <Plus size={16} />
-        <span>{t("subscriptions.add_button")}</span>
-      </Button>
-    </div>
-  </header>
+    {/snippet}
+  </ViewHeader>
 
   {#if !loaded}
     <div class="loading" role="status">
@@ -343,41 +340,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-  }
-
-  .view-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .title-group {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .section-title {
-    margin: 0;
-    font-size: var(--text-md);
-    font-weight: var(--weight-semibold);
-    color: var(--ink);
-    letter-spacing: -0.01em;
-  }
-
-  .section-summary {
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
   }
 
   .view-intro {

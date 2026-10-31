@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ViewHeader from "./lib/components/ViewHeader.svelte";
   import { onMount } from "svelte";
   import { EventsOn } from "../wailsjs/runtime/runtime";
   import type { config, service, orchestrator, backup } from "../wailsjs/go/models";
@@ -104,6 +105,12 @@
     } catch (err) {
       appState.showError(err);
     }
+  }
+
+  function openConnectionWizard() {
+    appState.connectionWizardProfile = "";
+    appState.connectionWizardReplacesId = "";
+    appState.connectionWizardOpen = true;
   }
 
   async function handleWelcomeSuccess() {
@@ -367,18 +374,16 @@
             <LocationsView />
           {:else}
             <section class="connections-view">
-              <div class="connections-header">
-                <div class="connections-title-group">
-                  <h2 class="section-title">{t("connections.title")}</h2>
-                  <span class="section-summary">
-                    {t("connections.connected_count", {
-                      connected: connectedProfiles.length,
-                      unconnected: unconnectedProfiles.length,
-                    })}
-                  </span>
-                </div>
-
-                <div class="connections-header-actions">
+              <ViewHeader
+                title={t("connections.title")}
+                summary={t("connections.connected_count", {
+                  connected: connectedProfiles.length,
+                  unconnected: unconnectedProfiles.length,
+                })}
+                primaryLabel={t("connections.add_connection")}
+                onprimary={openConnectionWizard}
+              >
+                {#snippet actions()}
                   <IconButton
                     label={t("titlebar.check_remote")}
                     disabled={appState.isChecking}
@@ -386,21 +391,8 @@
                   >
                     <RefreshCw size={16} class={appState.isChecking ? "spin" : ""} />
                   </IconButton>
-
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onclick={() => {
-                      appState.connectionWizardProfile = "";
-                      appState.connectionWizardReplacesId = "";
-                      appState.connectionWizardOpen = true;
-                    }}
-                  >
-                    <Plus size={16} />
-                    <span>{t("connections.add_connection")}</span>
-                  </Button>
-                </div>
-              </div>
+                {/snippet}
+              </ViewHeader>
 
               {#if connectedProfiles.length > 0}
                 <div class="profiles-grid">
@@ -617,39 +609,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-  }
-
-  .connections-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-  }
-
-  .connections-title-group {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-3);
-  }
-
-  .connections-header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .section-title {
-    margin: 0;
-    font-size: var(--text-md);
-    font-weight: var(--weight-semibold);
-    color: var(--ink);
-    letter-spacing: -0.01em;
-  }
-
-  .section-summary {
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
   }
 
   .profiles-grid {

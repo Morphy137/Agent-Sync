@@ -1,6 +1,7 @@
 <script lang="ts">
+  import ViewHeader from "../components/ViewHeader.svelte";
   import { untrack } from "svelte";
-  import { FolderOpen, Pencil, Plus, Trash2, FileCog } from "@lucide/svelte";
+  import { FolderOpen, Pencil, Trash2, FileCog } from "@lucide/svelte";
   import type { service } from "../../../wailsjs/go/models";
   import { api } from "../api";
   import { appState } from "../stores/appState.svelte";
@@ -75,17 +76,13 @@
 </script>
 
 <section class="view">
-  <header class="view-header">
-    <div class="title-group">
-      <h2 class="view-title">{t("locations.title")}</h2>
-      <span class="summary">{t("locations.summary", { count: mapped.length })}</span>
-    </div>
-    <Button variant="primary" size="sm" onclick={startAdd}>
-      <Plus size={16} />
-      <span>{t("locations.add")}</span>
-    </Button>
-  </header>
-  <p class="intro">{t("locations.intro")}</p>
+  <ViewHeader
+    title={t("locations.title")}
+    summary={t("locations.summary", { count: mapped.length })}
+    intro={t("locations.intro")}
+    primaryLabel={t("locations.add")}
+    onprimary={startAdd}
+  />
 
   {#if loading}
     <div class="loading"><Spinner size="sm" /></div>
@@ -206,39 +203,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-  }
-
-  .view-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-  }
-
-  .title-group {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-3);
-  }
-
-  .view-title {
-    margin: 0;
-    font-size: var(--text-md);
-    font-weight: var(--weight-semibold);
-    color: var(--ink);
-  }
-
-  .summary,
-  .hint {
-    margin: 0;
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-  }
-
-  .intro {
-    margin: 0;
-    font-size: var(--text-sm);
-    color: var(--text-muted);
   }
 
   .loading {

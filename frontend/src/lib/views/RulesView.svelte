@@ -1,6 +1,8 @@
 <script lang="ts">
+  import IconButton from "../components/IconButton.svelte";
+  import ViewHeader from "../components/ViewHeader.svelte";
   import { untrack } from "svelte";
-  import { Plus, RefreshCw } from "@lucide/svelte";
+  import { LayoutGrid, List, RefreshCw } from "@lucide/svelte";
   import { rules, type rulesync } from "../../../wailsjs/go/models";
   import { api, type RuleScope } from "../api";
   import { appState } from "../stores/appState.svelte";
@@ -21,6 +23,28 @@
     duplicateRule,
     sourceAbsPath,
   } from "../components/rules/ruleUi";
+
+  const LAYOUT_STORAGE_KEY = "agentsync_rules_layout";
+  type Layout = "grid" | "list";
+
+  function storedLayout(): Layout {
+    try {
+      return localStorage?.getItem(LAYOUT_STORAGE_KEY) === "list" ? "list" : "grid";
+    } catch {
+      return "grid";
+    }
+  }
+
+  let layout = $state<Layout>(storedLayout());
+
+  function toggleLayout() {
+    layout = layout === "grid" ? "list" : "grid";
+    try {
+      localStorage?.setItem(LAYOUT_STORAGE_KEY, layout);
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   interface ReviewState {
     status: rulesync.RuleStatus;
@@ -224,38 +248,36 @@
 </script>
 
 <section class="rules-view" aria-labelledby="rules-view-title">
-  <div class="view-header">
-    <div class="title-group">
-      <h2 id="rules-view-title" class="section-title">{t("rules.title")}</h2>
-      {#if report}
-        <span class="section-summary">
-          {t("rules.summary", {
-            rules: ruleStatuses.length,
-            pending: report.pending,
-            conflicts: report.conflicts,
-          })}
-        </span>
-      {/if}
-    </div>
-    <div class="header-actions">
-      <Button
-        variant="secondary"
-        size="sm"
+  <ViewHeader
+    title={t("rules.title")}
+    titleId="rules-view-title"
+    summary={report
+      ? t("rules.summary", {
+          rules: ruleStatuses.length,
+          pending: report.pending,
+          conflicts: report.conflicts,
+        })
+      : undefined}
+    intro={t("rules.intro")}
+    primaryLabel={t("rules.new_button")}
+    onprimary={() => appState.openRuleEditor()}
+  >
+    {#snippet actions()}
+      <IconButton
+        label={layout === "grid" ? t("rules.layout_list") : t("rules.layout_grid")}
+        onclick={toggleLayout}
+      >
+        {#if layout === "grid"}<List size={16} />{:else}<LayoutGrid size={16} />{/if}
+      </IconButton>
+      <IconButton
+        label={t("rules.sync_button")}
         disabled={syncing || ruleStatuses.length === 0}
-        loading={syncing}
         onclick={handleSync}
       >
-        <RefreshCw size={14} />
-        <span>{t("rules.sync_button")}</span>
-      </Button>
-      <Button variant="primary" size="sm" onclick={() => appState.openRuleEditor()}>
-        <Plus size={16} />
-        <span>{t("rules.new_button")}</span>
-      </Button>
-    </div>
-  </div>
-
-  <p class="view-intro">{t("rules.intro")}</p>
+        <RefreshCw size={16} class={syncing ? "spin" : ""} />
+      </IconButton>
+    {/snippet}
+  </ViewHeader>
 
   {#if unmapped.length > 0}
     <Banner
@@ -284,7 +306,7 @@
       onaction={() => appState.openRuleEditor()}
     />
   {:else}
-    <div class="rules-grid">
+    <div class="rules-grid" class:list={layout === "list"}>
       {#each ruleStatuses as status (status.rule.id)}
         <RuleCard
           {status}
@@ -343,48 +365,6 @@
     gap: var(--space-4);
   }
 
-  .view-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .title-group {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .section-title {
-    margin: 0;
-    font-size: var(--text-md);
-    font-weight: var(--weight-semibold);
-    color: var(--ink);
-    letter-spacing: -0.01em;
-  }
-
-  .section-summary {
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .view-intro {
-    margin: 0;
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    max-width: 72ch;
-  }
-
   .loading-row {
     display: flex;
     align-items: center;
@@ -396,9 +376,13 @@
 
   .rules-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
-    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    gap: var(--space-3);
     align-items: start;
+  }
+
+  .rules-grid.list {
+    grid-template-columns: 1fr;
   }
 
   .confirm-body {

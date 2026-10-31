@@ -39,7 +39,7 @@
     },
     "scope": {
       "repo": "Compartida (repositorio)",
-      "local": "Solo este PC",
+      "local": "Local",
       "repo_hint": "Compartida con todos tus equipos.",
       "local_hint": "Solo en este equipo."
     },
@@ -229,6 +229,8 @@
       "view_grid": "Vista de cuadrícula",
       "view_list": "Vista de lista",
       "remove_item": "Quitar {name}"
-    }
+    },
+    "layout_grid": "Vista de cuadrícula",
+    "layout_list": "Vista de lista"
   }
 }

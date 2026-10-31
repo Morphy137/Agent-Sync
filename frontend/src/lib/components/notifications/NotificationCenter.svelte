@@ -20,6 +20,7 @@
   import { t } from "../../i18n";
   import Button from "../Button.svelte";
   import IconButton from "../IconButton.svelte";
+  import { portal } from "../../actions/portal";
 
   interface Props {
     items: AppNotification[];
@@ -119,7 +120,7 @@
 </div>
 
 {#if popup && !panelOpen}
-  <div class="popup" role="status">
+  <div class="popup" role="status" use:portal>
     {@render notificationBody(popup, true)}
   </div>
 {/if}

@@ -1,12 +1,21 @@
 <script lang="ts">
-  import { Copy, ExternalLink, MoreHorizontal, Pencil, Trash2 } from "@lucide/svelte";
+  import {
+    Copy,
+    ExternalLink,
+    GitBranch,
+    HardDrive,
+    MoreHorizontal,
+    Pencil,
+    Rss,
+    Trash2,
+  } from "@lucide/svelte";
   import type { rulesync } from "../../../../wailsjs/go/models";
   import { t } from "../../i18n";
   import IconButton from "../IconButton.svelte";
   import Switch from "../Switch.svelte";
   import Badge from "./Badge.svelte";
   import DestinationStatusRow from "./DestinationStatusRow.svelte";
-  import { AUTO_KIND, destinationLabel } from "./ruleUi";
+  import { AUTO_KIND, baseName, destinationLabel } from "./ruleUi";
 
   interface Props {
     status: rulesync.RuleStatus;
@@ -39,6 +48,23 @@
       .filter((entry) => entry.root)
   );
 
+  const ORIGIN_ICONS = { repo: GitBranch, local: HardDrive, subscription: Rss } as const;
+  const OriginIcon = $derived(
+    ORIGIN_ICONS[rule.source.origin as keyof typeof ORIGIN_ICONS] ?? GitBranch
+  );
+  const sourceName = $derived(
+    rule.source.include?.length
+      ? t("rules.editor.selection_name", { count: rule.source.include.length })
+      : baseName(rule.source.path) || rule.source.path
+  );
+  const sourceTitle = $derived(
+    [
+      t(`rules.origin.${rule.source.origin}`),
+      sourcePath || rule.source.path,
+      ...(rule.source.include ?? []),
+    ].join("\n")
+  );
+
   function closeMenu() {
     menuOpen = false;
   }
@@ -59,7 +85,7 @@
 <article class="rule-card" class:rule-disabled={!rule.enabled} aria-label={rule.name}>
   <header class="card-head">
     <div class="title-col">
-      <h3 class="rule-name">{rule.name}</h3>
+      <h3 class="rule-name" title={rule.name}>{rule.name}</h3>
       <div class="badges">
         <Badge tone={scope === "repo" ? "success" : "neutral"}>
           {t(`rules.scope.${scope}`)}
@@ -81,7 +107,7 @@
       <div class="toggle">
         <Switch
           checked={rule.enabled}
-          label={t("rules.card.enabled")}
+          ariaLabel={t("rules.card.enabled")}
           onchange={(next) => ontoggle(next)}
         />
       </div>
@@ -140,24 +166,20 @@
     </div>
   </header>
 
-  <div class="source-row">
-    <span class="row-label">{t("rules.card.source_label")}</span>
-    <Badge>{t(`rules.origin.${rule.source.origin}`)}</Badge>
+  <div class="source-row" title={sourceTitle}>
+    <span class="origin-icon" aria-label={t(`rules.origin.${rule.source.origin}`)} role="img">
+      <OriginIcon size={14} />
+    </span>
+    <span class="source-name">{sourceName}</span>
     {#if rule.source.origin === "subscription" && rule.source.subscription}
       <Badge mono>{rule.source.subscription}</Badge>
     {/if}
-    <span class="source-path" title={sourcePath || rule.source.path}>{rule.source.path}</span>
-    {#if rule.source.include?.length}
-      <Badge tone="info" title={rule.source.include.join("\n")}>
-        {t("rules.editor.selection_name", { count: rule.source.include.length })}
-      </Badge>
-    {/if}
   </div>
 
-  <div class="dest-section">
-    <span class="row-label">
-      {t("rules.card.destinations_label", { count: rule.destinations.length })}
-    </span>
+  <div
+    class="dest-section"
+    aria-label={t("rules.card.destinations_label", { count: rule.destinations.length })}
+  >
     {#each rule.destinations as destination (destination.id)}
       <DestinationStatusRow
         {rule}
@@ -175,10 +197,11 @@
     background-color: var(--surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--elev-1);
-    padding: var(--space-5);
+    padding: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    min-width: 0;
     transition: box-shadow var(--duration-fast) var(--easing-out);
   }
 
@@ -194,14 +217,14 @@
 
   .card-head {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
   }
 
   .title-col {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: var(--space-2);
     min-width: 0;
   }
@@ -212,13 +235,16 @@
     font-weight: var(--weight-semibold);
     color: var(--ink);
     letter-spacing: -0.01em;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .badges {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
+    flex-shrink: 0;
   }
 
   .head-actions {
@@ -231,25 +257,24 @@
   .source-row {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
     gap: var(--space-2);
     min-width: 0;
+    color: var(--text-muted);
   }
 
-  .row-label {
-    font-size: 11px;
-    color: var(--text-subtle);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: var(--weight-medium);
+  .origin-icon {
+    display: inline-flex;
+    flex-shrink: 0;
   }
 
-  .source-path {
+  .source-name {
+    min-width: 0;
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--ink);
-    overflow-wrap: anywhere;
-    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .dest-section {
