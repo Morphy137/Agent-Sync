@@ -5,3 +5,4 @@ frontend/dist/
 sandbox/
 *.agentsync.tmp
 .env*
+build/windows/installer/tmp/
