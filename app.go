@@ -68,6 +68,8 @@ func (a *App) startup(ctx context.Context) {
 			DefaultDirectory: defaultDir,
 		})
 	})
+	// Reflect changes made by agentsync-cli or its MCP server while the window is open.
+	go a.svc.WatchExternalChanges(ctx, service.DefaultExternalWatchInterval)
 	cfg, err := a.svc.GetConfig()
 	if err == nil && cfg != nil {
 		a.scheduler.Start(cfg.CheckIntervalMinutes)
