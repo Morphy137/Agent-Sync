@@ -19,7 +19,6 @@ const (
 	DefaultCheckIntervalMinutes = 5
 	DefaultLanguage             = "system"
 	DefaultTheme                = "system"
-	DefaultPalette              = "graphite"
 	DefaultConfirmBeforeSync    = true
 )
 
@@ -59,7 +58,6 @@ type Config struct {
 	CheckIntervalMinutes int    `json:"checkIntervalMinutes"`
 	Language             string `json:"language"`
 	Theme                string `json:"theme"`
-	Palette              string `json:"palette"`
 	// TutorialCompleted records that the first-run tutorial was finished or skipped.
 	TutorialCompleted bool           `json:"tutorialCompleted"`
 	ConfirmBeforeSync bool           `json:"confirmBeforeSync"`
@@ -93,7 +91,6 @@ func DefaultConfig() *Config {
 		CheckIntervalMinutes: DefaultCheckIntervalMinutes,
 		Language:             DefaultLanguage,
 		Theme:                DefaultTheme,
-		Palette:              DefaultPalette,
 		ConfirmBeforeSync:    DefaultConfirmBeforeSync,
 		Connections:          make([]Connection, 0),
 		Locations:            make([]Location, 0),
@@ -132,9 +129,6 @@ func Load() (*Config, error) {
 	}
 	if cfg.Theme == "" {
 		cfg.Theme = DefaultTheme
-	}
-	if cfg.Palette == "" {
-		cfg.Palette = DefaultPalette
 	}
 	if cfg.BackupPath == "" {
 		cfg.BackupPath = filepath.Join(configDir, "backups")

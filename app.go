@@ -68,6 +68,12 @@ func (a *App) startup(ctx context.Context) {
 			DefaultDirectory: defaultDir,
 		})
 	})
+	a.svc.SetFilesDialogFunc(func(title, defaultDir string) ([]string, error) {
+		return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+			Title:            title,
+			DefaultDirectory: defaultDir,
+		})
+	})
 	// Reflect changes made by agentsync-cli or its MCP server while the window is open.
 	go a.svc.WatchExternalChanges(ctx, service.DefaultExternalWatchInterval)
 	cfg, err := a.svc.GetConfig()
@@ -202,6 +208,11 @@ func (a *App) RestoreBackup(connectionID string, backupID string) error {
 // SelectFile opens a native file selection dialog.
 func (a *App) SelectFile(title string, defaultDir string) (string, error) {
 	return a.svc.SelectFile(title, defaultDir)
+}
+
+// SelectFiles opens a native dialog to pick several files at once.
+func (a *App) SelectFiles(title string, defaultDir string) ([]string, error) {
+	return a.svc.SelectFiles(title, defaultDir)
 }
 
 // ---- Sync rules ----

@@ -30,13 +30,13 @@ func SourcePath(env Env, r Rule) (string, error) {
 		if env.RepoRoot == "" {
 			return "", apperr.New(apperr.RootNotFound)
 		}
-		return joinInside(env.RepoRoot, r.Source.Path)
+		return joinSourceInside(env.RepoRoot, r.Source)
 	case OriginSubscription:
 		root, ok := env.SubscriptionRoots[r.Source.Subscription]
 		if !ok || root == "" {
 			return "", apperr.New(apperr.SubscriptionNotFound).WithParam("id", r.Source.Subscription)
 		}
-		return joinInside(root, r.Source.Path)
+		return joinSourceInside(root, r.Source)
 	case OriginLocal:
 		if !filepath.IsAbs(r.Source.Path) {
 			return "", invalid(ReasonInvalidSourcePath).WithParam("path", r.Source.Path)
@@ -44,6 +44,14 @@ func SourcePath(env Env, r Rule) (string, error) {
 		return filepath.Clean(r.Source.Path), nil
 	}
 	return "", invalid(ReasonInvalidOrigin).WithParam("origin", r.Source.Origin)
+}
+
+// joinSourceInside resolves a repository or subscription source; selections may use the root.
+func joinSourceInside(root string, src Source) (string, error) {
+	if src.HasSelection() && isRootPath(src.Path) {
+		return filepath.Clean(root), nil
+	}
+	return joinInside(root, src.Path)
 }
 
 // joinInside joins a relative path to root and refuses results escaping root.
@@ -97,7 +105,7 @@ func Resolve(env Env, r Rule, d Destination) (ResolvedDestination, error) {
 			return res, apperr.Wrap(apperr.SourceNotFound, statErr).WithParam("path", srcAbs)
 		}
 		res.SourceMissing = true
-		res.SourceIsDir = isFolderKind(r.Kind)
+		res.SourceIsDir = isFolderKind(r.Kind) || r.Source.HasSelection()
 		res.TargetRoot = destBase
 		if !res.SourceIsDir {
 			res.TargetRoot = filepath.Dir(destBase)
@@ -107,6 +115,9 @@ func Resolve(env Env, r Rule, d Destination) (ResolvedDestination, error) {
 
 	ignored := normalizedIgnoreSet(d.Ignore)
 	if !info.IsDir() {
+		if r.Source.HasSelection() {
+			return res, invalid(ReasonSelectionNeedsFolder).WithParam("path", srcAbs)
+		}
 		return resolveFile(res, d, srcAbs, destRel, destBase, ignored)
 	}
 	return resolveFolder(res, r, d, srcAbs, destBase, ignored)
@@ -136,7 +147,11 @@ func resolveFolder(res ResolvedDestination, r Rule, d Destination, srcAbs, destB
 	if err != nil {
 		return res, err
 	}
+	selected := selectionSet(r.Source.Include)
 	for rel, abs := range managed {
+		if selected != nil && !selected[rel] {
+			continue
+		}
 		if IsExcluded(rel, r.Exclude) || isIgnored(rel, ignored) {
 			continue
 		}
@@ -174,6 +189,20 @@ func exclusionCandidates(rel string) []string {
 		candidates = append(candidates, strings.Join(segments[:i], "/"), segments[i-1])
 	}
 	return candidates
+}
+
+// selectionSet returns the normalized Include entries, or nil when the whole folder is synced.
+func selectionSet(include []string) map[string]bool {
+	if len(include) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(include))
+	for _, entry := range include {
+		if normalized, err := NormalizeRelPath(entry); err == nil {
+			set[normalized] = true
+		}
+	}
+	return set
 }
 
 func normalizedIgnoreSet(entries []string) map[string]bool {

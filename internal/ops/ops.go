@@ -185,6 +185,7 @@ type RuleInput struct {
 	Origin       string             `json:"origin,omitempty" jsonschema:"where the source lives: repo (default; path relative to the repository root), local (absolute path on this PC) or subscription"`
 	Subscription string             `json:"subscription,omitempty" jsonschema:"subscription id when origin is subscription"`
 	SourcePath   string             `json:"sourcePath" jsonschema:"source file or folder (relative to the repository or subscription root, absolute for origin local)"`
+	Include      []string           `json:"include,omitempty" jsonschema:"sync only these files of the sourcePath folder (paths relative to it); use '.' as sourcePath for files at the repository root"`
 	Kind         string             `json:"kind,omitempty" jsonschema:"auto (default), file, folder, skill, mcp or instructions"`
 	Exclude      []string           `json:"exclude,omitempty" jsonschema:"glob patterns excluded from a folder source"`
 	Disabled     bool               `json:"disabled,omitempty" jsonschema:"create the rule switched off"`
@@ -196,7 +197,12 @@ func (in RuleInput) source() rules.Source {
 	if origin == "" {
 		origin = rules.OriginRepo
 	}
-	return rules.Source{Origin: origin, Subscription: in.Subscription, Path: strings.TrimSpace(in.SourcePath)}
+	return rules.Source{
+		Origin:       origin,
+		Subscription: in.Subscription,
+		Path:         strings.TrimSpace(in.SourcePath),
+		Include:      in.Include,
+	}
 }
 
 func (in RuleInput) scope() string {

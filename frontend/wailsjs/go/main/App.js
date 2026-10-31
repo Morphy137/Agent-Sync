@@ -222,6 +222,10 @@ export function SelectFile(arg1, arg2) {
   return window['go']['main']['App']['SelectFile'](arg1, arg2);
 }
 
+export function SelectFiles(arg1, arg2) {
+  return window['go']['main']['App']['SelectFiles'](arg1, arg2);
+}
+
 export function SelectFolder(arg1, arg2) {
   return window['go']['main']['App']['SelectFolder'](arg1, arg2);
 }

@@ -121,6 +121,8 @@ export function SaveRule(arg1:rules.Rule,arg2:string):Promise<service.SaveRuleRe
 
 export function SelectFile(arg1:string,arg2:string):Promise<string>;
 
+export function SelectFiles(arg1:string,arg2:string):Promise<Array<string>>;
+
 export function SelectFolder(arg1:string,arg2:string):Promise<string>;
 
 export function SelectRootFolder(arg1:string):Promise<string>;

@@ -25,7 +25,6 @@ import (
 type SettingsPayload struct {
 	Language             string `json:"language"`
 	Theme                string `json:"theme"`
-	Palette              string `json:"palette"`
 	BackupPath           string `json:"backupPath"`
 	BackupRetention      int    `json:"backupRetention"`
 	CheckIntervalMinutes int    `json:"checkIntervalMinutes"`
@@ -140,6 +139,7 @@ type Service struct {
 	emitFunc     func(eventName string, data any)
 	dialogFunc   func(title, defaultDir string) (string, error)
 	fileDialog   func(title, defaultDir string) (string, error)
+	filesDialog  func(title, defaultDir string) ([]string, error)
 	subUpdates   map[string]subscriptions.UpdateInfo
 }
 
@@ -280,9 +280,6 @@ func (s *Service) UpdateSettings(payload SettingsPayload) (*config.Config, bool,
 	}
 	if payload.Theme != "" {
 		s.cfg.Theme = payload.Theme
-	}
-	if payload.Palette != "" {
-		s.cfg.Palette = payload.Palette
 	}
 	if payload.BackupPath != "" {
 		s.cfg.BackupPath = payload.BackupPath
@@ -1039,6 +1036,29 @@ func (s *Service) SelectFile(title, defaultDir string) (string, error) {
 		return fn(title, resolveDialogStartDir(defaultDir))
 	}
 	return "", nil
+}
+
+// SetFilesDialogFunc configures the multiple-file selection dialog handler.
+func (s *Service) SetFilesDialogFunc(fn func(title, defaultDir string) ([]string, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.filesDialog = fn
+}
+
+// SelectFiles opens a native dialog that lets the user pick several files at once.
+func (s *Service) SelectFiles(title, defaultDir string) ([]string, error) {
+	s.mu.Lock()
+	fn := s.filesDialog
+	s.mu.Unlock()
+
+	if fn == nil {
+		return []string{}, nil
+	}
+	picked, err := fn(title, resolveDialogStartDir(defaultDir))
+	if picked == nil {
+		picked = []string{}
+	}
+	return picked, err
 }
 
 // resolveDialogStartDir returns the nearest existing directory for the given path, or "" when none applies.

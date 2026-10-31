@@ -48,6 +48,8 @@ const (
 	ReasonInvalidIgnore        = "invalid_ignore"
 	ReasonFileDestNeedsPath    = "file_destination_requires_path"
 	ReasonInvalidRelPath       = "invalid_rel_path"
+	ReasonInvalidInclude       = "invalid_include"
+	ReasonSelectionNeedsFolder = "selection_requires_folder_source"
 )
 
 // LoadRepoRules reads <repoRoot>/agentsync.rules.json. Missing file => empty File, nil error.
