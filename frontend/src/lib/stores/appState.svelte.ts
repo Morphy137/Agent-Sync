@@ -7,7 +7,7 @@ import { updateState } from "./updates.svelte";
 import { setLocale } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 
-export type AppView = "rules" | "connections" | "subscriptions" | "locations";
+export type AppView = "rules" | "files" | "connections" | "subscriptions" | "locations";
 
 export interface RuleEditorState {
   open: boolean;
@@ -20,6 +20,8 @@ export interface RuleEditorState {
 
 class AppState {
   activeView = $state<AppView>("rules");
+  fileRuleId = $state("");
+  fileDirty = $state(false);
   ruleEditor = $state<RuleEditorState>({
     open: false,
     rule: null,

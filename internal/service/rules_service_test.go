@@ -309,8 +309,16 @@ func TestSubscriptionFeedsRuleAndUpdates(t *testing.T) {
 		Source:       rules.Source{Origin: rules.OriginSubscription, Subscription: sub.ID, Path: "skills/my-skill"},
 		Destinations: []rules.Destination{{Location: "claude", Path: "skills/my-skill", Enabled: true}},
 	}
-	if _, err := f.svc.SaveRule(rule, rules.ScopeLocal); err != nil {
+	savedSubscriptionRule, err := f.svc.SaveRule(rule, rules.ScopeLocal)
+	if err != nil {
 		t.Fatalf("SaveRule: %v", err)
+	}
+	subFile, err := f.svc.ReadRuleSourceFile(savedSubscriptionRule.Rule.ID, "SKILL.md")
+	if err != nil || !subFile.ReadOnly {
+		t.Fatalf("subscription file: %+v, %v", subFile, err)
+	}
+	if _, err := f.svc.SaveRuleSourceFile(savedSubscriptionRule.Rule.ID, "SKILL.md", "modified", subFile.Hash); err == nil {
+		t.Fatal("subscription source must be read-only")
 	}
 	if _, err := f.svc.SyncRules(); err != nil {
 		t.Fatal(err)

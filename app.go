@@ -242,6 +242,16 @@ func (a *App) GetRuleDiff(ruleID, destID, relPath string) (*rulesync.Diff, error
 // ListRepoTree lists repository entries with detected kinds for picking rule sources.
 func (a *App) ListRepoTree() ([]service.SourceTreeEntry, error) { return a.svc.ListRepoTree() }
 
+func (a *App) ListRuleSourceFiles(ruleID string) ([]service.RuleSourceFile, error) {
+	return a.svc.ListRuleSourceFiles(ruleID)
+}
+func (a *App) ReadRuleSourceFile(ruleID, path string) (*service.RuleSourceContent, error) {
+	return a.svc.ReadRuleSourceFile(ruleID, path)
+}
+func (a *App) SaveRuleSourceFile(ruleID, path, content, expectedHash string) (string, error) {
+	return a.svc.SaveRuleSourceFile(ruleID, path, content, expectedHash)
+}
+
 // SetTutorialCompleted stores whether the first-run tutorial should stay hidden.
 func (a *App) SetTutorialCompleted(done bool) (*config.Config, error) {
 	return a.svc.SetTutorialCompleted(done)

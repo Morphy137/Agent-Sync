@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GitFork, FolderSync, Rss, MapPin } from "@lucide/svelte";
+  import { GitFork, Files, Rss, MapPin } from "@lucide/svelte";
   import { t } from "../i18n";
   import type { AppView } from "../stores/appState.svelte";
 
@@ -10,12 +10,12 @@
 
   let { value, onchange }: Props = $props();
 
-  const tabs: { id: AppView; labelKey: string; icon: typeof GitFork }[] = [
+  const tabs: { id: AppView; labelKey: string; icon: typeof GitFork }[] = $derived([
     { id: "rules", labelKey: "navigation.rules", icon: GitFork },
-    { id: "connections", labelKey: "navigation.connections", icon: FolderSync },
+    { id: "files", labelKey: "navigation.files", icon: Files },
     { id: "subscriptions", labelKey: "navigation.subscriptions", icon: Rss },
     { id: "locations", labelKey: "navigation.locations", icon: MapPin },
-  ];
+  ]);
 
   let track = $state<HTMLDivElement | undefined>();
   const buttons: HTMLButtonElement[] = $state([]);

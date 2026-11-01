@@ -313,6 +313,10 @@
         <RuleCard
           {status}
           sourcePath={sourceAbsPath(status, rootPath)}
+          onsource={() => {
+            appState.fileRuleId = status.rule.id;
+            appState.activeView = "files";
+          }}
           ontoggle={(enabled) => handleToggle(status, enabled)}
           onedit={() => handleEdit(status)}
           onduplicate={() => handleDuplicate(status)}
