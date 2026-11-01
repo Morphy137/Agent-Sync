@@ -8,12 +8,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const requireFromFrontend = createRequire(resolve(root, "frontend/package.json"));
 const { Resvg } = requireFromFrontend("@resvg/resvg-js");
 const source = readFileSync(resolve(root, "frontend/src/assets/app-icon.png"));
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><image width="1024" height="1024" href="data:image/png;base64,${source.toString("base64")}"/></svg>`;
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><clipPath id="corners"><rect width="1024" height="1024" rx="192"/></clipPath><image width="1024" height="1024" clip-path="url(#corners)" href="data:image/png;base64,${source.toString("base64")}"/></svg>`;
 
 function render(size) {
   const image = new Resvg(svg, { fitTo: { mode: "width", value: size } }).render();
   assert.equal(image.width, size);
   assert.equal(image.height, size);
+  for (const pixel of [0, size - 1, size * (size - 1), size * size - 1]) {
+    assert.ok(image.pixels[pixel * 4 + 3] <= 32);
+  }
+  assert.equal(image.pixels[(Math.floor(size / 2) * size + Math.floor(size / 2)) * 4 + 3], 255);
   return image.asPng();
 }
 
@@ -42,6 +46,8 @@ sizes.forEach((size, index) => {
   assert.equal(ico.readUInt32BE(start + 20), size);
   assert.ok(start + ico.readUInt32LE(entry + 8) <= ico.length);
 });
-writeFileSync(resolve(root, "build/appicon.png"), render(1024));
+const appIcon = render(1024);
+writeFileSync(resolve(root, "frontend/src/assets/app-icon-rounded.png"), appIcon);
+writeFileSync(resolve(root, "build/appicon.png"), appIcon);
 writeFileSync(resolve(root, "build/windows/icon.ico"), ico);
-console.log("Generated build/appicon.png and build/windows/icon.ico");
+console.log("Generated frontend and build icons");

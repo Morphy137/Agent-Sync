@@ -1,7 +1,7 @@
 <script lang="ts">
   import { describeError } from "../i18n/errors";
   import { Folder, FolderPlus, GitFork, AlertCircle } from "@lucide/svelte";
-  import appIcon from "../../assets/app-icon.png";
+  import appIcon from "../../assets/app-icon-rounded.png";
   import type { service } from "../../../wailsjs/go/models";
   import {
     SetRootPath,
@@ -412,9 +412,6 @@
   .header-icon {
     width: 56px;
     height: 56px;
-    border-radius: var(--radius-lg);
-    background-color: var(--surface-sunken);
-    box-shadow: var(--sunken);
     color: var(--accent);
     display: flex;
     align-items: center;

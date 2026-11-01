@@ -26,7 +26,7 @@
   import Button from "./Button.svelte";
   import IconButton from "./IconButton.svelte";
   import Tooltip from "./Tooltip.svelte";
-  import appIcon from "../../assets/app-icon.png";
+  import appIcon from "../../assets/app-icon-rounded.png";
 
   interface Props {
     onsync: () => void;
