@@ -5,17 +5,39 @@
   import IconButton from "../IconButton.svelte";
   import Badge from "./Badge.svelte";
   import StatusDot from "./StatusDot.svelte";
-  import { IN_SYNC, destStateTone, fileDotTone, needsReview } from "./ruleUi";
+  import { IN_SYNC, destStateTone, destinationSummary, fileDotTone, needsReview } from "./ruleUi";
 
   interface Props {
     rule: rules.Rule;
     destination: rules.Destination;
     status?: rulesync.DestinationStatus;
+    compact?: boolean;
+    plain?: boolean;
+    hideMode?: boolean;
+    sourceName?: string;
+    sourceTitle?: string;
+    sourceSubscription?: string;
+    sourceSubscriptionId?: string;
+    onsource?: () => void;
     onreview: (file: rulesync.FileStatus) => void;
     onopen: (path: string) => void;
   }
 
-  let { rule, destination, status, onreview, onopen }: Props = $props();
+  let {
+    rule,
+    destination,
+    status,
+    compact = false,
+    plain = false,
+    hideMode = false,
+    sourceName = "",
+    sourceTitle = "",
+    sourceSubscription,
+    sourceSubscriptionId,
+    onsource,
+    onreview,
+    onopen,
+  }: Props = $props();
 
   let showAll = $state(false);
 
@@ -28,23 +50,57 @@
   const singleFile = $derived(
     files.length === 1 && files[0].relPath === destination.path.split("/").pop() ? files[0] : null
   );
+  const summary = $derived(destinationSummary(rule, destination, status));
 </script>
 
-<div class="dest" class:dest-muted={destState === "disabled"}>
+<div class="dest" class:compact class:plain class:dest-muted={destState === "disabled"}>
   <div class="dest-head">
     <div class="dest-target">
-      <Badge tone="accent" mono>{destination.location}</Badge>
-      <ArrowRight size={12} aria-hidden="true" />
+      {#if compact}
+        <span
+          class="compact-state"
+          role="img"
+          aria-label={t(summary.labelKey)}
+          title={t(summary.labelKey)}
+        >
+          <StatusDot tone={summary.tone} />
+        </span>
+        <button type="button" class="source-name" title={sourceTitle} onclick={onsource}
+          >{sourceName}</button
+        >
+        {#if sourceSubscription}<span class="compact-label"
+            ><Badge title={sourceSubscriptionId}>{sourceSubscription}</Badge></span
+          >{/if}
+        <ArrowRight size={12} aria-hidden="true" />
+      {/if}
+      <span class:compact-label={compact} title={destination.location}
+        ><Badge tone="accent" mono>{destination.location}</Badge></span
+      >
+      {#if !compact}<ArrowRight size={12} aria-hidden="true" />{/if}
       <span class="dest-path" title={destination.path}>{destination.path}</span>
     </div>
     <div class="dest-meta">
-      <Badge>{t(`rules.mode.${destination.mode}`)}</Badge>
+      {#if !hideMode}<Badge>{t(`rules.mode.${destination.mode}`)}</Badge>{/if}
       {#if destination.transform}
-        <Badge tone="info">
+        <Badge
+          tone="info"
+          title={`${t(`rules.transform.${destination.transform.type}`)} · ${destination.transform.key}`}
+        >
           {t(`rules.transform.${destination.transform.type}`)} · {destination.transform.key}
         </Badge>
       {/if}
-      {#if singleFile && destState === "ready"}
+      {#if compact}
+        {#if singleFile && destState === "ready" && needsReview(singleFile.status, rule, destination)}
+          <button
+            type="button"
+            class="review-btn"
+            aria-label={t("rules.review.button_aria", { file: singleFile.relPath })}
+            onclick={() => onreview(singleFile)}
+          >
+            {t("rules.review.button")}
+          </button>
+        {/if}
+      {:else if singleFile && destState === "ready"}
         <span class="dest-state">
           <StatusDot tone={fileDotTone(singleFile.status)} />
           <span>{t(`rules.file_status.${singleFile.status}`)}</span>
@@ -135,8 +191,83 @@
     opacity: 0.65;
   }
 
+  .dest.compact {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .dest.plain {
+    padding: var(--space-1) 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .dest.plain:last-child {
+    border-bottom: 0;
+  }
+
+  .compact .dest-head {
+    flex-wrap: nowrap;
+  }
+
+  .compact .dest-target {
+    flex: 1 1 0;
+  }
+
+  .compact .dest-meta {
+    justify-content: flex-end;
+    min-width: 0;
+    max-width: 50%;
+  }
+
+  .compact-label {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 25%;
+    overflow: hidden;
+  }
+
+  .compact-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .source-name {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    flex: 0 0 auto;
+    max-width: 35%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .source-name:hover {
+    text-decoration: underline;
+  }
+  .source-name:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+
+  .dest-target :global(svg) {
+    flex-shrink: 0;
+  }
+
   .dest-head {
     display: flex;
+    min-height: var(--space-8);
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -160,6 +291,10 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+  }
+
+  .compact .dest-path {
+    flex: 0 1 auto;
   }
 
   .dest-meta {

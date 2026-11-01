@@ -103,7 +103,7 @@
       {#if localChanges.length > 0}
         <section class="changes" aria-labelledby="connect-local-changes-title">
           <h3 id="connect-local-changes-title" class="changes-title">
-            {t("remote.connect.local_changes_title", { count: localChanges.length })}
+            {t(`remote.connect.local_changes_title_${localChanges.length === 1 ? "one" : "other"}`, { count: localChanges.length })}
           </h3>
           <p class="muted">{t("remote.connect.local_changes_hint")}</p>
           <ul class="change-list">

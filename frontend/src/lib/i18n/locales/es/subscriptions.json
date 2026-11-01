@@ -1,7 +1,7 @@
 {
   "subscriptions": {
     "title": "Suscripciones",
-    "intro": "Sigue repositorios compartidos y quédate con lo que necesites.",
+    "intro": "Suscríbete a repositorios compartidos y elige qué contenido usar.",
     "summary": "{count} suscripción(es)",
     "summary_updates": "{count} suscripción(es) · {updates} con actualizaciones",
     "summary_one": "{count} suscripción",
@@ -13,7 +13,7 @@
     "check_all": "Comprobar todas",
     "empty": {
       "title": "Usa configuraciones compartidas por otros",
-      "description": "Pega la URL de un repositorio y elige qué traer.",
+      "description": "Añade la URL de un repositorio y elige qué contenido usar.",
       "step_share_title": "1. Consigue el enlace",
       "step_share_desc": "Alguien comparte la URL de su repositorio.",
       "step_pick_title": "2. Elige lo que quieras",
@@ -27,7 +27,7 @@
       "url_label": "URL del repositorio",
       "name_label": "Nombre (opcional)",
       "name_placeholder": "p. ej. Skills del equipo",
-      "name_hint": "Por defecto, el nombre del repositorio.",
+      "name_hint": "Si lo dejas vacío, se usa el nombre del repositorio.",
       "submit": "Añadir",
       "submitting": "Añadiendo...",
       "cloning": "Descargando el repositorio..."
@@ -50,7 +50,7 @@
       "update_now": "Actualizar ahora",
       "browse": "Explorar y elegir",
       "auto_update": "Actualización automática",
-      "auto_update_hint": "Aplica actualizaciones solas. Tus cambios se conservan.",
+      "auto_update_hint": "Aplica las actualizaciones automáticamente. Los cambios locales se conservan.",
       "remove_for": "Quitar {name}"
     },
     "incoming": {
@@ -71,7 +71,7 @@
       "confirm": "Quitar suscripción"
     },
     "tree": {
-      "title": "Elegir de {name}",
+      "title": "Elegir contenido de {name}",
       "aria_label": "Contenido del repositorio",
       "loading": "Cargando archivos...",
       "empty": "Este repositorio no tiene archivos.",
@@ -79,12 +79,14 @@
       "filter_placeholder": "Filtrar por nombre...",
       "no_matches": "No hay archivos que coincidan.",
       "count": "{count} elementos",
+      "count_one": "{count} elemento",
+      "count_other": "{count} elementos",
       "expand": "Expandir {name}",
       "collapse": "Contraer {name}",
-      "select_prompt": "Selecciona un archivo o carpeta para sincronizarlo.",
+      "select_prompt": "Selecciona el archivo o la carpeta que quieres sincronizar.",
       "selected": "Seleccionado",
       "picked": "Regla creada",
-      "read_only_hint": "Solo lectura. Tus cambios se conservan y no se envían.",
+      "read_only_hint": "La suscripción es de solo lectura. Tus cambios locales no se envían al repositorio de origen.",
       "sync_file": "Sincronizar este archivo...",
       "sync_folder": "Sincronizar esta carpeta...",
       "sync_skill": "Sincronizar esta skill...",
@@ -104,9 +106,13 @@
       "up_to_date": "{name} está al día.",
       "already_current": "{name} ya estaba al día.",
       "updates_available": "{name} tiene {count} actualización(es).",
+      "updates_available_one": "{name} tiene {count} actualización disponible.",
+      "updates_available_other": "{name} tiene {count} actualizaciones disponibles.",
       "offline": "No se pudo conectar con {name}. Revisa tu conexión.",
-      "updated": "{name} actualizada: {files} archivo(s) cambiados, {written} escritos.",
+      "updated": "{name} actualizada: {files} cambiados · {written} escritos.",
       "skipped": "{skipped} archivo(s) necesitan revisión en Reglas de sincronización.",
+      "skipped_one": "{count} archivo necesita revisión en Reglas de sincronización.",
+      "skipped_other": "{count} archivos necesitan revisión en Reglas de sincronización.",
       "auto_on": "Actualización automática activada para {name}.",
       "auto_off": "Actualización automática desactivada para {name}."
     }

@@ -115,8 +115,21 @@ describe("RulesView.svelte", () => {
   it("renders rules with collision and unmapped location banners", async () => {
     const { findAllByText, getByText } = render(RulesView);
     expect((await findAllByText("Agent instructions")).length).toBeGreaterThan(0);
-    expect(getByText("1 collision(s) detected")).toBeDefined();
-    expect(getByText("1 location(s) not set on this PC")).toBeDefined();
+    expect(getByText("1 collision detected")).toBeDefined();
+    expect(getByText("1 location not configured on this computer")).toBeDefined();
+  });
+
+  it("switches between compact list and the existing grid", async () => {
+    localStorage.removeItem("agentsync_rules_layout");
+    const { findByRole, getByRole, queryByRole } = render(RulesView);
+    await findByRole("heading", { name: "Agent instructions" });
+    expect(getByRole("button", { name: "Show destinations for Agent instructions" })).toBeDefined();
+    await fireEvent.click(getByRole("button", { name: "List view" }));
+    expect(queryByRole("button", { name: "Show destinations for Agent instructions" })).toBeNull();
+    expect(localStorage.getItem("agentsync_rules_layout")).toBe("list");
+    await fireEvent.click(getByRole("button", { name: "Grid view" }));
+    expect(getByRole("button", { name: "Show destinations for Agent instructions" })).toBeDefined();
+    localStorage.removeItem("agentsync_rules_layout");
   });
 
   it("toggling a rule saves it with the new enabled flag", async () => {
@@ -141,6 +154,9 @@ describe("RulesView.svelte", () => {
     mockApi.resolveRuleFile.mockResolvedValue(undefined);
     const { findByRole, findByText } = render(RulesView);
 
+    await fireEvent.click(
+      await findByRole("button", { name: "Show destinations for Agent instructions" })
+    );
     await fireEvent.click(await findByRole("button", { name: "Review CLAUDE.md" }));
     expect(mockApi.getRuleDiff).toHaveBeenCalledWith("r_1", "d_1", "CLAUDE.md");
 

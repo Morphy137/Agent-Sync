@@ -30,7 +30,7 @@ describe("describeError", () => {
   it("translates coded backend errors instead of showing the raw code", () => {
     const message = describeError('[root_not_found] {"path":"C:\\missing"}');
     expect(message).not.toContain("root_not_found");
-    expect(message).toBe("The specified root folder was not found or is inaccessible.");
+    expect(message).toBe("The repository folder was not found or cannot be accessed.");
   });
 
   it("keeps plain messages", () => {
@@ -175,7 +175,7 @@ describe("GitignoreModal.svelte", () => {
       missingRecommended: [],
     });
     const { findByText, getByRole } = render(GitignoreModal, { open: true, onclose: vi.fn() });
-    expect(await findByText("2 recommended exclusion(s) missing.")).toBeDefined();
+    expect(await findByText("2 recommended exclusions are missing.")).toBeDefined();
     await fireEvent.click(getByRole("button", { name: "Add recommended" }));
     await waitFor(() => expect(mockApi.addRecommendedGitignore).toHaveBeenCalled());
     expect(await findByText("All recommended exclusions are present.")).toBeDefined();

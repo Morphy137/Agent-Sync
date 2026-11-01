@@ -123,7 +123,7 @@
       detectedKind = SELECTION_KIND;
       form.sourceIsDir = true;
       if (isNewSource && !form.name.trim()) {
-        form.name = t("rules.editor.selection_name", { count: source.include.length });
+        form.name = t(`rules.editor.selection_name_${source.include.length === 1 ? "one" : "other"}`, { count: source.include.length });
       }
       return;
     }

@@ -284,7 +284,7 @@
   {#if unmapped.length > 0}
     <Banner
       variant="warning"
-      title={t("rules.unmapped.title", { count: unmapped.length })}
+      title={t(`rules.unmapped.title_${unmapped.length === 1 ? "one" : "other"}`, { count: unmapped.length })}
       message={t("rules.unmapped.message", { aliases: unmapped.join(", ") })}
       actionLabel={t("rules.unmapped.action")}
       onaction={() => (appState.activeView = "locations")}
@@ -312,6 +312,7 @@
       {#each ruleStatuses as status (status.rule.id)}
         <RuleCard
           {status}
+          compact={layout === "list"}
           sourcePath={sourceAbsPath(status, rootPath)}
           onsource={() => {
             appState.fileRuleId = status.rule.id;
@@ -384,7 +385,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
     gap: var(--space-3);
-    align-items: start;
+    align-items: stretch;
   }
 
   .rules-grid.list {

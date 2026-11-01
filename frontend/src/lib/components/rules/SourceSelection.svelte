@@ -42,7 +42,7 @@
 <div class="selection">
   <div class="selection-head">
     <span class="selection-base" title={base}>{base}</span>
-    <span class="selection-count">{t("rules.source.selection_count", { count: items.length })}</span
+    <span class="selection-count">{t(`rules.source.selection_count_${items.length === 1 ? "one" : "other"}`, { count: items.length })}</span
     >
     <div class="view-toggle" role="group" aria-label={t("rules.source.view_label")}>
       <IconButton label={t("rules.source.view_grid")} onclick={() => setView("grid")}>

@@ -109,7 +109,7 @@ describe("SourcePicker.svelte", () => {
     });
 
     expect(getByText("a.txt")).toBeDefined();
-    expect(getByText("3 item(s)")).toBeDefined();
+    expect(getByText("3 items")).toBeDefined();
     await fireEvent.click(getByRole("button", { name: "Remove a.txt" }));
     expect(onchange.mock.calls[0][0]).toMatchObject({
       path: "C:\\notes",
