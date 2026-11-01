@@ -27,7 +27,9 @@ jobs:
         shell: pwsh
         run: |
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           choco install nsis --no-progress -y
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check tag matches wails.json
         shell: pwsh
@@ -38,8 +40,14 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
+          npm --prefix frontend ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm --prefix frontend run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./...
-          cd frontend; npm ci; npx vitest run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm --prefix frontend test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build release assets
         shell: pwsh
