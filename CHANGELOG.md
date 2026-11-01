@@ -4,6 +4,13 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+### Added
+- Browse and edit sync rule source files directly in the new Files tab.
+
+### Changed
+- Show subscription names in sync rules.
+- Removed the folder connections tab.
+
 ## [0.0.5] - 2026-10-31
 
 ### Changed

@@ -182,6 +182,10 @@ export function ListRepoTree() {
   return window['go']['main']['App']['ListRepoTree']();
 }
 
+export function ListRuleSourceFiles(arg1) {
+  return window['go']['main']['App']['ListRuleSourceFiles'](arg1);
+}
+
 export function ListSubscriptions() {
   return window['go']['main']['App']['ListSubscriptions']();
 }
@@ -200,6 +204,10 @@ export function OpenPath(arg1) {
 
 export function PlanSync() {
   return window['go']['main']['App']['PlanSync']();
+}
+
+export function ReadRuleSourceFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadRuleSourceFile'](arg1, arg2);
 }
 
 export function RemoveLocation(arg1) {
@@ -232,6 +240,10 @@ export function SaveLocation(arg1, arg2) {
 
 export function SaveRule(arg1, arg2) {
   return window['go']['main']['App']['SaveRule'](arg1, arg2);
+}
+
+export function SaveRuleSourceFile(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveRuleSourceFile'](arg1, arg2, arg3, arg4);
 }
 
 export function SelectFile(arg1, arg2) {

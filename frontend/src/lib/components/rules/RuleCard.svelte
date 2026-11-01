@@ -11,6 +11,7 @@
   } from "@lucide/svelte";
   import type { rulesync } from "../../../../wailsjs/go/models";
   import { t } from "../../i18n";
+  import { appState } from "../../stores/appState.svelte";
   import IconButton from "../IconButton.svelte";
   import Switch from "../Switch.svelte";
   import Badge from "./Badge.svelte";
@@ -21,6 +22,7 @@
     status: rulesync.RuleStatus;
     /** Absolute source path when it can be resolved on this PC ("" otherwise). */
     sourcePath: string;
+    onsource?: () => void;
     ontoggle: (enabled: boolean) => void;
     onedit: () => void;
     onduplicate: () => void;
@@ -29,13 +31,27 @@
     onreview: (destId: string, file: rulesync.FileStatus) => void;
   }
 
-  let { status, sourcePath, ontoggle, onedit, onduplicate, ondelete, onopen, onreview }: Props =
-    $props();
+  let {
+    status,
+    sourcePath,
+    onsource,
+    ontoggle,
+    onedit,
+    onduplicate,
+    ondelete,
+    onopen,
+    onreview,
+  }: Props = $props();
 
   let menuOpen = $state(false);
   let menuContainer = $state<HTMLDivElement | null>(null);
 
   const rule = $derived(status.rule);
+  const subscriptionName = $derived(
+    appState.config?.subscriptions?.find(
+      (subscription) => subscription.id === rule.source.subscription
+    )?.name || rule.source.subscription
+  );
   const scope = $derived(status.scope === "local" ? "local" : "repo");
   const kind = $derived(status.detectedKind || rule.kind);
   const forcedKind = $derived(Boolean(rule.kind && rule.kind !== AUTO_KIND));
@@ -172,9 +188,9 @@
     <span class="origin-icon" aria-label={t(`rules.origin.${rule.source.origin}`)} role="img">
       <OriginIcon size={14} />
     </span>
-    <span class="source-name">{sourceName}</span>
+    <button type="button" class="source-name source-link" onclick={onsource}>{sourceName}</button>
     {#if rule.source.origin === "subscription" && rule.source.subscription}
-      <Badge mono>{rule.source.subscription}</Badge>
+      <Badge title={rule.source.subscription}>{subscriptionName}</Badge>
     {/if}
   </div>
 
@@ -195,6 +211,19 @@
 </article>
 
 <style>
+  .source-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+  }
+  .source-link:hover {
+    text-decoration: underline;
+  }
+  .source-link:focus-visible {
+    outline: 2px solid var(--accent);
+  }
   .rule-card {
     background-color: var(--surface);
     border-radius: var(--radius-lg);

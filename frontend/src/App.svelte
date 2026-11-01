@@ -28,6 +28,7 @@
   import Modal from "./lib/components/Modal.svelte";
   import ViewTabs from "./lib/components/ViewTabs.svelte";
   import RulesView from "./lib/views/RulesView.svelte";
+  import FilesView from "./lib/views/FilesView.svelte";
   import SubscriptionsView from "./lib/views/SubscriptionsView.svelte";
   import LocationsView from "./lib/views/LocationsView.svelte";
   import RuleEditorModal from "./lib/components/rules/RuleEditorModal.svelte";
@@ -392,11 +393,20 @@
   <main class="content-area">
     <div class="content-inner">
       {#if appState.config?.rootPath}
-        <ViewTabs value={appState.activeView} onchange={(view) => (appState.activeView = view)} />
+        <ViewTabs
+          value={appState.activeView}
+          onchange={(view) => {
+            if (appState.fileDirty && !window.confirm(t("files.unsaved_confirm"))) return;
+            appState.fileDirty = false;
+            appState.activeView = view;
+          }}
+        />
 
         <div class="view-area">
           {#if appState.activeView === "rules"}
             <RulesView />
+          {:else if appState.activeView === "files"}
+            <FilesView />
           {:else if appState.activeView === "subscriptions"}
             <SubscriptionsView />
           {:else if appState.activeView === "locations"}

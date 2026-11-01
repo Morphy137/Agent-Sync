@@ -1,0 +1,22 @@
+{
+  "files": {
+    "title": "Archivos",
+    "intro": "Explora y edita los archivos de origen de tus reglas de sincronización.",
+    "sources": "Orígenes",
+    "list": "Archivos",
+    "no_rules": "Crea una regla de sincronización para ver sus archivos aquí.",
+    "no_files": "No hay archivos disponibles para este origen.",
+    "select_source": "Selecciona un origen para ver sus archivos.",
+    "select_file": "Selecciona un archivo para verlo o editarlo.",
+    "read_only": "Solo lectura",
+    "bold": "Negrita (Markdown)",
+    "italic": "Cursiva (Markdown)",
+    "heading": "Encabezado (Markdown)",
+    "open_explorer": "Mostrar en el explorador de archivos",
+    "save": "Guardar",
+    "saved": "Archivo guardado.",
+    "editor_label": "Editar {name}",
+    "unsaved_confirm": "¿Descartar los cambios sin guardar?",
+    "changed_externally": "Este archivo cambió fuera de AgentSync. Copia tus cambios y vuelve a abrirlo antes de guardar."
+  }
+}

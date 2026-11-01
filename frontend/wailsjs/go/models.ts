@@ -1127,6 +1127,40 @@ export namespace service {
 	        this.alreadyConnected = source["alreadyConnected"];
 	    }
 	}
+	export class RuleSourceContent {
+	    content: string;
+	    hash: string;
+	    readOnly: boolean;
+	    absolutePath: string;
+
+	    static createFrom(source: any = {}) {
+	        return new RuleSourceContent(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.content = source["content"];
+	        this.hash = source["hash"];
+	        this.readOnly = source["readOnly"];
+	        this.absolutePath = source["absolutePath"];
+	    }
+	}
+	export class RuleSourceFile {
+	    path: string;
+	    name: string;
+	    absolutePath: string;
+
+	    static createFrom(source: any = {}) {
+	        return new RuleSourceFile(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.absolutePath = source["absolutePath"];
+	    }
+	}
 	export class SaveRuleResult {
 	    rule: rules.Rule;
 	    collisions: rules.Collision[];

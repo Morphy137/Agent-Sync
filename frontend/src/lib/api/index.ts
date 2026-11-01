@@ -91,6 +91,10 @@ export const api = {
   openPath: (path: string): Promise<void> => AppBindings.OpenPath(path),
 
   // Sync rules
+  listRuleSourceFiles: (id: string) => AppBindings.ListRuleSourceFiles(id),
+  readRuleSourceFile: (id: string, path: string) => AppBindings.ReadRuleSourceFile(id, path),
+  saveRuleSourceFile: (id: string, path: string, content: string, hash: string) =>
+    AppBindings.SaveRuleSourceFile(id, path, content, hash),
   getRulesReport: (): Promise<rulesync.Report> => AppBindings.GetRulesReport(),
   saveRule: (rule: rules.Rule, scope: RuleScope): Promise<service.SaveRuleResult> =>
     AppBindings.SaveRule(rule, scope),
