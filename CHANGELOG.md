@@ -4,6 +4,11 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-10-31
+
+### Changed
+- Rounded the app icon across the application and installer.
+
 ## [0.0.4] - 2026-10-31
 
 ### Changed
