@@ -77,7 +77,7 @@
     } else if (info.behind > 0) {
       appState.addToast(
         "info",
-        t("subscriptions.toasts.updates_available", { name: item.name, count: info.behind })
+        t(`subscriptions.toasts.updates_available_${info.behind === 1 ? "one" : "other"}`, { name: item.name, count: info.behind })
       );
     } else {
       appState.addToast("info", t("subscriptions.toasts.up_to_date", { name: item.name }));
@@ -137,7 +137,7 @@
       }
       const skipped = result.applied?.skipped ?? 0;
       if (skipped > 0) {
-        appState.addToast("info", t("subscriptions.toasts.skipped", { count: skipped }));
+        appState.addToast("info", t(`subscriptions.toasts.skipped_${skipped === 1 ? "one" : "other"}`, { count: skipped }));
       }
       await load();
     } catch (err) {

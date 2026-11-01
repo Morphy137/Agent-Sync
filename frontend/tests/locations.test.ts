@@ -59,9 +59,18 @@ describe("LocationsView.svelte", () => {
   it("lists mapped locations with detected tools and highlights unmapped ones", async () => {
     const { findByText, getByText } = render(LocationsView);
     expect(await findByText("Detected: Claude Code")).toBeDefined();
-    expect(getByText("Locations used by rules but not set on this PC")).toBeDefined();
+    expect(getByText("Locations not configured on this computer")).toBeDefined();
+    expect(getByText("Used by 1 destination")).toBeDefined();
+    expect(getByText("Used by 2 destinations")).toBeDefined();
     expect(getByText("obsidian")).toBeDefined();
     expect(getByText("Built-in")).toBeDefined();
+  });
+
+  it("shows singular and plural destination counts in Spanish", async () => {
+    setLocale("es");
+    const { findByText, getByText } = render(LocationsView);
+    expect(await findByText("Usada por 1 destino")).toBeDefined();
+    expect(getByText("Usada por 2 destinos")).toBeDefined();
   });
 
   it("removes a location after confirmation and warns when rules use it", async () => {
@@ -70,7 +79,7 @@ describe("LocationsView.svelte", () => {
 
     const removeButtons = await findAllByRole("button", { name: "Remove" });
     await fireEvent.click(removeButtons[0]);
-    expect(await findByText(/2 destination\(s\) use it/)).toBeDefined();
+    expect(await findByText(/2 destinations use it/)).toBeDefined();
 
     const confirm = getAllByText("Remove").at(-1)!;
     await fireEvent.click(confirm);
@@ -81,7 +90,7 @@ describe("LocationsView.svelte", () => {
     mockApi.getRecognizersPath.mockResolvedValue("C:/config/recognizers.json");
     mockApi.openPath.mockResolvedValue(undefined);
     const { findByText } = render(LocationsView);
-    await fireEvent.click(await findByText("Open recognizers file"));
+    await fireEvent.click(await findByText("Open detection settings"));
     await waitFor(() =>
       expect(mockApi.openPath).toHaveBeenCalledWith("C:/config/recognizers.json")
     );

@@ -112,6 +112,27 @@ export function destStateTone(state: string): DotTone {
   }
 }
 
+/** Summarizes the most important file state without treating an unevaluated destination as synced. */
+export function destinationSummary(
+  rule: rules.Rule,
+  dest: rules.Destination,
+  status: rulesync.DestinationStatus | undefined
+): { tone: DotTone; labelKey: string } {
+  if (!rule.enabled || !dest.enabled)
+    return { tone: "idle", labelKey: "rules.dest_state.disabled" };
+  if (!status?.state) return { tone: "idle", labelKey: "rules.dest_state.unknown" };
+  if (status.state !== "ready") {
+    return { tone: destStateTone(status.state), labelKey: `rules.dest_state.${status.state}` };
+  }
+  const files = status.files ?? [];
+  if (files.length === 0) return { tone: "idle", labelKey: "rules.dest_state.ready" };
+  const priority: Record<DotTone, number> = { ok: 0, idle: 1, down: 2, up: 3, conflict: 4 };
+  const worst = files.reduce((current, file) =>
+    priority[fileDotTone(file.status)] > priority[fileDotTone(current.status)] ? file : current
+  );
+  return { tone: fileDotTone(worst.status), labelKey: `rules.file_status.${worst.status}` };
+}
+
 /** True when changes made in the destination can be written back to the source. */
 export function canWriteBack(rule: rules.Rule, dest: rules.Destination | undefined): boolean {
   return rule.source?.origin !== "subscription" && !dest?.transform;

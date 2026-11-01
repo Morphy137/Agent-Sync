@@ -21,7 +21,7 @@
       },
       "sync": {
         "title": "Sincronizar",
-        "body": "Aplica los cambios y los sube. Antes se hace copia de seguridad."
+        "body": "Aplica los cambios y, si hay un remoto configurado, los sube. Antes de sobrescribir archivos, se crea una copia de seguridad."
       },
       "subscriptions": {
         "title": "Suscripciones",

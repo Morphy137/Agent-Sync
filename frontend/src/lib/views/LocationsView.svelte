@@ -96,7 +96,7 @@
             <li class="row">
               <div class="row-main">
                 <span class="alias">{loc.alias}</span>
-                <span class="hint">{t("locations.used_by", { count: loc.ruleCount })}</span>
+                <span class="hint">{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, { count: loc.ruleCount })}</span>
               </div>
               <Button
                 variant="secondary"
@@ -124,7 +124,7 @@
               {#if !loc.exists}<Badge tone="danger">{t("locations.missing")}</Badge>{/if}
             </div>
             <span class="path" title={loc.path}>{loc.path}</span>
-            <span class="hint">{t("locations.used_by", { count: loc.ruleCount })}</span>
+            <span class="hint">{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, { count: loc.ruleCount })}</span>
           </div>
           <div class="row-actions">
             <IconButton label={t("locations.open")} onclick={() => openFolder(loc.path)}>
@@ -185,7 +185,7 @@
   <div class="confirm">
     <p class="hint">
       {removing && removing.ruleCount > 0
-        ? t("locations.remove_used", { count: removing.ruleCount })
+        ? t(`locations.remove_used_${removing.ruleCount === 1 ? "one" : "other"}`, { count: removing.ruleCount })
         : t("locations.remove_desc")}
     </p>
     <div class="row-actions end">

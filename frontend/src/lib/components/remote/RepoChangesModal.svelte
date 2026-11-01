@@ -209,7 +209,7 @@
         </header>
         <p class="group-hint">
           {behind > 0
-            ? t("remote.changes.incoming_behind", { count: behind })
+            ? t(`remote.changes.incoming_behind_${behind === 1 ? "one" : "other"}`, { count: behind })
             : t("remote.changes.incoming_hint")}
         </p>
         {#if downloads.length > 0}

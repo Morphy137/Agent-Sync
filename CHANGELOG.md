@@ -4,6 +4,14 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+### Changed
+- Clarified interface text and improved singular and plural messages in English and Spanish.
+- Made the sync rules list more compact, with paths and actions on the same row.
+- Simplified rule cards with destination status chips and expandable details.
+
+### Fixed
+- Kept rule destinations consistently sized when disabled.
+
 ## [0.0.5] - 2026-10-31
 
 ### Changed

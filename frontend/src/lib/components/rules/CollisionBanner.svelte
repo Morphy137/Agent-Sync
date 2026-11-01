@@ -17,7 +17,7 @@
   <header class="banner-head">
     <StatusDot tone="conflict" />
     <h3 id="collision-banner-title" class="banner-title">
-      {t("rules.collisions.banner_title", { count: collisions.length })}
+      {t(`rules.collisions.banner_title_${collisions.length === 1 ? "one" : "other"}`, { count: collisions.length })}
     </h3>
   </header>
   <p class="banner-message">{t("rules.collisions.banner_message")}</p>

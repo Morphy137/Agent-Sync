@@ -21,7 +21,7 @@
       },
       "sync": {
         "title": "Sync",
-        "body": "Sync applies changes and uploads them. Backups are made first."
+        "body": "Sync applies changes and uploads them if a remote is configured. Files are backed up before they are overwritten."
       },
       "subscriptions": {
         "title": "Subscriptions",
