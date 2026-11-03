@@ -1,234 +1,77 @@
-# <img src="frontend/src/assets/app-icon-rounded.png" alt="" width="64"> AgentSync
+<div align="center">
+  <img src="frontend/src/assets/app-icon-rounded.png" alt="AgentSync logo" width="120">
+  <h1>AgentSync</h1>
+  <p><strong>Your agent configuration files, in sync.</strong></p>
+  <p>Manage and synchronize instructions, skills, and other files across your tools and computers.</p>
+  <p>
+    <a href="https://github.com/Morphy137/Agent-Sync/releases/latest"><img src="https://img.shields.io/github/v/release/Morphy137/Agent-Sync?label=version" alt="Latest release"></a>
+    <img src="https://img.shields.io/badge/platform-Windows-555" alt="Platform: Windows">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  </p>
+  <p><strong>English</strong> · <a href="README.es.md">Español</a></p>
+</div>
 
-AgentSync is a high-performance, lightweight desktop application built with Go, Wails v2, and Svelte 5. It keeps your AI agent configuration files (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, prompt templates, custom slash commands, etc.) synchronized across multiple machines via a versioned Git root folder.
+---
 
-Edit a file once and AgentSync writes it everywhere it is needed — with the name each destination
-expects (`AGENTS.md` → `CLAUDE.md`, `GEMINI.md`, …) — versioned in git and backed up before every change.
-It is not limited to AI agents: any file or folder can be synced to any folder (another project, an
-Obsidian vault, …).
+AgentSync copies files and folders from a repository, a local folder, or a subscribed repository to the locations your tools use. A source can have a different name at each destination, such as `AGENTS.md` → `CLAUDE.md`.
+
+## Features
+
+- **Sync rules:** Send one source to multiple destinations with one-way, two-way, or create-only modes.
+- **Location aliases:** Map names such as `claude` or `codex` to folders on each computer.
+- **File editor:** Browse your main folder and subscriptions, edit text, preview Markdown, and format JSON.
+- **Subscriptions:** Connect shared repositories, review incoming changes, and use their files in rules. Local edits stay on your computer and block updates until resolved.
+- **Safety:** Review conflicts and collisions, and create backups before managed files are overwritten.
+- **Git, CLI, and MCP:** Connect a remote repository and manage AgentSync through the desktop app, CLI, or MCP server.
+- **English and Spanish:** Use the application in either language.
+
+## Get started
+
+1. Download `agentsync-setup.exe` from the [latest release](https://github.com/Morphy137/Agent-Sync/releases/latest) and install it.
+2. Open AgentSync and select an existing folder, create one, or clone a repository.
+3. Add a sync rule, choose its source, and select one or more destination locations.
+4. Review any conflicts and synchronize.
+
+AgentSync runs on **Windows 10 or 11, 64-bit**, and requires [Git](https://git-scm.com/). The installer includes the Microsoft Edge WebView2 runtime when needed. Portable use and update options are described in the [installation guide](docs/INSTALL_AND_UPDATES.md).
 
 ## Documentation
 
-| Guide | What it covers |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the program works: concepts, code map, sync flow, safety guarantees |
-| [docs/SYNC_RULES.md](docs/SYNC_RULES.md) | Sync rules, locations, scopes, modes, transforms, collisions, rule files |
-| [docs/RECOGNIZERS.md](docs/RECOGNIZERS.md) | Content/agent detection and the `recognizers.json` file |
-| [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md) | Remote connection, shared repositories (subscriptions), reviewing diffs |
-| [docs/INSTALL_AND_UPDATES.md](docs/INSTALL_AND_UPDATES.md) | Installer, portable mode, automatic updates and publishing releases |
-| [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md) | `agentsync-cli` commands and the MCP server for Claude Code, Codex and Gemini CLI |
-| [docs/design/sync-rules-spec.md](docs/design/sync-rules-spec.md) | Developer contract for the rules engine packages |
+| Guide | Contents |
+| --- | --- |
+| [Installation and updates](docs/INSTALL_AND_UPDATES.md) | Installer, portable use, automatic updates, and releases |
+| [Sync rules](docs/SYNC_RULES.md) | Sources, destinations, locations, modes, and transforms |
+| [Remotes and subscriptions](docs/REMOTES_AND_SUBSCRIPTIONS.md) | Git remotes, shared repositories, and incoming changes |
+| [CLI and MCP](docs/CLI_AND_MCP.md) | Command-line use and the MCP server |
+| [Agent skill](skills/agentsync/SKILL.md) | Instructions for agents using the CLI or MCP server |
+| [Recognizers](docs/RECOGNIZERS.md) | Detection of tools, instructions, and other content |
+| [Architecture](docs/ARCHITECTURE.md) | Components and synchronization behavior |
+| [Changelog](CHANGELOG.md) | Changes in each release |
 
----
+## Development
 
-## Architecture & Conceptual Diagram
-
-```
-                 +--------------------------------------------+
-                 |            Remote Git Repository           |
-                 |     (GitHub, GitLab, Gitea, Bare Repo)     |
-                 +---------------------+----------------------+
-                                       |
-                                git push / pull
-                                       |
-                 +---------------------v----------------------+
-                 |            AgentSync Root Folder           |
-                 |               (Local Git Repo)             |
-                 |  e.g. D:\agent-configs                     |
-                 |   ├── CLAUDE/                              |
-                 |   │   ├── CLAUDE.md                        |
-                 |   │   └── commands/review.md               |
-                 |   ├── GEMINI/                              |
-                 |   │   └── GEMINI.md                        |
-                 |   └── CODEX/                               |
-                 |       └── AGENTS.md                        |
-                 +---------------------+----------------------+
-                                       |
-                           Bidirectional Sync Engine
-                           & Automated Backup System
-                                       |
-         +-----------------------------+-----------------------------+
-         |                                                           |
-         v                                                           v
-+-----------------------------------+     +-----------------------------------+
-| Profile: CLAUDE                   |     | Profile: GEMINI                   |
-| Target: C:\Users\<User>\.claude   |     | Target: C:\Users\<User>\.gemini   |
-|   ├── CLAUDE.md       (managed)   |     |   ├── GEMINI.md       (managed)   |
-|   ├── commands/       (managed)   |     |   ├── cache/          (untouched) |
-|   └── settings.json   (UNTOUCHED) |     |   └── auth.json       (UNTOUCHED) |
-+-----------------------------------+     +-----------------------------------+
-```
-
----
-
-## Key Features
-
-- **Generic Sync Rules (one source → many destinations):** Any file or folder in the repository (or on this PC, or in a subscribed repo) can be written to any number of destinations, each with its own final name, mode (two-way, one-way, create-only) and optional transform. Destinations use per-PC **location aliases**, so shared rules in `agentsync.rules.json` work on every computer. See [docs/SYNC_RULES.md](docs/SYNC_RULES.md).
-- **Detection Without Hardcoding:** Skills, MCP configs and instruction files are detected from their content, and agent folders (Claude Code, Codex, Gemini CLI, OpenCode, Antigravity…) are recognized from data in an editable `recognizers.json` to suggest the right path, name and transform. See [docs/RECOGNIZERS.md](docs/RECOGNIZERS.md).
-- **MCP Config Merging:** `json_merge` / `toml_merge` transforms write only the MCP servers AgentSync owns into `~/.claude.json`, `settings.json` or `config.toml`, preserving everything else.
-- **Collision Warnings:** Two rules targeting the same file, overlapping folders, cycles or case conflicts are always reported and block the involved destinations — never resolved silently.
-- **Subscriptions:** Paste the URL of a shared repository, pick only the folders/files you want (e.g. one skill) and stay updated; incoming changes are listed with diffs. See [docs/REMOTES_AND_SUBSCRIPTIONS.md](docs/REMOTES_AND_SUBSCRIPTIONS.md).
-- **CLI & MCP Server for AI Agents:** `agentsync-cli` runs every operation headless (with `--json` output), and `agentsync-cli mcp` lets Claude Code, Codex or Gemini CLI set up and run syncs from plain-language requests through the same service the GUI uses. GUI and CLI can run at the same time safely (cross-process file lock). See [docs/CLI_AND_MCP.md](docs/CLI_AND_MCP.md).
-- **Agent Skill:** [`skills/agentsync/SKILL.md`](skills/agentsync/SKILL.md) teaches Claude Code, Codex or Gemini CLI how to use AgentSync through the MCP server or CLI.
-- **Lossless Remote Connection & Diff Review:** Connect a folder to a remote even if it is not a repo yet; local history is kept in a backup branch and local differences are reviewed file by file in a diff view (keep yours, take the repository version, or edit a merged version).
-- **Connection-Centric Dashboard & Step-by-Step Connection Wizard:** Focuses on active connections between repository profiles and local target directories. Includes a 3-step Connection Wizard (repository profile selection/creation -> target folder selection with live validation & selective file import -> diff preview & conflict resolution) with pre-action safety backups.
-- **PathField Component & Universal Folder Navigation:** Every path input throughout the app (onboarding, wizard, settings) supports direct manual typing, live inspection and validation, native system folder picker dialogs, suggestions chips (Claude Code, Gemini, Codex, OpenCode), and inline folder creation.
-- **Flexible Onboarding (Select, Create, Clone):** Welcome screen supports selecting an existing repository, creating and initializing a new Git repository folder, or cloning a remote repository directly from HTTPS/SSH URLs.
-- **Three-Way State Tracking:** Uses SHA-256 baselines (Source, Target, Baseline) to accurately detect whether local files, repository files, or both have changed, including locked/unreadable file detection.
-- **Single-State Service Layer & Concurrency Lock:** `internal/service` maintains a single in-memory `*config.Config` and `*state.State` guarded by a global `sync.Mutex` (`TryLock` for background scheduler checks), preventing race conditions and overlapping Git index operations.
-- **Plan Fingerprinting & Safe Sync Order:** `PlanSync` produces a deterministic SHA-256 fingerprint verified by `ExecuteSync` under lock before applying changes. `ExecuteSync` follows a safe 11-step sequence (capture non-conflicting uploads, discard `keep_repo` conflicts, commit, `pull --rebase` before capturing `keep_local` conflicts, push with automatic rebase-retry on non-fast-forward rejection, and apply downloads).
-- **Strict Boundary Protection:** Only files explicitly present in a profile are managed. Unmanaged files in target directories (such as API keys, `settings.json`, session histories, and local caches) are never touched, read, or committed.
-- **Mandatory Automated Backups:** Target files are backed up in a timestamped snapshot before any overwrite, restore, or discarded repo edit. If backup creation fails, the write is immediately aborted. Restoring a snapshot leaves files as `target_changed` so the next sync uploads the restored version to the repository.
-- **Frameless Window & Monochrome Soft Elevation Design System:** Custom frameless titlebar with native window controls, zero-flash theme initialization (`localStorage` + inline boot script), tactile multi-layer shadows, and recessed sunken wells.
-- **Bilingual Interface (i18n):** 100% key parity between English (`en`) and Spanish (`es`), including native dialog titles, ARIA labels, and dynamic `<html lang>`.
-
----
-
-## Requirements
-
-### Operating System
-- **Windows 10 / 11** (64-bit). Microsoft Edge WebView2 runtime (pre-installed by default on Windows 10/11).
-- **Git** installed and accessible in system `PATH`.
-
-### For Development & Compilation
-- **Go 1.23+** (tested with Go 1.27.3)
-- **Node.js 18+** & **npm** (tested with Node.js 24)
-- **Wails CLI v2** (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`)
-
----
-
-## Building from Source
-
-To regenerate the application icon and compile a standalone production binary:
+The project uses Go, Wails v2, Svelte, and TypeScript. Development requires Go **1.25 or later**, Node.js **20.19+ or 22.12+**, npm, Git, and the Wails v2 CLI. See [Wails installation](https://wails.io/docs/gettingstarted/installation/) for the Windows build prerequisites.
 
 ```powershell
-# Optional: regenerate the rounded frontend and build icons from frontend/src/assets/app-icon.png
-# Requires frontend dependencies (cd frontend; npm install; cd ..)
-node scripts/generate-icon.mjs
-
-# Compile production executable
-wails build -clean
-```
-
-The resulting binary will be placed at:
-```
-build/bin/agentsync.exe
-```
-
-The headless CLI / MCP server is a separate console binary:
-
-```powershell
-go build -o build/bin/agentsync-cli.exe ./cmd/agentsync-cli
-```
-
----
-
-## Live Development
-
-To start the application in development mode with hot-module replacement (HMR) for the Svelte 5 frontend and automatic Go recompilation:
-
-```powershell
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
+cd frontend
+npm install
+cd ..
 wails dev
 ```
 
----
+Run `wails build` to produce `build/bin/agentsync.exe`. To run the project checks:
 
-## Directory Conventions & Setup
-
-### 1. Root Folder (Source Repository)
-The root folder is the source of truth for your agent profiles. Each direct subfolder represents a profile:
-```
-D:\agent-configs\
-├── CLAUDE\
-│   ├── CLAUDE.md
-│   └── commands\
-│       ├── test.md
-│       └── review.md
-├── GEMINI\
-│   └── GEMINI.md
-└── CODEX\
-    └── AGENTS.md
-```
-- Folders starting with `.` (such as `.git`) are automatically ignored.
-- Ignored files across profiles: `.gitkeep`, `.DS_Store`, `Thumbs.db`, `desktop.ini`, `*.agentsync.tmp`.
-
-### 2. Linking Target Directories
-Inside AgentSync, link each discovered profile to the corresponding directory on your machine:
-- Profile `CLAUDE` → `C:\Users\<User>\.claude`
-- Profile `GEMINI` → `C:\Users\<User>\.gemini`
-- Profile `CODEX`  → `C:\Users\<User>\.codex`
-
-When connecting for the first time, AgentSync detects if files already exist on target or source and lets you choose whether to import target files into the repository or populate the target from the repository.
-
----
-
-## Testing with the Sandbox
-
-A self-contained testing sandbox simulates two distinct workstations (`PC-A` and `PC-B`) sharing a bare Git remote:
-
-### 1. Setup Sandbox
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/setup-sandbox.ps1
-```
-This generates:
-- `sandbox/remote.git`: Bare central Git repository.
-- `sandbox/pc-a/agent-configs`: Cloned Git root for PC-A.
-- `sandbox/pc-a/home/`: Simulated target directories for PC-A (`.claude`, `.codex`, `.gemini`, `.config/opencode`).
-- `sandbox/pc-b/agent-configs`: Cloned Git root for PC-B.
-- `sandbox/pc-b/home/`: Simulated target directories for PC-B.
-
-### 2. Launch AgentSync in Sandbox Isolation
-To run the app against the sandbox without touching your real machine configuration:
-```powershell
-$env:AGENTSYNC_CONFIG_DIR = "$PWD\sandbox\pc-a\config"
-.\build\bin\agentsync.exe
-```
-
-### 3. Reset Sandbox
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/reset-sandbox.ps1
-```
-
----
-
-## Running the Automated Test Suite
-
-### Go Unit, Integration, & E2E Tests
-```powershell
-# Run all Go packages (excluding frontend/node_modules) with code coverage
-go test . ./internal/... -count=1 -cover
-```
-
-Coverage highlights:
-- `internal/scheduler`: **95.7%**
-- `internal/orchestrator`: **89.3%**
-- `internal/syncer`: **89.1%**
-- `internal/state`: **84.2%**
-- `internal/service`: **81.5%**
-- `internal/backup`: **77.9%**
-- `internal/profiles`: **75.9%**
-- `internal/config`: **68.5%**
-- `internal/gitops`: **62.4%**
-- `internal/fsops`: **54.2%**
-- `internal/apperr`: **46.2%**
-
-### Frontend Lint, Type Check & Vitest
-```powershell
+go vet ./...
+go test ./...
 cd frontend
-npm run lint    # ESLint check (0 errors, 0 warnings)
-npm run check   # Svelte-check diagnostics (0 errors, 0 warnings)
-npm run test    # Vitest suite (17 tests across 6 files, 100% pass)
-npm run build   # Production Vite bundle verification
-cd ..
+npx eslint .
+npx svelte-check --threshold warning
+npx vitest run
 ```
 
----
+For an isolated two-computer sandbox, run `powershell -ExecutionPolicy Bypass -File scripts/setup-sandbox.ps1`. The [CLI guide](docs/CLI_AND_MCP.md) explains how to set `AGENTSYNC_CONFIG_DIR` for an isolated configuration.
 
-## Code Quality Standards
+## License
 
-The codebase adheres strictly to:
-- Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
-- `gofmt -l .` with zero formatting deviations.
-- `go vet . ./internal/...` with zero issues.
-- `staticcheck . ./internal/...` with zero warnings.
-- 100% key parity between English and Spanish localizations.
+[MIT License](LICENSE). Copyright © 2026 Mr Morphy.
