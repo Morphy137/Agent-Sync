@@ -47,10 +47,15 @@
       "rules_one": "La usa 1 regla",
       "rules_other": "La usan {count} reglas",
       "check": "Buscar actualizaciones",
+      "check_short": "Buscar",
       "update_now": "Actualizar ahora",
+      "update_short": "Actualizar",
       "browse": "Explorar y elegir",
+      "browse_short": "Explorar",
+      "repository": "Repositorio",
+      "open_repository": "Abrir la página del repositorio",
       "auto_update": "Actualización automática",
-      "auto_update_hint": "Aplica las actualizaciones automáticamente. Los cambios locales se conservan.",
+      "auto_update_hint": "Los cambios locales se conservan.",
       "remove_for": "Quitar {name}"
     },
     "incoming": {

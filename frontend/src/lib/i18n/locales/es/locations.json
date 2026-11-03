@@ -2,7 +2,7 @@
   "locations": {
     "title": "Ubicaciones",
     "summary": "{count} en este PC",
-    "intro": "Nombra las carpetas de este PC para que las reglas funcionen en cualquier equipo.",
+    "intro": "Da un nombre a cada carpeta de este PC. Las reglas usan el nombre, así cada equipo puede tener su propia ruta.",
     "add": "Añadir ubicación",
     "add_title": "Nueva ubicación",
     "edit_title": "Editar ubicación {alias}",

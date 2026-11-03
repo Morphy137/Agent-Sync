@@ -108,8 +108,13 @@
     },
     "card": {
       "rule_status": "Estado de la regla: {status}",
-      "show_destinations": "Mostrar destinos de {name}",
-      "hide_destinations": "Ocultar destinos de {name}",
+      "show_details": "Mostrar detalles de {name}",
+      "hide_details": "Ocultar detalles de {name}",
+      "summary_files_one": "{count} archivo sincronizado",
+      "summary_files_other": "{count} archivos sincronizados",
+      "summary_destinations_one": "{count} destino",
+      "summary_destinations_other": "{count} destinos",
+      "no_files": "No hay archivos sincronizados que mostrar.",
       "source_label": "Origen",
       "destinations_label": "Destinos ({count})",
       "files_label": "Archivos",
@@ -123,14 +128,25 @@
       "delete": "Eliminar",
       "open_source": "Abrir origen",
       "open_destination_named": "Abrir destino {location}",
-      "show_in_sync": "Mostrar {count} archivos sincronizados",
-      "hide_in_sync": "Ocultar archivos sincronizados",
+      "view_source_named": "Ver el origen de {name}",
       "copy_name": "{name} (copia)"
     },
     "delete": {
       "title": "¿Eliminar la regla {name}?",
       "message": "Los archivos escritos se conservan.",
       "confirm": "Eliminar regla"
+    },
+    "viewer": {
+      "title": "Origen de {name}",
+      "files_label": "Archivos de origen",
+      "content_label": "Contenido de {name}",
+      "view_file": "Ver {file}",
+      "empty": "Este origen no tiene archivos que mostrar.",
+      "source_unavailable": "No se encontró el origen de esta regla.",
+      "file_too_large": "Este archivo es demasiado grande para mostrarlo.",
+      "file_not_text": "Este archivo no es de texto, por lo que no se puede mostrar.",
+      "file_missing": "No se encontró este archivo en el origen.",
+      "file_error": "No se pudo leer este archivo."
     },
     "review": {
       "button": "Revisar",

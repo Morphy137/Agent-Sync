@@ -1,12 +1,17 @@
 <script lang="ts">
   import { CloudDownload, FolderTree, GitBranch, RefreshCw, Rss, Trash2 } from "@lucide/svelte";
   import type { service } from "../../../../wailsjs/go/models";
+  import { api } from "../../api";
   import { formatDate, t } from "../../i18n";
+  import { repositoryPageUrl } from "../../repoUrl";
   import Button from "../Button.svelte";
+  import ExpandToggle from "../ExpandToggle.svelte";
   import IconButton from "../IconButton.svelte";
   import StatusPill from "../StatusPill.svelte";
   import Switch from "../Switch.svelte";
+  import Tooltip from "../Tooltip.svelte";
   import IncomingChangesList from "./IncomingChangesList.svelte";
+  import "../cardZones.css";
 
   interface Props {
     subscription: service.SubscriptionInfo;
@@ -36,6 +41,14 @@
   const behind = $derived(update && !update.offline ? update.behind : 0);
   const incomingFiles = $derived(update?.incomingFiles ?? []);
   const busy = $derived(checking || updating);
+  const uid = $props.id();
+  const incomingId = `incoming-${uid}`;
+  let incomingOpen = $state(false);
+  const incomingLabel = $derived(
+    incomingFiles.length === 1
+      ? t("subscriptions.incoming.toggle_one")
+      : t("subscriptions.incoming.toggle_other", { count: incomingFiles.length })
+  );
 
   const badge = $derived.by(() => {
     if (!update) return { status: "idle", text: t("subscriptions.badge.not_checked") };
@@ -58,6 +71,9 @@
     return t("subscriptions.card.rules_other", { count: subscription.ruleCount });
   });
 
+  const repositoryPage = $derived(repositoryPageUrl(subscription.url));
+  const branchLabel = $derived(subscription.branch || t("subscriptions.card.repository"));
+
   function dateOrNever(value?: string): string {
     return value ? formatDate(value) : t("subscriptions.card.never");
   }
@@ -70,15 +86,27 @@
     </div>
     <div class="info">
       <div class="title-row">
-        <h3 class="name" id="sub-title-{subscription.id}">{subscription.name}</h3>
+        <h3 class="name" id="sub-title-{subscription.id}" title={subscription.name}>
+          {subscription.name}
+        </h3>
         <StatusPill status={badge.status} text={badge.text} />
       </div>
-      <span class="url" title={subscription.url}>{subscription.url}</span>
       <div class="meta">
-        {#if subscription.branch}
-          <span class="branch">
+        {#if repositoryPage}
+          <button
+            type="button"
+            class="branch branch-link"
+            title={subscription.url}
+            aria-label={`${t("subscriptions.card.open_repository")}: ${branchLabel}`}
+            onclick={() => api.openURL(repositoryPage)}
+          >
             <GitBranch size={12} />
-            <span title={subscription.branch}>{subscription.branch}</span>
+            <span>{branchLabel}</span>
+          </button>
+        {:else}
+          <span class="branch" title={subscription.url}>
+            <GitBranch size={12} />
+            <span>{branchLabel}</span>
           </span>
         {/if}
         <span class="rules" class:rules-empty={subscription.ruleCount === 0}>{ruleCountText}</span>
@@ -86,20 +114,34 @@
     </div>
   </div>
 
-  <dl class="dates">
-    <div>
-      <dt>{t("subscriptions.card.last_checked")}</dt>
-      <dd>{dateOrNever(subscription.lastCheckedAt)}</dd>
-    </div>
-    <div>
-      <dt>{t("subscriptions.card.last_updated")}</dt>
-      <dd>{dateOrNever(subscription.lastUpdatedAt)}</dd>
-    </div>
-  </dl>
-
-  {#if incomingFiles.length > 0}
-    <IncomingChangesList files={incomingFiles} {onviewdiff} />
+  {#if incomingFiles.length > 0 && incomingOpen}
+    <IncomingChangesList id={incomingId} files={incomingFiles} {onviewdiff} />
   {/if}
+
+  <div class="dates-row">
+    <dl class="dates">
+      <div>
+        <dt>{t("subscriptions.card.last_checked")}</dt>
+        <dd>{dateOrNever(subscription.lastCheckedAt)}</dd>
+      </div>
+      <div>
+        <dt>{t("subscriptions.card.last_updated")}</dt>
+        <dd>{dateOrNever(subscription.lastUpdatedAt)}</dd>
+      </div>
+    </dl>
+    <div class="zone-expand">
+      {#if incomingFiles.length > 0}
+        <ExpandToggle
+          expanded={incomingOpen}
+          label={incomingLabel}
+          count={incomingFiles.length}
+          controls={incomingId}
+          attention="down"
+          onclick={() => (incomingOpen = !incomingOpen)}
+        />
+      {/if}
+    </div>
+  </div>
 
   <div class="auto-update">
     <Switch
@@ -113,35 +155,54 @@
   <div class="hairline" aria-hidden="true"></div>
 
   <div class="actions">
-    <div class="actions-main">
+    <Tooltip text={t("subscriptions.card.update_now")}>
       <Button
         size="sm"
         variant={behind > 0 ? "primary" : "secondary"}
         loading={updating}
         disabled={busy}
+        ariaLabel={t("subscriptions.card.update_now")}
         onclick={onupdate}
       >
         <CloudDownload size={14} />
-        <span>{t("subscriptions.card.update_now")}</span>
+        <span>{t("subscriptions.card.update_short")}</span>
       </Button>
-      <Button size="sm" variant="secondary" loading={checking} disabled={busy} onclick={oncheck}>
+    </Tooltip>
+    <Tooltip text={t("subscriptions.card.check")}>
+      <Button
+        size="sm"
+        variant="secondary"
+        loading={checking}
+        disabled={busy}
+        ariaLabel={t("subscriptions.card.check")}
+        onclick={oncheck}
+      >
         {#if !checking}
           <RefreshCw size={14} />
         {/if}
-        <span>{t("subscriptions.card.check")}</span>
+        <span>{t("subscriptions.card.check_short")}</span>
       </Button>
-      <Button size="sm" variant="ghost" onclick={onbrowse}>
+    </Tooltip>
+    <Tooltip text={t("subscriptions.card.browse")}>
+      <Button
+        size="sm"
+        variant="secondary"
+        ariaLabel={t("subscriptions.card.browse")}
+        onclick={onbrowse}
+      >
         <FolderTree size={14} />
-        <span>{t("subscriptions.card.browse")}</span>
+        <span>{t("subscriptions.card.browse_short")}</span>
       </Button>
-    </div>
-    <IconButton
-      label={t("subscriptions.card.remove_for", { name: subscription.name })}
-      disabled={busy}
-      onclick={onremove}
-    >
-      <Trash2 size={16} />
-    </IconButton>
+    </Tooltip>
+    <span class="actions-end">
+      <IconButton
+        label={t("subscriptions.card.remove_for", { name: subscription.name })}
+        disabled={busy}
+        onclick={onremove}
+      >
+        <Trash2 size={16} />
+      </IconButton>
+    </span>
   </div>
 </article>
 
@@ -149,8 +210,8 @@
   .card {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-5);
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
     background-color: var(--surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--elev-1);
@@ -162,10 +223,20 @@
     box-shadow: var(--elev-2);
   }
 
+  /* Fixed zones: tile, text column, expand control. The head has the same height on every card. */
   .card-top {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
     gap: var(--space-3);
     min-width: 0;
+  }
+
+  .zone-expand {
+    display: flex;
+    justify-content: flex-end;
+    min-width: var(--card-zone-expand);
+    min-height: var(--card-zone-icon);
   }
 
   .tile {
@@ -182,7 +253,6 @@
   }
 
   .info {
-    flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -190,10 +260,9 @@
   }
 
   .title-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
     gap: var(--space-2);
   }
 
@@ -208,19 +277,13 @@
     min-width: 0;
   }
 
-  .url {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .meta {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
     gap: var(--space-3);
     font-size: var(--text-xs);
     color: var(--text-muted);
@@ -232,7 +295,27 @@
     gap: var(--space-1);
     font-family: var(--font-mono);
     min-width: 0;
-    max-width: 100%;
+    max-width: 60%;
+  }
+
+  .branch-link {
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: inherit;
+    color: inherit;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+
+  .branch-link:hover span {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+
+  .branch-link:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
   }
 
   .branch :global(svg) {
@@ -253,11 +336,15 @@
     color: var(--text-subtle);
   }
 
-  .dates {
+  .dates-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: var(--space-2) var(--space-4);
-    margin: 0;
+    grid-template-columns: repeat(2, max-content) minmax(var(--card-zone-expand), 1fr);
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .dates {
+    display: contents;
   }
 
   .dates div {
@@ -283,7 +370,7 @@
   .auto-update {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
 
   .auto-hint {
@@ -302,14 +389,11 @@
   .actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-2);
   }
 
-  .actions-main {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+  .actions-end {
+    margin-left: auto;
+    display: inline-flex;
   }
 </style>

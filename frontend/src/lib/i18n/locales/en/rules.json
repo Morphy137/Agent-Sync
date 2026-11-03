@@ -108,8 +108,13 @@
     },
     "card": {
       "rule_status": "Rule status: {status}",
-      "show_destinations": "Show destinations for {name}",
-      "hide_destinations": "Hide destinations for {name}",
+      "show_details": "Show details for {name}",
+      "hide_details": "Hide details for {name}",
+      "summary_files_one": "{count} synced file",
+      "summary_files_other": "{count} synced files",
+      "summary_destinations_one": "{count} destination",
+      "summary_destinations_other": "{count} destinations",
+      "no_files": "No synced files to show.",
       "source_label": "Source",
       "destinations_label": "Destinations ({count})",
       "files_label": "Files",
@@ -123,14 +128,25 @@
       "delete": "Delete",
       "open_source": "Open source",
       "open_destination_named": "Open {location} destination",
-      "show_in_sync": "Show {count} in-sync files",
-      "hide_in_sync": "Hide in-sync files",
+      "view_source_named": "View source of {name}",
       "copy_name": "{name} (copy)"
     },
     "delete": {
       "title": "Delete rule {name}?",
       "message": "Written files are kept.",
       "confirm": "Delete rule"
+    },
+    "viewer": {
+      "title": "Source of {name}",
+      "files_label": "Source files",
+      "content_label": "Contents of {name}",
+      "view_file": "View {file}",
+      "empty": "This source has no files to show.",
+      "source_unavailable": "The source of this rule could not be found.",
+      "file_too_large": "This file is too large to display.",
+      "file_not_text": "This file is not text, so it cannot be displayed.",
+      "file_missing": "This file could not be found in the source.",
+      "file_error": "This file could not be read."
     },
     "review": {
       "button": "Review",

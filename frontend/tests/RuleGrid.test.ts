@@ -11,7 +11,7 @@ const file = {
   status: "conflict",
 };
 
-function renderRule(count: number, mixed = false) {
+function renderRule(count: number, mixed = false, fileStatus = file.status) {
   const names = ["claude", "gemini", "codex", "cursor", "other"];
   const destinations = names.slice(0, count).map((location, index) => ({
     id: `d${index + 1}`,
@@ -23,6 +23,7 @@ function renderRule(count: number, mixed = false) {
   const onopen = vi.fn();
   const onreview = vi.fn();
   const onsource = vi.fn();
+  const onview = vi.fn();
   return {
     ...render(RuleCard, {
       status: {
@@ -41,7 +42,8 @@ function renderRule(count: number, mixed = false) {
           destId: destination.id,
           state: index === 1 ? "blocked_collision" : "ready",
           targetRoot: `C:/home/${destination.location}`,
-          files: index === 0 || (count === 5 && index === 3) ? [file] : [],
+          files:
+            index === 0 || (count === 5 && index === 3) ? [{ ...file, status: fileStatus }] : [],
         })),
       } as any,
       sourcePath: "C:/repo/AGENTS.md",
@@ -51,15 +53,17 @@ function renderRule(count: number, mixed = false) {
       onduplicate: vi.fn(),
       ondelete: vi.fn(),
       onopen,
+      onview,
       onreview,
     }),
     onopen,
     onreview,
     onsource,
+    onview,
   };
 }
 
-describe("Rule grid destination summary", () => {
+describe("Rule card destinations", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => cleanup());
 
@@ -69,62 +73,65 @@ describe("Rule grid destination summary", () => {
     expect(onsource).toHaveBeenCalledOnce();
   });
 
-  it("allows expanding a single destination to review and open it", async () => {
-    const { getByRole, queryByRole, onopen, onreview } = renderRule(1);
-    const chip = getByRole("img", { name: "claude: Changed on both sides" });
+  it("reviews and opens a single destination straight from the row, without an expand control", async () => {
+    const { getByRole, getByText, queryByRole, onopen, onreview } = renderRule(1);
     expect(getByRole("img", { name: "Rule status: Changed on both sides" })).toBeDefined();
-    expect(chip.getAttribute("title")).toContain("CLAUDE.md");
-    expect(queryByRole("button", { name: "Review CLAUDE.md" })).toBeNull();
-    const expand = getByRole("button", { name: "Show destinations for Agent instructions" });
-    expect(expand.getAttribute("aria-expanded")).toBe("false");
-    await fireEvent.click(expand);
-    expect(
-      getByRole("button", { name: "Hide destinations for Agent instructions" }).getAttribute(
-        "aria-expanded"
-      )
-    ).toBe("true");
+    expect(getByText("claude").getAttribute("title")).toContain("claude/CLAUDE.md");
+    expect(queryByRole("button", { name: /Show details/ })).toBeNull();
     await fireEvent.click(getByRole("button", { name: "Review CLAUDE.md" }));
     expect(onreview).toHaveBeenCalledWith("d1", file);
     await fireEvent.click(getByRole("button", { name: "Open claude destination" }));
     expect(onopen).toHaveBeenCalledWith("C:/home/claude");
-    await fireEvent.click(
-      getByRole("button", { name: "Hide destinations for Agent instructions" })
-    );
+  });
+
+  it("summarizes five destinations in one row and reveals all of them on expansion", async () => {
+    const { container, getByRole, getByText, queryByText } = renderRule(5);
+    expect(getByText("claude")).toBeDefined();
+    expect(queryByText("gemini")).toBeNull();
+    expect(queryByText("cursor/instructions.md")).toBeNull();
+    const expand = getByRole("button", { name: "Show details for Agent instructions" });
+    expect(expand.textContent?.trim()).toBe("5");
+    expect(expand.getAttribute("title")).toBe("5 destinations");
+    // A hidden destination needs attention, so the collapsed control says so.
+    expect(container.querySelector(".expand-attention")).not.toBeNull();
+
+    await fireEvent.click(expand);
+    expect(getByRole("button", { name: "Hide details for Agent instructions" })).toBe(expand);
+    expect(getByRole("img", { name: "Paused: overlap" })).toBeDefined();
+    expect(getByText("gemini")).toBeDefined();
+    expect(getByText("cursor/instructions.md")).toBeDefined();
+    expect(getByText("other/instructions.md")).toBeDefined();
+
+    await fireEvent.click(expand);
+    expect(queryByText("other/instructions.md")).toBeNull();
+    expect(expand.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps individual modes out of the row when destinations use different modes", async () => {
+    const { getByRole, getByText, queryByText } = renderRule(2, true, "in_sync");
+    expect(queryByText("Two-way")).toBeNull();
+    await fireEvent.click(getByRole("button", { name: "Show details for Agent instructions" }));
+    expect(getByText("Two-way")).toBeDefined();
+    expect(getByText("One-way")).toBeDefined();
+  });
+
+  it("shows the shared mode on the row", () => {
+    const { getByText, queryByRole } = renderRule(2, false, "in_sync");
+    expect(getByText("Two-way")).toBeDefined();
     expect(queryByRole("button", { name: "Review CLAUDE.md" })).toBeNull();
   });
 
-  it("summarizes three destinations and reveals all five on expansion", async () => {
-    const { getByRole, getByText, queryByText, queryByRole } = renderRule(5);
-    expect(getByRole("img", { name: "claude: Changed on both sides" })).toBeDefined();
-    const blocked = getByRole("img", { name: "gemini: Paused: overlap" });
-    expect(blocked.getAttribute("title")).toContain("gemini/instructions.md");
-    expect(getByRole("img", { name: "codex: Ready" })).toBeDefined();
-    expect(queryByRole("img", { name: "cursor: Ready" })).toBeNull();
-    expect(
-      getByRole("img", { name: "cursor/cursor/instructions.md: Changed on both sides" })
-    ).toBeDefined();
-    expect(getByText("+2")).toBeDefined();
-    expect(queryByText("cursor/instructions.md")).toBeNull();
-    await fireEvent.click(
-      getByRole("button", { name: "Show destinations for Agent instructions" })
-    );
-    expect(getByText("cursor/instructions.md")).toBeDefined();
-    expect(getByText("other/instructions.md")).toBeDefined();
-    await fireEvent.click(
-      getByRole("button", { name: "Hide destinations for Agent instructions" })
-    );
-    expect(queryByText("other/instructions.md")).toBeNull();
-    expect(getByText("+2")).toBeDefined();
+  it("shows Review in place of the mode on a row that needs review", () => {
+    const { container, getByRole, queryByText } = renderRule(2);
+    expect(queryByText("Two-way")).toBeNull();
+    const zone = container.querySelector(".zone-mode")!;
+    expect(zone.contains(getByRole("button", { name: "Review CLAUDE.md" }))).toBe(true);
   });
 
-  it("keeps individual modes visible when destinations use different modes", async () => {
-    const { getByRole, getByText, queryByText } = renderRule(2, true);
-    expect(queryByText("Two-way")).toBeNull();
-    await fireEvent.click(
-      getByRole("button", { name: "Show destinations for Agent instructions" })
-    );
-    expect(getByText("Two-way")).toBeDefined();
-    expect(getByText("One-way")).toBeDefined();
+  it("opens the read-only source viewer from the row button", async () => {
+    const { getByRole, onview } = renderRule(1);
+    await fireEvent.click(getByRole("button", { name: "View source of Agent instructions" }));
+    expect(onview).toHaveBeenCalledWith();
   });
 });
 

@@ -160,8 +160,38 @@ func (o *Orchestrator) PlanSync(cfg *config.Config, st *state.State) (*SyncPlan,
 	return o.PlanSyncWithOptions(cfg, st, true)
 }
 
+// FetchRemote fetches the root repository's remote and returns the failure, if any. A root that is
+// not a repository or has no remote needs no fetch and reports success. It reads no config or state,
+// so callers can run it without holding the service lock and pass the result to PlanSyncAfterFetch.
+func FetchRemote(rootPath string) error {
+	if rootPath == "" || !gitops.IsRepo(rootPath) {
+		return nil
+	}
+	runner := gitops.NewRunner(rootPath)
+	if remoteURL, _ := runner.RemoteURL(); remoteURL == "" {
+		return nil
+	}
+	return runner.Fetch()
+}
+
 // PlanSyncWithOptions calculates the synchronization plan, optionally fetching from the remote.
 func (o *Orchestrator) PlanSyncWithOptions(cfg *config.Config, st *state.State, fetch bool) (*SyncPlan, error) {
+	return o.planSync(cfg, st, func(runner *gitops.GitRunner) bool {
+		return fetch && runner.Fetch() != nil
+	})
+}
+
+// PlanSyncAfterFetch calculates the plan from a fetch already done with FetchRemote, without any
+// network access. A failed fetch marks the plan as offline.
+func (o *Orchestrator) PlanSyncAfterFetch(cfg *config.Config, st *state.State, fetchErr error) (*SyncPlan, error) {
+	return o.planSync(cfg, st, func(*gitops.GitRunner) bool {
+		return fetchErr != nil
+	})
+}
+
+// planSync builds the plan. fetchOffline runs only for repositories with a remote and reports
+// whether the remote could not be reached.
+func (o *Orchestrator) planSync(cfg *config.Config, st *state.State, fetchOffline func(*gitops.GitRunner) bool) (*SyncPlan, error) {
 	if cfg.RootPath == "" {
 		return nil, apperr.New(apperr.RootNotFound)
 	}
@@ -186,10 +216,8 @@ func (o *Orchestrator) PlanSyncWithOptions(cfg *config.Config, st *state.State, 
 		remoteURL, _ := runner.RemoteURL()
 		plan.HasRemote = remoteURL != ""
 
-		if plan.HasRemote && fetch {
-			if err := runner.Fetch(); err != nil {
-				plan.IsOffline = true
-			}
+		if plan.HasRemote {
+			plan.IsOffline = fetchOffline(runner)
 		}
 
 		ahead, behind, _ := runner.AheadBehind()

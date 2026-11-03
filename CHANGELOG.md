@@ -4,8 +4,30 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-03
+
+### Changed
+- Settings now save on their own; the Save button is gone.
+- Sync rules, subscriptions, connections and locations use tidy, aligned rows that keep their size.
+- Disabled rules look dimmed but keep the same layout.
+- Synced files open from a small arrow on each row instead of an extra line.
+- The app opens faster and stays responsive while checking for remote changes.
+- The rules file of a shared repository no longer appears in its file list.
+- Markdown files in the Files tab open in reading mode; use the eye button to edit them.
+- Pages use the full width of larger windows, and rule names are no longer cut short on wide screens.
+- The Review button now appears in place of the sync mode on rules that need review.
+- Subscription cards are more compact: the branch opens the repository page, and the actions fit on one row.
+- Long folder paths in Locations are shortened in the middle and fit on a single line.
+- The Locations description now says each computer picks its own folders.
+
 ### Added
+- A button to restore all settings to their defaults.
+- A button on each sync rule opens a read-only view of its source files, with a file list for folders and skills.
+- Click a file in an expanded rule to read its source.
 - Published the project under the MIT license.
+
+### Fixed
+- The Sync button now appears as soon as you create, enable, disable or delete a rule.
 
 ## [0.0.6] - 2026-11-03
 

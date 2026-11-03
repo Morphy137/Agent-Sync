@@ -47,10 +47,15 @@
       "rules_one": "Used by 1 rule",
       "rules_other": "Used by {count} rules",
       "check": "Check for updates",
+      "check_short": "Check",
       "update_now": "Update now",
+      "update_short": "Update",
       "browse": "Browse content",
+      "browse_short": "Browse",
+      "repository": "Repository",
+      "open_repository": "Open the repository page",
       "auto_update": "Auto-update",
-      "auto_update_hint": "Updates are applied automatically. Local edits are kept.",
+      "auto_update_hint": "Local changes are kept.",
       "remove_for": "Remove {name}"
     },
     "incoming": {

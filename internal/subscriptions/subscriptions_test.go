@@ -13,6 +13,7 @@ import (
 	"agentsync/internal/apperr"
 	"agentsync/internal/config"
 	"agentsync/internal/gitops"
+	"agentsync/internal/rules"
 	"agentsync/internal/subscriptions"
 )
 
@@ -441,5 +442,80 @@ func TestCheckOfflineReportsInsteadOfFailing(t *testing.T) {
 	}
 	if !info.Offline || info.HeadCommit == "" || info.HeadCommit != info.RemoteCommit {
 		t.Errorf("unexpected offline info %+v", info)
+	}
+}
+
+func TestTreeHidesOwnerRulesFileAtRootOnly(t *testing.T) {
+	setupEnv(t)
+	bare, _ := newPublisher(t, "rules", map[string]string{
+		rules.RulesFileName:             "{}",
+		"agents/AGENTS.md":              "a",
+		"nested/" + rules.RulesFileName: "{}",
+		"nested/keep.md":                "k",
+	})
+	sub, err := subscriptions.Add(fileURL(bare), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := subscriptions.Tree(sub.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		paths[entry.Path] = true
+	}
+	if paths[rules.RulesFileName] {
+		t.Errorf("root rules file must be hidden: %v", paths)
+	}
+	for _, want := range []string{"agents", "agents/AGENTS.md", "nested", "nested/keep.md", "nested/" + rules.RulesFileName} {
+		if !paths[want] {
+			t.Errorf("missing %q in %v", want, paths)
+		}
+	}
+}
+
+func TestFetchAndInspectSeparateNetworkFromComparison(t *testing.T) {
+	setupEnv(t)
+	bare, work := newPublisher(t, "rules", map[string]string{"a.md": "a"})
+	sub, err := subscriptions.Add(fileURL(bare), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	publish(t, work, map[string]string{"a.md": "b"}, "feat: change")
+
+	// Nothing is fetched yet, so the clone cannot know about the new commit.
+	info, err := subscriptions.Inspect(sub, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Behind != 0 || info.Offline {
+		t.Fatalf("inspect before fetch: %+v", info)
+	}
+	if changed, err := subscriptions.UpdateFromFetched(sub); err != nil || len(changed) != 0 {
+		t.Fatalf("update before fetch: %v %v", changed, err)
+	}
+
+	offline, err := subscriptions.FetchRemote(sub)
+	if err != nil || offline {
+		t.Fatalf("fetch: offline=%v err=%v", offline, err)
+	}
+	info, err = subscriptions.Inspect(sub, false)
+	if err != nil || info.Behind != 1 {
+		t.Fatalf("inspect after fetch: %+v %v", info, err)
+	}
+	changed, err := subscriptions.UpdateFromFetched(sub)
+	if err != nil || len(changed) != 1 || changed[0] != "a.md" {
+		t.Fatalf("update from fetched: %v %v", changed, err)
+	}
+
+	runGit(t, subscriptions.Root(sub.ID), "remote", "set-url", "origin", unreachableURL)
+	offline, err = subscriptions.FetchRemote(sub)
+	if err != nil || !offline {
+		t.Fatalf("unreachable remote: offline=%v err=%v", offline, err)
+	}
+	if info, err = subscriptions.Inspect(sub, offline); err != nil || !info.Offline {
+		t.Fatalf("inspect offline: %+v %v", info, err)
 	}
 }

@@ -2,7 +2,7 @@
   import ViewHeader from "./lib/components/ViewHeader.svelte";
   import { onMount } from "svelte";
   import { EventsOn } from "../wailsjs/runtime/runtime";
-  import type { config, service, orchestrator, backup } from "../wailsjs/go/models";
+  import type { config, orchestrator, backup } from "../wailsjs/go/models";
   import { api, parseError } from "./lib/api";
   import { appState } from "./lib/stores/appState.svelte";
   import { t } from "./lib/i18n";
@@ -190,42 +190,6 @@
       }
     } finally {
       appState.isSyncing = false;
-    }
-  }
-
-  async function handleSaveSettings(
-    payload: service.SettingsPayload,
-    gitName: string,
-    gitEmail: string,
-    newRootPath?: string
-  ) {
-    try {
-      const updated = await api.updateSettings(payload);
-      appState.config = updated;
-
-      // Only save identity if name or email changed compared to gitInfo (R5)
-      const currentName = appState.gitInfo?.userName || "";
-      const currentEmail = appState.gitInfo?.userEmail || "";
-      const trimmedName = gitName.trim();
-      const trimmedEmail = gitEmail.trim();
-      if (
-        appState.gitInfo?.isRepo &&
-        trimmedEmail &&
-        (trimmedName !== currentName || trimmedEmail !== currentEmail)
-      ) {
-        await api.setGitIdentity(trimmedName, trimmedEmail);
-      }
-
-      if (newRootPath && newRootPath.trim() !== appState.config?.rootPath) {
-        const rootCfg = await api.setRootPath(newRootPath.trim());
-        appState.config = rootCfg;
-      }
-
-      await appState.refreshAll();
-      appState.settingsDrawerOpen = false;
-      appState.addToast("success", t("toasts.save_success"));
-    } catch (err) {
-      appState.showError(err);
     }
   }
 
@@ -603,7 +567,6 @@
   <SettingsDrawer
     open={appState.settingsDrawerOpen}
     onclose={() => (appState.settingsDrawerOpen = false)}
-    onsave={handleSaveSettings}
   />
 
   <AddRemoteModal
@@ -671,7 +634,11 @@
 
   .content-inner.files-layout {
     height: 100%;
-    max-width: none;
+  }
+
+  /* Long files scroll inside their panel instead of growing the page. */
+  .content-inner.files-layout .view-area {
+    min-height: 0;
   }
 
   .tabs-container {

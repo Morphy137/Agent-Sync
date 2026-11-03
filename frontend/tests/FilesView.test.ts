@@ -5,6 +5,12 @@ import { api } from "../src/lib/api";
 import { appState } from "../src/lib/stores/appState.svelte";
 import { setLocale } from "../src/lib/i18n";
 
+/** Markdown opens in the reader; the eye switches the file to the editor. */
+async function openEditor(view: ReturnType<typeof render>, name: string) {
+  await fireEvent.click(await view.findByRole("button", { name: "Markdown preview" }));
+  return (await view.findByRole("textbox", { name: `Edit ${name}` })) as HTMLTextAreaElement;
+}
+
 describe("files view", () => {
   beforeEach(() => {
     setLocale("en");
@@ -47,7 +53,7 @@ describe("files view", () => {
     });
     const save = vi.spyOn(api, "saveBrowserFile").mockResolvedValue("new-hash");
     const view = render(FilesView);
-    const editor = await view.findByRole("textbox", { name: "Edit AGENTS.md" });
+    const editor = await openEditor(view, "AGENTS.md");
     await fireEvent.input(editor, { target: { value: "after" } });
     await fireEvent.click(view.getByRole("button", { name: "Save" }));
     await waitFor(() =>
@@ -69,7 +75,8 @@ describe("files view", () => {
       absolutePath: "C:/repo/AGENTS.md",
     });
     const view = render(FilesView);
-    const editor = await view.findByRole("textbox", { name: "Edit AGENTS.md" });
+    expect(await view.findByText("shared")).toBeDefined();
+    const editor = await openEditor(view, "AGENTS.md");
     expect(editor.hasAttribute("readonly")).toBe(true);
     expect(view.queryByRole("button", { name: "Save" })).toBeNull();
     await fireEvent.click(view.getByRole("button", { name: "Markdown preview" }));
@@ -85,7 +92,7 @@ describe("files view", () => {
     });
     const save = vi.spyOn(api, "saveBrowserFile").mockResolvedValue("new-hash");
     const view = render(FilesView);
-    const editor = await view.findByRole("textbox", { name: "Edit AGENTS.md" });
+    const editor = await openEditor(view, "AGENTS.md");
     await fireEvent.input(editor, { target: { value: "first\nchanged\n" } });
     await fireEvent.click(view.getByRole("button", { name: "Save" }));
     await waitFor(() =>
@@ -107,7 +114,8 @@ describe("files view", () => {
       absolutePath: "C:/repo/AGENTS.md",
     });
     const view = render(FilesView);
-    const editor = await view.findByRole("textbox", { name: "Edit AGENTS.md" });
+    expect(await view.findByRole("heading", { name: "Original" })).toBeDefined();
+    const editor = await openEditor(view, "AGENTS.md");
     await fireEvent.input(editor, {
       target: { value: '# Changed\n\n**Bold**\n\n<img src="x" onerror="alert(1)">' },
     });
@@ -142,7 +150,9 @@ describe("files view", () => {
     await fireEvent.click(await view.findByRole("button", { name: "My repository" }));
     await fireEvent.click(await view.findByRole("button", { name: "docs" }));
     await fireEvent.click(await view.findByRole("button", { name: "notes.txt" }));
-    const editor = (await view.findByRole("textbox", { name: "Edit notes.txt" })) as HTMLTextAreaElement;
+    const editor = (await view.findByRole("textbox", {
+      name: "Edit notes.txt",
+    })) as HTMLTextAreaElement;
     await fireEvent.input(editor, { target: { value: "Unsaved" } });
     expect(view.queryByRole("button", { name: "Markdown preview" })).toBeNull();
     await fireEvent.click(view.getByRole("button", { name: "Back" }));
@@ -167,7 +177,7 @@ describe("files view", () => {
       expect(view.getByRole("button", { name }).hasAttribute("disabled")).toBe(false);
     }
     resolveFile({ content: "text", hash: "h", absolutePath: "C:/repo/AGENTS.md", readOnly: false });
-    await view.findByRole("textbox", { name: "Edit AGENTS.md" });
+    await view.findByRole("document");
   });
 
   it("offers JSON formatting while preserving unsaved edits", async () => {
@@ -190,5 +200,80 @@ describe("files view", () => {
     await fireEvent.click(view.getByRole("button", { name: "Format JSON" }));
     expect(editor.value).toBe('{\n  "enabled": true\n}');
     expect(view.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  describe("reader mode", () => {
+    const entries = [
+      { path: "AGENTS.md", name: "AGENTS.md", isDir: false },
+      { path: "NOTES.md", name: "NOTES.md", isDir: false },
+      { path: "notes.txt", name: "notes.txt", isDir: false },
+    ];
+
+    beforeEach(() => {
+      appState.fileRuleId = "";
+      vi.mocked(api.listFileDirectory).mockResolvedValue(entries as any);
+      vi.spyOn(api, "readBrowserFile").mockImplementation(async (_root, path) => ({
+        content: path.endsWith(".md") ? `# ${path}` : `plain ${path}`,
+        hash: "hash",
+        readOnly: false,
+        absolutePath: `C:/repo/${path}`,
+      }));
+    });
+
+    async function openRepository() {
+      const view = render(FilesView);
+      await fireEvent.click(await view.findByRole("button", { name: "My repository" }));
+      return view;
+    }
+
+    it("opens every Markdown file as a preview, again each time another file is opened", async () => {
+      const view = await openRepository();
+      await fireEvent.click(await view.findByRole("button", { name: "AGENTS.md" }));
+      expect(await view.findByRole("heading", { name: "AGENTS.md" })).toBeDefined();
+      expect(view.queryByRole("textbox")).toBeNull();
+      const eye = view.getByRole("button", { name: "Markdown preview" });
+      expect(eye.getAttribute("aria-pressed")).toBe("true");
+
+      await openEditor(view, "AGENTS.md");
+      await fireEvent.click(view.getByRole("button", { name: "NOTES.md" }));
+      expect(await view.findByRole("heading", { name: "NOTES.md" })).toBeDefined();
+      expect(view.queryByRole("textbox")).toBeNull();
+    });
+
+    it("lets the eye switch a single file to the editor and back", async () => {
+      const view = await openRepository();
+      await fireEvent.click(await view.findByRole("button", { name: "AGENTS.md" }));
+      const editor = await openEditor(view, "AGENTS.md");
+      expect(editor.value).toBe("# AGENTS.md");
+      const eye = view.getByRole("button", { name: "Markdown preview" });
+      expect(eye.getAttribute("aria-pressed")).toBe("false");
+      await fireEvent.click(eye);
+      expect(view.queryByRole("textbox")).toBeNull();
+      expect(view.getByRole("document")).toBeDefined();
+    });
+
+    it("opens files without a preview straight in the editor", async () => {
+      const view = await openRepository();
+      await fireEvent.click(await view.findByRole("button", { name: "notes.txt" }));
+      const editor = (await view.findByRole("textbox", {
+        name: "Edit notes.txt",
+      })) as HTMLTextAreaElement;
+      expect(editor.value).toBe("plain notes.txt");
+      expect(view.queryByRole("button", { name: "Markdown preview" })).toBeNull();
+    });
+
+    it("keeps a dirty file in the editor when leaving it is declined", async () => {
+      const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+      const view = await openRepository();
+      await fireEvent.click(await view.findByRole("button", { name: "AGENTS.md" }));
+      const editor = await openEditor(view, "AGENTS.md");
+      await fireEvent.input(editor, { target: { value: "# Unsaved" } });
+
+      await fireEvent.click(view.getByRole("button", { name: "NOTES.md" }));
+      expect(confirm).toHaveBeenCalled();
+      const still = view.getByRole("textbox", { name: "Edit AGENTS.md" }) as HTMLTextAreaElement;
+      expect(still.value).toBe("# Unsaved");
+      expect(view.queryByRole("document")).toBeNull();
+    });
   });
 });

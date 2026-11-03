@@ -1,10 +1,10 @@
 <script lang="ts">
   import {
+    BookOpen,
     Copy,
     ArrowRight,
-    ChevronDown,
-    ChevronUp,
     ExternalLink,
+    FolderOpen,
     GitBranch,
     HardDrive,
     MoreHorizontal,
@@ -15,17 +15,33 @@
   import type { rulesync } from "../../../../wailsjs/go/models";
   import { t } from "../../i18n";
   import { appState } from "../../stores/appState.svelte";
+  import ExpandToggle from "../ExpandToggle.svelte";
   import IconButton from "../IconButton.svelte";
   import Switch from "../Switch.svelte";
   import Badge from "./Badge.svelte";
   import DestinationStatusRow from "./DestinationStatusRow.svelte";
   import StatusDot from "./StatusDot.svelte";
-  import { AUTO_KIND, baseName, destinationLabel, destinationSummary } from "./ruleUi";
+  import "../cardZones.css";
+  import {
+    AUTO_KIND,
+    baseName,
+    destinationLabel,
+    destinationSummary,
+    isFolderKind,
+    needsReview,
+    singleDestinationFile,
+    type DotTone,
+  } from "./ruleUi";
 
-  const VISIBLE_DESTINATIONS = 3;
+  /** Selections of more than one file behave like a folder: their files are listed on demand. */
+  const MULTI_SELECTION_MIN = 2;
+  /** Tones ordered from most to least relevant for a rule-level summary. */
+  const TONE_ORDER: readonly DotTone[] = ["conflict", "up", "down", "idle"];
+  const SUMMARY_SEPARATOR = " · ";
 
   interface Props {
     status: rulesync.RuleStatus;
+    /** Tighter padding; the row layout itself adapts to the width of the card. */
     compact?: boolean;
     /** Absolute source path when it can be resolved on this PC ("" otherwise). */
     sourcePath: string;
@@ -35,6 +51,8 @@
     onduplicate: () => void;
     ondelete: () => void;
     onopen: (path: string) => void;
+    /** Opens the read-only source viewer, optionally with a source-relative file selected. */
+    onview: (path?: string) => void;
     onreview: (destId: string, file: rulesync.FileStatus) => void;
   }
 
@@ -48,8 +66,12 @@
     onduplicate,
     ondelete,
     onopen,
+    onview,
     onreview,
   }: Props = $props();
+
+  const uid = $props.id();
+  const detailsId = `rule-details-${uid}`;
 
   let menuOpen = $state(false);
   let expanded = $state(false);
@@ -80,20 +102,67 @@
       ),
     }))
   );
-  const hiddenDestinations = $derived(destinationChips.slice(VISIBLE_DESTINATIONS));
-  const overallStatus = $derived(
-    destinationChips.find((entry) => entry.summary.tone === "conflict") ??
-      destinationChips.find((entry) => entry.summary.tone === "up") ??
-      destinationChips.find((entry) => entry.summary.tone === "down") ??
-      destinationChips.find((entry) => entry.summary.tone === "idle") ??
-      destinationChips[0]
+  function mostRelevantTone(tones: DotTone[]): DotTone | undefined {
+    return TONE_ORDER.find((tone) => tones.includes(tone));
+  }
+  const overallEntry = $derived.by(() => {
+    const tone = mostRelevantTone(destinationChips.map((entry) => entry.summary.tone));
+    return destinationChips.find((entry) => entry.summary.tone === tone) ?? destinationChips[0];
+  });
+
+  /** The row shows the first destination; the others (and folder contents) live in the details. */
+  const primary = $derived(rule.destinations[0]);
+  const primaryStatus = $derived(status.destinations.find((s) => s.destId === primary?.id));
+  const primaryFile = $derived(primary ? singleDestinationFile(primary, primaryStatus) : null);
+  const primaryReady = $derived((primaryStatus?.state ?? "ready") === "ready");
+  /** Review replaces the mode badge: it is the only per-row state that needs the user's attention. */
+  const primaryReview = $derived(
+    primary && primaryFile && primaryReady && needsReview(primaryFile.status, rule, primary)
+      ? primaryFile
+      : null
   );
+
+  /** Derived from the rule itself so the toggle does not appear or vanish when a rule is disabled. */
+  const hasFileList = $derived(
+    isFolderKind(kind) || (rule.source.include?.length ?? 0) >= MULTI_SELECTION_MIN
+  );
+  const fileCount = $derived(
+    Math.max(
+      rule.source.include?.length ?? 0,
+      ...status.destinations.map((destination) => destination.files?.length ?? 0)
+    )
+  );
+  const destinationCount = $derived(rule.destinations.length);
+  const expandable = $derived(hasFileList || destinationCount > 1);
+  const expandCount = $derived(
+    hasFileList ? (fileCount > 0 ? fileCount : undefined) : destinationCount
+  );
+  const expandSummary = $derived(
+    [
+      hasFileList && fileCount > 0
+        ? t(`rules.card.summary_files_${fileCount === 1 ? "one" : "other"}`, { count: fileCount })
+        : "",
+      destinationCount > 1
+        ? t(`rules.card.summary_destinations_${destinationCount === 1 ? "one" : "other"}`, {
+            count: destinationCount,
+          })
+        : "",
+    ]
+      .filter(Boolean)
+      .join(SUMMARY_SEPARATOR)
+  );
+  const expandLabel = $derived(
+    t(expanded ? "rules.card.hide_details" : "rules.card.show_details", { name: rule.name })
+  );
+  /** Problems that are not visible on the collapsed row. */
   const hiddenAttention = $derived(
-    hiddenDestinations.find((entry) => entry.summary.tone === "conflict") ??
-      hiddenDestinations.find((entry) => entry.summary.tone === "up") ??
-      hiddenDestinations.find((entry) => entry.summary.tone === "down") ??
-      hiddenDestinations.find((entry) => entry.summary.tone === "idle")
+    mostRelevantTone(
+      (hasFileList ? destinationChips : destinationChips.slice(1)).map(
+        (entry) => entry.summary.tone
+      )
+    )
   );
+
   const openableDestinations = $derived(
     rule.destinations
       .map((d) => ({
@@ -117,6 +186,7 @@
   const sourceTitle = $derived(
     [
       t(`rules.origin.${rule.source.origin}`),
+      ...(rule.source.origin === "subscription" ? [subscriptionName] : []),
       sourcePath || rule.source.path,
       ...(rule.source.include ?? []),
       ...(kind
@@ -125,6 +195,17 @@
           ]
         : []),
     ].join("\n")
+  );
+  const primaryTitle = $derived(
+    primary
+      ? [
+          destinationLabel(primary),
+          t(`rules.mode.${primary.mode}`),
+          ...(primary.transform
+            ? [`${t(`rules.transform.${primary.transform.type}`)} · ${primary.transform.key}`]
+            : []),
+        ].join("\n")
+      : ""
   );
 
   function closeMenu() {
@@ -144,54 +225,139 @@
 
 <svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeyDown} />
 
-{#snippet sourceRow()}
-  <div class="source-row" title={sourceTitle}>
-    <span class="origin-icon" aria-label={t(`rules.origin.${rule.source.origin}`)} role="img">
-      <OriginIcon size={14} />
-    </span>
-    <button type="button" class="source-name source-link" onclick={onsource}>{sourceName}</button>
-    {#if rule.source.origin === "subscription" && rule.source.subscription}
-      <Badge title={rule.source.subscription}>{subscriptionName}</Badge>
-    {/if}
-  </div>
-{/snippet}
-
-<article class="rule-card" class:compact class:rule-disabled={!rule.enabled} aria-label={rule.name}>
-  <header class="card-head">
-    <div class="title-col">
-      {#if !compact && overallStatus}
+<article
+  class="rule-card"
+  class:compact
+  class:rule-disabled={!rule.enabled}
+  class:menu-open={menuOpen}
+  aria-label={rule.name}
+>
+  <div class="rule-row">
+    <div class="zone zone-name">
+      {#if overallEntry}
         <span
           class="rule-state"
           role="img"
-          aria-label={t("rules.card.rule_status", { status: t(overallStatus.summary.labelKey) })}
-          title={t("rules.card.rule_status", { status: t(overallStatus.summary.labelKey) })}
+          aria-label={t("rules.card.rule_status", { status: t(overallEntry.summary.labelKey) })}
+          title={t("rules.card.rule_status", { status: t(overallEntry.summary.labelKey) })}
         >
-          <StatusDot tone={overallStatus.summary.tone} />
+          <StatusDot tone={overallEntry.summary.tone} />
         </span>
       {/if}
       <h3 class="rule-name" title={rule.name}>{rule.name}</h3>
-      <div class="badges">
-        <Badge
-          tone={scope === "repo" ? "success" : "neutral"}
-          title={t(rule.source.origin === "subscription" ? "rules.scope.subscription_hint" : `rules.scope.${scope}`)}
-        >
-          {#if scope === "repo"}<GitBranch size={12} aria-hidden="true" />{/if}
-          {t(rule.source.origin === "subscription" ? "rules.scope.subscription_short" : `rules.scope.${scope}_short`)}
-        </Badge>
-        {#if !compact && commonMode}
-          <Badge>{t(`rules.mode.${commonMode}`)}</Badge>
-        {/if}
-      </div>
     </div>
 
-    <div class="head-actions">
-      <div class="toggle">
-        <Switch
-          checked={rule.enabled}
-          ariaLabel={t("rules.card.enabled")}
-          onchange={(next) => ontoggle(next)}
+    <div class="zone zone-origin">
+      <Badge
+        tone={scope === "repo" ? "success" : "neutral"}
+        title={t(
+          rule.source.origin === "subscription"
+            ? "rules.scope.subscription_hint"
+            : `rules.scope.${scope}`
+        )}
+      >
+        {#if scope === "repo"}<GitBranch size={12} aria-hidden="true" />{/if}
+        {t(
+          rule.source.origin === "subscription"
+            ? "rules.scope.subscription_short"
+            : `rules.scope.${scope}_short`
+        )}
+      </Badge>
+    </div>
+
+    <div class="zone zone-source">
+      <span class="origin-icon" aria-label={t(`rules.origin.${rule.source.origin}`)} role="img">
+        <OriginIcon size={14} />
+      </span>
+      <button type="button" class="source-name" title={sourceTitle} onclick={onsource}
+        >{sourceName}</button
+      >
+    </div>
+
+    <div class="zone zone-expand">
+      {#if expandable}
+        <ExpandToggle
+          {expanded}
+          label={expandLabel}
+          title={expandSummary || expandLabel}
+          count={expandCount}
+          controls={detailsId}
+          attention={hiddenAttention}
+          onclick={() => (expanded = !expanded)}
         />
-      </div>
+      {/if}
+    </div>
+
+    <div class="zone zone-chip">
+      {#if rule.source.origin === "subscription" && rule.source.subscription}
+        <Badge truncate title={rule.source.subscription}>{subscriptionName}</Badge>
+      {/if}
+    </div>
+
+    <div class="zone zone-arrow">
+      {#if primary}<ArrowRight size={12} aria-hidden="true" />{/if}
+    </div>
+
+    <div class="zone zone-dest-chip">
+      {#if primary}
+        <Badge tone="accent" mono truncate title={primaryTitle}>{primary.location}</Badge>
+      {/if}
+    </div>
+
+    <div class="zone zone-dest-file">
+      {#if primary}<span class="dest-path" title={primaryTitle}>{primary.path}</span>{/if}
+    </div>
+
+    <div class="zone zone-mode">
+      {#if primary && primaryReview}
+        <button
+          type="button"
+          class="review-btn"
+          aria-label={t("rules.review.button_aria", { file: primaryReview.relPath })}
+          onclick={() => onreview(primary.id, primaryReview)}
+        >
+          {t("rules.review.button")}
+        </button>
+      {:else if primary && primary.transform}
+        <span class="mode-badge">
+          <Badge tone="info" truncate title={primaryTitle}>
+            {t(`rules.transform.${primary.transform.type}`)}
+          </Badge>
+        </span>
+      {:else if primary && commonMode}
+        <span class="mode-badge"><Badge truncate>{t(`rules.mode.${commonMode}`)}</Badge></span>
+      {/if}
+    </div>
+
+    <div class="zone zone-view">
+      <IconButton
+        label={t("rules.card.view_source_named", { name: rule.name })}
+        onclick={() => onview()}
+      >
+        <BookOpen size={14} />
+      </IconButton>
+    </div>
+
+    <div class="zone zone-open">
+      {#if primaryStatus?.targetRoot}
+        <IconButton
+          label={t("rules.card.open_destination_named", { location: primary.location })}
+          onclick={() => onopen(primaryStatus?.targetRoot ?? "")}
+        >
+          <FolderOpen size={14} />
+        </IconButton>
+      {/if}
+    </div>
+
+    <div class="zone zone-toggle">
+      <Switch
+        checked={rule.enabled}
+        ariaLabel={t("rules.card.enabled")}
+        onchange={(next) => ontoggle(next)}
+      />
+    </div>
+
+    <div class="zone zone-menu">
       <div class="menu-container" bind:this={menuContainer}>
         <IconButton
           label={t("rules.card.menu_toggle", { name: rule.name })}
@@ -247,79 +413,23 @@
         {/if}
       </div>
     </div>
-  </header>
+  </div>
 
-  {#if !compact}
-    <div class="grid-summary">
-      {@render sourceRow()}
-      {#if rule.destinations.length > 0}
-        <ArrowRight size={12} aria-hidden="true" />
-        <div class="destination-chips">
-          {#each destinationChips.slice(0, VISIBLE_DESTINATIONS) as entry (entry.destination.id)}
-            <span
-              class="destination-chip"
-              role="img"
-              aria-label={`${entry.destination.location}: ${t(entry.summary.labelKey)}`}
-              title={`${destinationLabel(entry.destination)}\n${t(entry.summary.labelKey)}`}
-            >
-              <Badge
-                ><StatusDot tone={entry.summary.tone} /><span class="chip-label"
-                  >{entry.destination.location}</span
-                ></Badge
-              >
-            </span>
-          {/each}
-        </div>
-        <span class="grid-expand">
-          <IconButton
-            label={t(expanded ? "rules.card.hide_destinations" : "rules.card.show_destinations", {
-              name: rule.name,
-            })}
-            ariaExpanded={expanded}
-            onclick={() => (expanded = !expanded)}
-          >
-            {#if hiddenDestinations.length > 0}<span class="more-count"
-                >+{hiddenDestinations.length}</span
-              >{/if}
-            {#if expanded}<ChevronUp size={12} />{:else}<ChevronDown size={12} />{/if}
-          </IconButton>
-          {#if hiddenAttention}
-            <span
-              class="hidden-attention"
-              role="img"
-              aria-label={`${destinationLabel(hiddenAttention.destination)}: ${t(hiddenAttention.summary.labelKey)}`}
-              title={`${destinationLabel(hiddenAttention.destination)}: ${t(hiddenAttention.summary.labelKey)}`}
-            >
-              <StatusDot tone={hiddenAttention.summary.tone} />
-            </span>
-          {/if}
-        </span>
-      {/if}
-    </div>
-  {:else if rule.destinations.length === 0}
-    {@render sourceRow()}
-  {/if}
-
-  {#if compact || expanded}
+  {#if expandable && expanded}
     <div
-      class="dest-section"
-      aria-label={t("rules.card.destinations_label", { count: rule.destinations.length })}
+      class="details"
+      id={detailsId}
+      role="group"
+      aria-label={t("rules.card.destinations_label", { count: destinationCount })}
     >
       {#each rule.destinations as destination (destination.id)}
         <DestinationStatusRow
           {rule}
           {destination}
           status={status.destinations.find((s) => s.destId === destination.id)}
-          {compact}
-          plain={!compact}
-          hideMode={!compact && Boolean(commonMode)}
-          {sourceName}
-          {sourceTitle}
-          sourceSubscription={rule.source.origin === "subscription" ? subscriptionName : undefined}
-          sourceSubscriptionId={rule.source.subscription}
-          {onsource}
-          onreview={(file) => onreview(destination.id, file)}
+          {onreview}
           {onopen}
+          {onview}
         />
       {/each}
     </div>
@@ -327,20 +437,9 @@
 </article>
 
 <style>
-  .source-link {
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-    text-align: left;
-  }
-  .source-link:hover {
-    text-decoration: underline;
-  }
-  .source-link:focus-visible {
-    outline: 2px solid var(--accent);
-  }
   .rule-card {
+    /* The row layout reacts to the width of the card, not of the window. */
+    container-type: inline-size;
     background-color: var(--surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--elev-1);
@@ -352,17 +451,154 @@
     transition: box-shadow var(--duration-fast) var(--easing-out);
   }
 
+  .rule-card.compact {
+    padding: var(--space-3) var(--space-4);
+  }
+
   .rule-card:hover {
     box-shadow: var(--elev-2);
   }
 
-  .rule-card:not(.compact) {
-    height: 100%;
+  /* Containment creates a stacking context: lift the card while its menu is open. */
+  .rule-card.menu-open {
+    position: relative;
+    z-index: 20;
   }
 
-  .rule-card:not(.compact) .title-col,
-  .rule-card:not(.compact) .badges {
-    flex-wrap: nowrap;
+  /*
+   * Every card uses the same tracks: fixed zones plus fractions that do not depend on content,
+   * so each indicator lines up from one card to the next. Empty zones stay reserved.
+   */
+  .rule-row {
+    display: grid;
+    align-items: center;
+    column-gap: var(--card-zone-gap);
+    min-height: var(--card-zone-icon);
+    grid-template-columns:
+      var(--card-track-name)
+      var(--card-zone-origin)
+      var(--card-track-source)
+      var(--card-zone-expand)
+      var(--card-zone-chip)
+      var(--card-zone-arrow)
+      var(--card-zone-dest-chip)
+      var(--card-track-file)
+      var(--card-zone-mode)
+      var(--card-zone-icon)
+      var(--card-zone-icon)
+      var(--card-zone-toggle)
+      var(--card-zone-icon);
+    grid-template-areas: "name origin source expand chip arrow destchip destfile mode view open toggle menu";
+  }
+
+  .zone {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .zone-name {
+    grid-area: name;
+  }
+  .zone-origin {
+    grid-area: origin;
+  }
+  .zone-source {
+    grid-area: source;
+    color: var(--text-muted);
+  }
+  .zone-expand {
+    grid-area: expand;
+    justify-content: center;
+  }
+  .zone-chip {
+    grid-area: chip;
+  }
+  .zone-arrow {
+    grid-area: arrow;
+    justify-content: center;
+    color: var(--text-subtle);
+  }
+  .zone-dest-chip {
+    grid-area: destchip;
+  }
+  .zone-dest-file {
+    grid-area: destfile;
+  }
+  .zone-mode {
+    grid-area: mode;
+  }
+  .zone-view {
+    grid-area: view;
+    justify-content: center;
+  }
+  .zone-open {
+    grid-area: open;
+    justify-content: center;
+  }
+  .zone-toggle {
+    grid-area: toggle;
+  }
+  .zone-menu {
+    grid-area: menu;
+    justify-content: center;
+  }
+
+  /* Transparent wrapper: lets the compact tiers hide the badge without touching the Review button. */
+  .mode-badge {
+    display: contents;
+  }
+
+  /*
+   * Narrower cards drop the secondary zones (repository chip, mode badge) for every card alike.
+   * The mode zone shrinks to the Review button, which still needs a place.
+   */
+  @container (max-width: 959px) {
+    .rule-row {
+      grid-template-columns:
+        var(--card-track-name)
+        var(--card-zone-origin)
+        var(--card-track-source)
+        var(--card-zone-expand)
+        var(--card-zone-arrow)
+        var(--card-zone-dest-chip)
+        var(--card-track-file)
+        var(--card-zone-review)
+        var(--card-zone-icon)
+        var(--card-zone-icon)
+        var(--card-zone-toggle)
+        var(--card-zone-icon);
+      grid-template-areas: "name origin source expand arrow destchip destfile mode view open toggle menu";
+    }
+
+    .zone-chip,
+    .mode-badge {
+      display: none;
+    }
+  }
+
+  /* Narrow cards (grid view, small windows) stack the same zones on three fixed rows. */
+  @container (max-width: 719px) {
+    .rule-row {
+      row-gap: var(--space-2);
+      grid-template-columns:
+        minmax(0, 1fr)
+        var(--card-zone-origin)
+        var(--card-zone-expand)
+        var(--card-zone-icon)
+        var(--card-zone-icon)
+        var(--card-zone-toggle)
+        var(--card-zone-icon);
+      grid-template-areas:
+        "name origin expand view open toggle menu"
+        "source source source source source source arrow"
+        "destchip destfile destfile destfile destfile mode mode";
+    }
+
+    .zone-arrow :global(svg) {
+      transform: rotate(90deg);
+    }
   }
 
   .rule-state {
@@ -370,153 +606,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-  }
-
-  .rule-card:not(.compact) .badges {
-    flex-shrink: 0;
-  }
-
-  .grid-summary {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-    min-height: 30px;
-  }
-
-  .grid-summary .source-row {
-    flex: 0 1 auto;
-    max-width: 35%;
-  }
-
-  .grid-summary > :global(svg),
-  .grid-expand {
-    flex-shrink: 0;
-  }
-
-  .rule-card:not(.compact) .dest-section {
-    border-top: 1px solid var(--border-subtle);
-  }
-
-  .destination-chips {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .destination-chip {
-    display: inline-flex;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .chip-label {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .grid-expand {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .more-count {
-    font-size: var(--text-xs);
-    line-height: 1;
-  }
-
-  .hidden-attention {
-    position: absolute;
-    top: 0;
-    right: 0;
-    line-height: 0;
-    pointer-events: none;
-  }
-
-  .rule-card.compact {
-    display: grid;
-    grid-template-columns: minmax(0, 200px) minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-  }
-
-  .compact .card-head {
-    display: contents;
-  }
-
-  .compact .title-col {
-    grid-column: 1;
-    grid-row: 1;
-    flex-wrap: nowrap;
-  }
-
-  .compact .badges {
-    flex-shrink: 0;
-    margin-left: auto;
-  }
-
-  .compact .dest-section {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-    border-left: 1px solid var(--border-subtle);
-    padding-left: var(--space-3);
-  }
-
-  .compact .source-row {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .compact .head-actions {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  @media (max-width: 760px) {
-    .rule-card.compact {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .compact .head-actions {
-      grid-column: 2;
-    }
-
-    .compact .dest-section,
-    .compact .source-row {
-      grid-column: 1 / -1;
-      grid-row: 2;
-      border-left: 0;
-      padding-left: 0;
-    }
-  }
-
-  .rule-disabled .rule-name,
-  .rule-disabled .source-row,
-  .rule-disabled .dest-section {
-    opacity: 0.6;
-  }
-
-  .card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-  }
-
-  .title-col {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    min-width: 0;
+    width: var(--card-zone-dot);
   }
 
   .rule-name {
@@ -531,34 +621,35 @@
     min-width: 0;
   }
 
-  .badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    min-width: 0;
-  }
-
-  .head-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-shrink: 0;
-  }
-
-  .source-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-    color: var(--text-muted);
-  }
-
   .origin-icon {
     display: inline-flex;
     flex-shrink: 0;
   }
 
   .source-name {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .source-name:hover {
+    text-decoration: underline;
+  }
+
+  .source-name:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+
+  .dest-path {
     min-width: 0;
     font-family: var(--font-mono);
     font-size: var(--text-xs);
@@ -568,10 +659,43 @@
     text-overflow: ellipsis;
   }
 
-  .dest-section {
+  .review-btn {
+    height: 24px;
+    max-width: 100%;
+    padding: 0 var(--space-2);
+    border: none;
+    border-radius: var(--radius-xs);
+    background-color: var(--surface);
+    box-shadow: var(--elev-1);
+    color: var(--ink);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  .review-btn:hover {
+    box-shadow: var(--elev-2);
+  }
+
+  .review-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  /* A disabled rule is only dimmed: nothing is hidden, swapped or resized. */
+  .rule-disabled .zone:not(.zone-toggle, .zone-menu) {
+    opacity: var(--card-disabled-opacity);
+  }
+
+  .details {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border-subtle);
   }
 
   .menu-container {

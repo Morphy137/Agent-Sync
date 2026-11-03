@@ -31,6 +31,7 @@ describe("subscription rule source", () => {
       ondelete: vi.fn(),
       onopen: vi.fn(),
       onreview: vi.fn(),
+      onview: vi.fn(),
     });
 
     expect(getByText("Shared skills").getAttribute("title")).toBe("s_123");
