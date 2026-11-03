@@ -27,29 +27,16 @@ describe("appState.svelte.ts", () => {
   it("handleStatusChanged replaces statusPlan and updates ahead/behind in gitInfo", () => {
     const newPlan: orchestrator.SyncPlan = {
       fingerprint: "fp-test-12345",
-      downloads: [{ profile: "CLAUDE", relPath: "CLAUDE.md", action: "create" }],
-      uploads: [{ profile: "GEMINI", relPath: "GEMINI.md", action: "upload" }],
-      conflicts: [
-        {
-          profile: "CODEX",
-          relPath: "config.json",
-          repoAction: "modified",
-          targetAction: "modified",
-          reason: "diverged",
-        },
-      ],
+      conflicts: [{ path: "shared/AGENTS.md", reason: "remote_and_local_overlap" }],
       ahead: 3,
       behind: 2,
       direction: "conflict",
-      connections: [],
     };
 
     appState.handleStatusChanged(newPlan);
 
     expect(appState.statusPlan).toEqual(newPlan);
     expect(appState.statusPlan?.fingerprint).toBe("fp-test-12345");
-    expect(appState.statusPlan?.downloads.length).toBe(1);
-    expect(appState.statusPlan?.uploads.length).toBe(1);
     expect(appState.statusPlan?.conflicts.length).toBe(1);
     expect(appState.statusPlan?.direction).toBe("conflict");
 
@@ -108,5 +95,21 @@ describe("appState rule change refresh", () => {
     appState.afterRuleChange();
     expect(appState.rulesVersion).toBe(before + 1);
     await vi.waitFor(() => expect(appState.statusPlan?.rulesPending).toBe(1));
+  });
+});
+
+describe("appState notices", () => {
+  beforeEach(() => {
+    appState.alertNotifications = [];
+  });
+
+  it("adds an informational bell notification and replaces the previous one of its kind", () => {
+    appState.addNotice("auto_applied", "Updates applied", "2 files updated from Friend");
+    appState.addNotice("auto_applied", "Updates applied", "1 file updated from Friend");
+    appState.addNotice("other", "Other", "Something else");
+
+    const messages = appState.alertNotifications.map((item) => item.message);
+    expect(messages).toEqual(["1 file updated from Friend", "Something else"]);
+    expect(appState.alertNotifications[0].variant).toBe("info");
   });
 });

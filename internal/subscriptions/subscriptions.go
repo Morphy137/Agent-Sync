@@ -404,10 +404,12 @@ func Tree(id string, maxDepth int) ([]TreeEntry, error) {
 	return entries, nil
 }
 
-// isOwnerRulesFile reports whether p is the rules file at the clone root. It describes the
-// rules of the repository owner's machine and is not part of what a subscription offers.
+// isOwnerRulesFile reports whether p is the rules file or the suggestions file at the clone root.
+// The first describes the rules of the repository owner's machine, the second is offered through
+// suggestions; neither is part of what a subscription offers as sources.
 func isOwnerRulesFile(root, p string) bool {
-	return filepath.Base(p) == rules.RulesFileName && filepath.Dir(p) == root
+	base := filepath.Base(p)
+	return (base == rules.RulesFileName || base == rules.SuggestionsFileName) && filepath.Dir(p) == root
 }
 
 // cleanRelPath normalizes relPath to a forward-slash path inside the clone, rejecting

@@ -2,13 +2,14 @@
   import IconButton from "../components/IconButton.svelte";
   import ViewHeader from "../components/ViewHeader.svelte";
   import { untrack } from "svelte";
-  import { RefreshCw } from "@lucide/svelte";
+  import { RefreshCw, X } from "@lucide/svelte";
   import { rules, type rulesync } from "../../../wailsjs/go/models";
   import { api, type RuleScope } from "../api";
   import { appState } from "../stores/appState.svelte";
   import { t } from "../i18n";
   import type { DiffAction, FileDiff } from "../diff/types";
   import Button from "../components/Button.svelte";
+  import Input from "../components/Input.svelte";
   import EmptyState from "../components/EmptyState.svelte";
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
@@ -21,8 +22,12 @@
     canWriteBack,
     destinationLabel,
     duplicateRule,
+    matchesRuleQuery,
     sourceAbsPath,
   } from "../components/rules/ruleUi";
+
+  const SUMMARY_SEPARATOR = " · ";
+  const SEARCH_ESCAPE_KEY = "Escape";
 
   interface ReviewState {
     status: rulesync.RuleStatus;
@@ -44,6 +49,35 @@
 
   const ruleStatuses = $derived(report?.rules ?? []);
   const collisions = $derived(report?.collisions ?? []);
+  let query = $state("");
+  const visibleStatuses = $derived(
+    ruleStatuses.filter((status) =>
+      matchesRuleQuery(status, query, {
+        origin: t(`rules.origin.${status.rule.source.origin}`),
+        subscription: subscriptionName(status.rule.source.subscription),
+      })
+    )
+  );
+  const filtering = $derived(query.trim() !== "");
+  const baseSummary = $derived(
+    report
+      ? t(`rules.summary_${ruleStatuses.length === 1 ? "one" : "other"}`, {
+          rules: ruleStatuses.length,
+          pending: t(`rules.pending_${report.pending === 1 ? "one" : "other"}`, {
+            count: report.pending,
+          }),
+          conflicts: report.conflicts,
+        })
+      : undefined
+  );
+  const summary = $derived(
+    baseSummary && filtering
+      ? [
+          baseSummary,
+          t("rules.search.count", { shown: visibleStatuses.length, total: ruleStatuses.length }),
+        ].join(SUMMARY_SEPARATOR)
+      : baseSummary
+  );
   const knownRules = $derived(ruleStatuses.map((s) => s.rule));
   const rootPath = $derived(appState.config?.rootPath ?? "");
 
@@ -63,6 +97,23 @@
     } finally {
       loading = false;
     }
+  }
+
+  function subscriptionName(id: string | undefined): string {
+    if (!id) return "";
+    return (
+      appState.config?.subscriptions?.find((subscription) => subscription.id === id)?.name ?? id
+    );
+  }
+
+  function clearSearch() {
+    query = "";
+  }
+
+  function handleSearchKeydown(e: KeyboardEvent) {
+    if (e.key !== SEARCH_ESCAPE_KEY || !query) return;
+    e.stopPropagation();
+    clearSearch();
   }
 
   function scopeOf(status: rulesync.RuleStatus): RuleScope {
@@ -227,20 +278,34 @@
   <ViewHeader
     title={t("rules.title")}
     titleId="rules-view-title"
-    summary={report
-      ? t(`rules.summary_${ruleStatuses.length === 1 ? "one" : "other"}`, {
-          rules: ruleStatuses.length,
-          pending: t(`rules.pending_${report.pending === 1 ? "one" : "other"}`, {
-            count: report.pending,
-          }),
-          conflicts: report.conflicts,
-        })
-      : undefined}
+    {summary}
     intro={t("rules.intro")}
     primaryLabel={t("rules.new_button")}
     onprimary={() => appState.openRuleEditor()}
   >
     {#snippet actions()}
+      {#if ruleStatuses.length > 0}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div
+          class="search"
+          role="search"
+          aria-label={t("rules.search.aria")}
+          onkeydown={handleSearchKeydown}
+        >
+          <Input
+            value={query}
+            placeholder={t("rules.search.placeholder")}
+            oninput={(value) => (query = value)}
+          />
+          {#if query}
+            <span class="search-clear">
+              <IconButton label={t("rules.search.clear")} onclick={clearSearch}>
+                <X size={14} />
+              </IconButton>
+            </span>
+          {/if}
+        </div>
+      {/if}
       <IconButton
         label={t("rules.sync_button")}
         disabled={syncing || ruleStatuses.length === 0}
@@ -263,9 +328,16 @@
       actionLabel={t("rules.empty.action")}
       onaction={() => appState.openRuleEditor()}
     />
+  {:else if visibleStatuses.length === 0}
+    <EmptyState
+      title={t("rules.search.empty.title")}
+      description={t("rules.search.empty.description", { query: query.trim() })}
+      actionLabel={t("rules.search.empty.action")}
+      onaction={clearSearch}
+    />
   {:else}
     <div class="rules-grid">
-      {#each ruleStatuses as status (status.rule.id)}
+      {#each visibleStatuses as status (status.rule.id)}
         <RuleCard
           {status}
           compact={true}
@@ -341,10 +413,29 @@
 
 <style>
   .rules-view {
+    --rules-search-width: 220px;
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+  }
+
+  .search {
+    position: relative;
+    width: var(--rules-search-width);
+  }
+
+  /* Room for the clear button inside the field. */
+  .search :global(.text-input) {
+    padding-right: var(--card-zone-icon);
+  }
+
+  .search-clear {
+    position: absolute;
+    top: 50%;
+    right: var(--space-1);
+    transform: translateY(-50%);
+    display: flex;
   }
 
   .loading-row {

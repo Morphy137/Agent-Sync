@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"agentsync/internal/apperr"
-	"agentsync/internal/config"
 	"agentsync/internal/fsops"
 	"agentsync/internal/rules"
 )
@@ -214,7 +213,7 @@ func TestDetectCollisions(t *testing.T) {
 			file("r1", "d1", filepath.Join(f.loc, "a.md")),
 			file("r2", "d1", filepath.Join(f.loc, "b.md")),
 			{RuleID: "r3", DestID: "d1", Unmapped: true},
-		}, []string{filepath.Join(f.repo, "a.md")}, nil)
+		}, []string{filepath.Join(f.repo, "a.md")})
 		if len(got) != 0 {
 			t.Fatalf("expected no collisions, got %+v", got)
 		}
@@ -224,7 +223,7 @@ func TestDetectCollisions(t *testing.T) {
 		target := filepath.Join(f.loc, "a.md")
 		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{
 			file("r2", "d1", target), file("r1", "d1", target),
-		}, nil, nil)
+		}, nil)
 		want := []rules.Collision{{Type: rules.CollisionSameTarget, Path: target, Refs: []rules.DestRef{ref("r1", "d1"), ref("r2", "d1")}}}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("expected %+v, got %+v", want, got)
@@ -234,13 +233,13 @@ func TestDetectCollisions(t *testing.T) {
 	t.Run("case conflict", func(t *testing.T) {
 		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{
 			file("r1", "d1", filepath.Join(f.loc, "a.md")), file("r2", "d1", filepath.Join(f.loc, "A.md")),
-		}, nil, nil)
+		}, nil)
 		if len(got) != 1 || got[0].Type != rules.CollisionCaseConflict || len(got[0].Refs) != 2 {
 			t.Fatalf("expected case conflict, got %+v", got)
 		}
 		got = rules.DetectCollisions(f.env, []rules.ResolvedDestination{
 			folder("r1", "d1", filepath.Join(f.loc, "skills"), "a.md", "A.md"),
-		}, nil, nil)
+		}, nil)
 		if len(got) != 1 || got[0].Type != rules.CollisionCaseConflict || len(got[0].Refs) != 1 {
 			t.Fatalf("expected case conflict within one destination, got %+v", got)
 		}
@@ -253,26 +252,10 @@ func TestDetectCollisions(t *testing.T) {
 			folder("r1", "d1", root, "a.md"),
 			file("r2", "d1", inner),
 			folder("r3", "d1", filepath.Join(root, "nested")),
-		}, nil, nil)
+		}, nil)
 		want := []rules.Collision{
 			{Type: rules.CollisionFolderOverlap, Path: inner, Refs: []rules.DestRef{ref("r1", "d1"), ref("r2", "d1")}},
 			{Type: rules.CollisionFolderOverlap, Path: filepath.Join(root, "nested"), Refs: []rules.DestRef{ref("r1", "d1"), ref("r3", "d1")}},
-		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("expected %+v, got %+v", want, got)
-		}
-	})
-
-	t.Run("legacy overlap", func(t *testing.T) {
-		legacyDir := filepath.Join(f.loc, "legacy")
-		legacy := []config.Connection{{ID: "c1", TargetPath: legacyDir}, {ID: "c2", TargetPath: filepath.Join(f.home, "x", "y")}}
-		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{
-			file("r1", "d1", filepath.Join(legacyDir, "a.md")),
-			folder("r2", "d1", filepath.Join(f.home, "x")),
-		}, nil, legacy)
-		want := []rules.Collision{
-			{Type: rules.CollisionFolderOverlap, Path: filepath.Join(f.home, "x", "y"), Refs: []rules.DestRef{{ConnectionID: "c2"}, ref("r2", "d1")}},
-			{Type: rules.CollisionFolderOverlap, Path: filepath.Join(legacyDir, "a.md"), Refs: []rules.DestRef{{ConnectionID: "c1"}, ref("r1", "d1")}},
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("expected %+v, got %+v", want, got)
@@ -284,7 +267,7 @@ func TestDetectCollisions(t *testing.T) {
 		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{
 			file("r1", "d1", filepath.Join(srcDir, "a.md")),
 			folder("r2", "d1", f.loc),
-		}, []string{srcDir}, nil)
+		}, []string{srcDir})
 		want := []rules.Collision{
 			{Type: rules.CollisionCycle, Path: srcDir, Refs: []rules.DestRef{ref("r2", "d1")}},
 			{Type: rules.CollisionCycle, Path: filepath.Join(srcDir, "a.md"), Refs: []rules.DestRef{ref("r1", "d1")}},
@@ -297,7 +280,7 @@ func TestDetectCollisions(t *testing.T) {
 
 	t.Run("inside repo", func(t *testing.T) {
 		target := filepath.Join(f.repo, "out", "a.md")
-		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{file("r1", "d1", target)}, nil, nil)
+		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{file("r1", "d1", target)}, nil)
 		want := []rules.Collision{{Type: rules.CollisionInsideRepo, Path: target, Refs: []rules.DestRef{ref("r1", "d1")}}}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("expected %+v, got %+v", want, got)
@@ -310,9 +293,9 @@ func TestDetectCollisions(t *testing.T) {
 			file("r2", "d1", filepath.Join(f.repo, "a.md")),
 			folder("r3", "d1", f.repo),
 		}
-		first := rules.DetectCollisions(f.env, in, []string{f.repo}, nil)
+		first := rules.DetectCollisions(f.env, in, []string{f.repo})
 		for i := 0; i < 10; i++ {
-			if got := rules.DetectCollisions(f.env, in, []string{f.repo}, nil); !reflect.DeepEqual(got, first) {
+			if got := rules.DetectCollisions(f.env, in, []string{f.repo}); !reflect.DeepEqual(got, first) {
 				t.Fatalf("non-deterministic output:\n%+v\n%+v", first, got)
 			}
 		}

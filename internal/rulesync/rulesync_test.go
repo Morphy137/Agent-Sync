@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"agentsync/internal/apperr"
-	"agentsync/internal/config"
 	"agentsync/internal/rules"
 	"agentsync/internal/rulesync"
 	"agentsync/internal/state"
@@ -325,16 +324,6 @@ func TestBlockedUnmappedDisabledAndMissing(t *testing.T) {
 	expectCode(t, err, apperr.LocationUnmapped)
 	_, _, err = e.engine.Resolve(all, rulesync.Resolution{RuleID: "nope", DestID: "d1", RelPath: "a.md", Choice: rulesync.UseSource})
 	expectCode(t, err, apperr.RuleNotFound)
-}
-
-func TestLegacyConnectionBlocksRule(t *testing.T) {
-	e := newEnv(t)
-	e.write(filepath.Join(e.repo, "a.md"), "a")
-	e.engine.Legacy = []config.Connection{{ID: "c1", TargetPath: e.locA}}
-	all := []rules.Rule{repoRule("r1", "a.md", dest("d1", aliasA, "a.md", rules.ModeTwoWay))}
-	if state, _ := statuses(t, e.engine.Status(all), "r1", "d1"); state != rulesync.DestBlocked {
-		t.Fatalf("expected blocked by legacy connection, got %s", state)
-	}
 }
 
 func TestTransformDestination(t *testing.T) {

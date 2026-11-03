@@ -2,7 +2,6 @@
   import { ArrowRight } from "@lucide/svelte";
   import type { rules } from "../../../../wailsjs/go/models";
   import { t } from "../../i18n";
-  import { appState } from "../../stores/appState.svelte";
   import Badge from "./Badge.svelte";
   import { destinationLabel } from "./ruleUi";
 
@@ -24,24 +23,13 @@
   }
 
   function describeRef(ref: rules.DestRef, index: number): RefView {
-    if (ref.connectionId) {
-      const conn = appState.config?.connections?.find((c) => c.id === ref.connectionId);
-      return {
-        key: `c-${ref.connectionId}-${index}`,
-        ruleId: "",
-        ruleName: t("rules.collisions.connection_ref", {
-          profile: conn?.profile ?? ref.connectionId,
-        }),
-        target: conn?.targetPath ?? "",
-      };
-    }
     const rule = knownRules.find((r) => r.id === ref.ruleId);
     const dest = rule?.destinations.find((d) => d.id === ref.destId);
     return {
       key: `r-${ref.ruleId}-${ref.destId}-${index}`,
-      ruleId: ref.ruleId ?? "",
-      ruleName: rule?.name ?? ref.ruleId ?? "",
-      target: dest ? destinationLabel(dest) : (ref.destId ?? ""),
+      ruleId: ref.ruleId,
+      ruleName: rule?.name ?? ref.ruleId,
+      target: dest ? destinationLabel(dest) : ref.destId,
     };
   }
 </script>

@@ -1,13 +1,6 @@
 import { describeError } from "../i18n/errors";
 import { api, parseError } from "../api";
-import type {
-  config,
-  service,
-  orchestrator,
-  profiles,
-  rules,
-  rulesync,
-} from "../../../wailsjs/go/models";
+import type { config, service, orchestrator, rules, rulesync } from "../../../wailsjs/go/models";
 import type { RuleScope } from "../api";
 import { initTheme } from "../theme/theme";
 import { updateState } from "./updates.svelte";
@@ -27,10 +20,15 @@ export const SETTINGS_DEFAULTS = {
   checkIntervalMinutes: 5,
   confirmBeforeSync: true,
   disableUpdateCheck: false,
+  // The background options are off by default (config.DefaultAutoApplyUpdates, DefaultCloseToTray
+  // and DefaultStartWithWindows).
+  autoApplyUpdates: false,
+  closeToTray: false,
+  startWithWindows: false,
   backupFolderName: "backups",
 } as const;
 
-export type AppView = "rules" | "files" | "connections" | "subscriptions" | "locations";
+export type AppView = "rules" | "files" | "subscriptions" | "locations";
 
 export interface RuleEditorState {
   open: boolean;
@@ -192,7 +190,6 @@ class AppState {
   config = $state<config.Config | null>(null);
   configLoaded = $state(false);
   gitInfo = $state<service.GitInfoPayload | null>(null);
-  profiles = $state<profiles.Profile[]>([]);
   statusPlan = $state<orchestrator.SyncPlan | null>(null);
   isChecking = $state(false);
   isSyncing = $state(false);
@@ -200,13 +197,7 @@ class AppState {
 
   // Modals & Drawers state
   settingsDrawerOpen = $state(false);
-  backupsDrawerOpen = $state(false);
-  activeBackupConnectionId = $state<string | null>(null);
-  activeBackupProfileName = $state<string>("");
   previewModalOpen = $state(false);
-  connectionWizardOpen = $state(false);
-  connectionWizardProfile = $state<string>("");
-  connectionWizardReplacesId = $state<string>("");
   addRemoteModalOpen = $state(false);
   gitIdentityModalOpen = $state(false);
   tutorialOpen = $state(false);
@@ -225,6 +216,13 @@ class AppState {
     setTimeout(() => {
       this.dismissToast(id);
     }, 4000);
+  }
+
+  /** Informational bell notification; a new one replaces the previous one with the same prefix. */
+  addNotice(idPrefix: string, title: string, message: string) {
+    const id = `${idPrefix}_${Math.random().toString(36).slice(2, 9)}`;
+    const kept = this.alertNotifications.filter((item) => !item.id.startsWith(`${idPrefix}_`));
+    this.alertNotifications = [...kept, { id, variant: "info", title, message }];
   }
 
   addWarning(message: string) {
@@ -289,14 +287,12 @@ class AppState {
 
   async refreshAll() {
     try {
-      const [cfg, profilesList, git, plan] = await Promise.all([
+      const [cfg, git, plan] = await Promise.all([
         api.getConfig(),
-        api.listProfiles(),
         api.getGitInfo(),
         api.getStatus(),
       ]);
       this.config = cfg;
-      this.profiles = profilesList ?? [];
       this.gitInfo = git;
       this.statusPlan = plan;
       void this.refreshRuleReport();

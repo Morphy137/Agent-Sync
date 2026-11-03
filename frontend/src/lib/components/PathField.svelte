@@ -10,9 +10,8 @@
   interface Props {
     label?: string;
     value?: string;
-    mode?: "root" | "target" | "backup";
+    mode?: "root" | "backup";
     allowCreate?: boolean;
-    suggestions?: service.AgentFolderSuggestion[];
     placeholder?: string;
     disabled?: boolean;
     onchange?: (val: string, info: service.PathInfo | null) => void;
@@ -21,9 +20,8 @@
   let {
     label,
     value = "",
-    mode = "target",
+    mode = "root",
     allowCreate = false,
-    suggestions = [],
     placeholder = "",
     disabled = false,
     onchange,
@@ -121,12 +119,6 @@
     }
   }
 
-  function handleSuggestionClick(sug: service.AgentFolderSuggestion) {
-    if (disabled) return;
-    inputValue = sug.path;
-    inspectNow(sug.path);
-  }
-
   function handleKeyDown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && (e.key === "o" || e.key === "O")) {
       e.preventDefault();
@@ -166,15 +158,6 @@
       return { type: "error", text: t("path_field.not_writable"), color: "danger" };
     }
 
-    if (mode === "target") {
-      if (pathInfo.isInsideRoot) {
-        return { type: "error", text: t("path_field.inside_root"), color: "danger" };
-      }
-      if (pathInfo.alreadyConnected) {
-        return { type: "warning", text: t("path_field.already_connected"), color: "warning" };
-      }
-    }
-
     if (mode === "backup" && pathInfo.isInsideRoot) {
       return { type: "error", text: t("path_field.inside_root"), color: "danger" };
     }
@@ -211,22 +194,6 @@
       <span>{t("path_field.browse")}</span>
     </Button>
   </div>
-
-  {#if suggestions && suggestions.length > 0}
-    <div class="suggestions-row">
-      {#each suggestions as sug (sug.path)}
-        <button
-          type="button"
-          class="suggestion-chip"
-          {disabled}
-          title={sug.path}
-          onclick={() => handleSuggestionClick(sug)}
-        >
-          {sug.label}
-        </button>
-      {/each}
-    </div>
-  {/if}
 
   <div id={statusId} class="status-row" aria-live="polite">
     {#if statusState.text}
@@ -297,35 +264,6 @@
   }
 
   .path-input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .suggestions-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    align-items: center;
-  }
-
-  .suggestion-chip {
-    background-color: var(--surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-xs);
-    padding: 2px var(--space-2);
-    font-size: var(--text-xs);
-    color: var(--ink);
-    cursor: pointer;
-    font-family: var(--font-sans);
-    transition: all var(--duration-fast) var(--ease-standard);
-  }
-
-  .suggestion-chip:hover:not(:disabled) {
-    background-color: var(--surface-sunken);
-    border-color: var(--border);
-  }
-
-  .suggestion-chip:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }

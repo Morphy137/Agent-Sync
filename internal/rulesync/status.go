@@ -11,7 +11,6 @@ import (
 	"agentsync/internal/apperr"
 	"agentsync/internal/fsops"
 	"agentsync/internal/rules"
-	"agentsync/internal/syncer"
 )
 
 // plannedDest is one destination of one rule, resolved but not yet hashed.
@@ -81,7 +80,7 @@ func (e *Engine) plan(all []rules.Rule) ([]*plannedDest, []rules.Collision) {
 		}
 	}
 
-	collisions := rules.DetectCollisions(e.Env, resolved, sources, e.Legacy)
+	collisions := rules.DetectCollisions(e.Env, resolved, sources)
 	blocked := make(map[rules.DestRef]bool)
 	for _, c := range collisions {
 		for _, ref := range c.Refs {
@@ -273,7 +272,7 @@ func (e *Engine) evalPlainPair(de *destEval, p rules.Pair) fileEval {
 		return fe
 	}
 
-	status := syncer.EvaluateFileStatus(srcHash, tgtHash, fe.baseline)
+	status := EvaluateFileStatus(srcHash, tgtHash, fe.baseline)
 	if !de.uploadAllowed() && (status == StatusTargetChanged || status == StatusConflict) {
 		status = StatusDrift
 	}

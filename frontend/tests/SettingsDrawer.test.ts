@@ -26,6 +26,7 @@ const mockApi = vi.hoisted(() => ({
   updateSettings: vi.fn(),
   setGitIdentity: vi.fn(),
   getGitInfo: vi.fn(),
+  getStartupStatus: vi.fn(),
   setRootPath: vi.fn(),
   openURL: vi.fn(),
 }));
@@ -48,7 +49,6 @@ function savedConfig(overrides: Record<string, unknown> = {}) {
     disableUpdateCheck: false,
     rootPath: "C:/repo/root",
     tutorialCompleted: true,
-    connections: [],
     ...overrides,
   };
 }
@@ -74,6 +74,7 @@ describe("SettingsDrawer.svelte", () => {
       ...payload,
     }));
     mockApi.getGitInfo.mockResolvedValue({ isRepo: true, userName: "x", userEmail: "x@x.com" });
+    mockApi.getStartupStatus.mockResolvedValue({ supported: true, enabled: false });
   });
 
   afterEach(() => {
@@ -233,7 +234,11 @@ describe("SettingsDrawer.svelte", () => {
         confirmBeforeSync: false,
         disableUpdateCheck: true,
         backupPath: "D:/elsewhere",
+        autoApplyUpdates: true,
+        closeToTray: true,
+        startWithWindows: true,
       }) as any;
+      mockApi.getStartupStatus.mockResolvedValue({ supported: true, enabled: true });
       const { getByRole } = renderDrawer();
 
       await fireEvent.click(getByRole("button", { name: "Restore defaults" }));
@@ -248,10 +253,87 @@ describe("SettingsDrawer.svelte", () => {
         checkIntervalMinutes: SETTINGS_DEFAULTS.checkIntervalMinutes,
         confirmBeforeSync: SETTINGS_DEFAULTS.confirmBeforeSync,
         disableUpdateCheck: SETTINGS_DEFAULTS.disableUpdateCheck,
+        autoApplyUpdates: false,
+        closeToTray: false,
+        startWithWindows: false,
       });
       expect(mockApi.setRootPath).not.toHaveBeenCalled();
       expect(mockApi.setGitIdentity).not.toHaveBeenCalled();
       await waitFor(() => expect(appState.config?.rootPath).toBe("C:/repo/root"));
+    });
+  });
+
+  describe("background options", () => {
+    const AUTO_APPLY = "Apply subscription updates automatically";
+    const CLOSE_TO_TRAY = "Keep running in the system tray";
+    const START_WITH_WINDOWS = "Start with Windows";
+
+    it("are off by default and shown in their own section", () => {
+      const { getByRole, getByText } = renderDrawer();
+      expect(getByText("Background")).toBeDefined();
+      for (const name of [AUTO_APPLY, CLOSE_TO_TRAY, START_WITH_WINDOWS]) {
+        expect(getByRole("switch", { name }).getAttribute("aria-checked")).toBe("false");
+      }
+    });
+
+    it("save immediately with the rest of the settings", async () => {
+      const { getByRole } = renderDrawer();
+
+      await fireEvent.click(getByRole("switch", { name: AUTO_APPLY }));
+      await waitFor(() =>
+        expect(mockApi.updateSettings).toHaveBeenLastCalledWith(
+          expect.objectContaining({ autoApplyUpdates: true, closeToTray: false })
+        )
+      );
+      await fireEvent.click(getByRole("switch", { name: CLOSE_TO_TRAY }));
+      await waitFor(() =>
+        expect(mockApi.updateSettings).toHaveBeenLastCalledWith(
+          expect.objectContaining({ autoApplyUpdates: true, closeToTray: true })
+        )
+      );
+      await fireEvent.click(getByRole("switch", { name: START_WITH_WINDOWS }));
+      await waitFor(() =>
+        expect(mockApi.updateSettings).toHaveBeenLastCalledWith(
+          expect.objectContaining({ startWithWindows: true })
+        )
+      );
+    });
+
+    it("show the real startup state, not the stored wish", async () => {
+      appState.config = savedConfig({ startWithWindows: true }) as any;
+      mockApi.getStartupStatus.mockResolvedValue({ supported: true, enabled: false });
+      const { getByRole } = renderDrawer();
+
+      await waitFor(() =>
+        expect(getByRole("switch", { name: START_WITH_WINDOWS }).getAttribute("aria-checked")).toBe(
+          "false"
+        )
+      );
+      // Nothing to save: the entry already matches what the switch shows.
+      await fireEvent.click(getByRole("switch", { name: AUTO_APPLY }));
+      await waitFor(() => expect(mockApi.updateSettings).toHaveBeenCalledTimes(1));
+      expect(mockApi.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ startWithWindows: false })
+      );
+    });
+
+    it("disable the startup switch in development builds", async () => {
+      mockApi.getStartupStatus.mockResolvedValue({ supported: false, enabled: false });
+      const { getByRole, findByText } = renderDrawer();
+
+      expect(await findByText("Not available in development builds.")).toBeDefined();
+      const startup = getByRole("switch", { name: START_WITH_WINDOWS }) as HTMLButtonElement;
+      expect(startup.disabled).toBe(true);
+      await fireEvent.click(startup);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(mockApi.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("explain what the startup entry does with the tray on or off", async () => {
+      const { getByRole, getByText } = renderDrawer();
+      expect(getByText("Starts minimized when you sign in.")).toBeDefined();
+      await fireEvent.click(getByRole("switch", { name: CLOSE_TO_TRAY }));
+      expect(getByText("Starts hidden in the tray when you sign in.")).toBeDefined();
     });
   });
 

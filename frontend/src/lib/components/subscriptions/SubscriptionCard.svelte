@@ -1,5 +1,13 @@
 <script lang="ts">
-  import { CloudDownload, FolderTree, GitBranch, RefreshCw, Rss, Trash2 } from "@lucide/svelte";
+  import {
+    CloudDownload,
+    FolderTree,
+    GitBranch,
+    Lightbulb,
+    RefreshCw,
+    Rss,
+    Trash2,
+  } from "@lucide/svelte";
   import type { service } from "../../../../wailsjs/go/models";
   import { api } from "../../api";
   import { formatDate, t } from "../../i18n";
@@ -21,6 +29,7 @@
     onupdate: () => void;
     onautoupdate: (enabled: boolean) => void;
     onbrowse: () => void;
+    onsuggestions?: () => void;
     onremove: () => void;
     onviewdiff: (path: string) => void;
   }
@@ -33,6 +42,7 @@
     onupdate,
     onautoupdate,
     onbrowse,
+    onsuggestions,
     onremove,
     onviewdiff,
   }: Props = $props();
@@ -41,6 +51,12 @@
   const behind = $derived(update && !update.offline ? update.behind : 0);
   const incomingFiles = $derived(update?.incomingFiles ?? []);
   const busy = $derived(checking || updating);
+  const suggestionsPending = $derived(subscription.suggestionsPending ?? 0);
+  const suggestionsLabel = $derived(
+    suggestionsPending === 1
+      ? t("subscriptions.suggestions.open_count_one")
+      : t("subscriptions.suggestions.open_count_other", { count: suggestionsPending })
+  );
   const uid = $props.id();
   const incomingId = `incoming-${uid}`;
   let incomingOpen = $state(false);
@@ -110,6 +126,18 @@
           </span>
         {/if}
         <span class="rules" class:rules-empty={subscription.ruleCount === 0}>{ruleCountText}</span>
+        {#if suggestionsPending > 0 && onsuggestions}
+          <button
+            type="button"
+            class="suggestions-chip"
+            title={suggestionsLabel}
+            aria-label={suggestionsLabel}
+            onclick={onsuggestions}
+          >
+            <Lightbulb size={12} />
+            <span class="suggestions-count">{suggestionsPending}</span>
+          </button>
+        {/if}
       </div>
     </div>
   </div>
@@ -390,6 +418,38 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+  }
+
+  /* Sits at the end of the meta line so the action row keeps its width. */
+  .suggestions-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-shrink: 0;
+    margin: -3px 0 -3px auto;
+    padding: 3px var(--space-2);
+    border: none;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-sunken);
+    box-shadow: var(--sunken);
+    color: var(--ink);
+    font-size: var(--text-xs);
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--easing-out);
+  }
+
+  .suggestions-chip:hover {
+    background-color: var(--surface);
+  }
+
+  .suggestions-chip:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .suggestions-count {
+    font-variant-numeric: tabular-nums;
   }
 
   .actions-end {

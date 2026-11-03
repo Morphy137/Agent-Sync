@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"agentsync/internal/apperr"
 	"agentsync/internal/config"
 	"agentsync/internal/updater"
@@ -125,6 +123,6 @@ func (a *App) InstallUpdate() error {
 	if err := exec.Command(installer, installerSilentFlag, installerRelaunchFlag).Start(); err != nil {
 		return apperr.Wrap(apperr.UpdateDownloadFailed, err)
 	}
-	runtime.Quit(a.ctx)
+	a.quit()
 	return nil
 }

@@ -11,7 +11,7 @@ describe("subscription rule source", () => {
 
   it("shows the subscription name and falls back to its ID when unavailable", async () => {
     appState.config = { subscriptions: [{ id: "s_123", name: "Shared skills" }] } as any;
-    const { getByText } = render(RuleCard, {
+    const { getByText, getByRole } = render(RuleCard, {
       status: {
         rule: {
           id: "r_1",
@@ -35,7 +35,9 @@ describe("subscription rule source", () => {
     });
 
     expect(getByText("Shared skills").getAttribute("title")).toBe("s_123");
-    expect(getByText("Subscription").getAttribute("title")).toContain("rule saved");
+    expect(getByRole("img", { name: "Subscription" }).getAttribute("title")).toContain(
+      "rule saved"
+    );
     appState.config = { subscriptions: [] } as any;
     await waitFor(() => expect(getByText("s_123")).toBeDefined());
   });

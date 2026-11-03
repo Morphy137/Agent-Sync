@@ -119,6 +119,14 @@ func render(w io.Writer, lang string, result any) {
 			rows = append(rows, []string{e.Path, e.Kind})
 		}
 		p.table(p.headers("label.path", "label.kind"), rows)
+	case []service.BackupEntry:
+		p.backups(v)
+	case *service.RestoreBackupResult:
+		p.field("label.target", v.Target)
+		p.list("label.restored", v.Restored)
+		if v.UndoBackupID != "" {
+			p.field("label.undo_backup", v.UndoBackupID)
+		}
 	case []service.SubscriptionInfo:
 		p.subscriptions(v)
 	case *config.Subscription:
@@ -129,6 +137,10 @@ func render(w io.Writer, lang string, result any) {
 	case *service.SubscriptionUpdateResult:
 		p.list("label.changed", v.ChangedFiles)
 		p.applyResult(&v.Applied)
+	case []service.SuggestionInfo:
+		p.suggestions(v)
+	case *service.SuggestionsApplyOutcome:
+		p.suggestionResults(v)
 	case *service.GitignorePayload:
 		p.field("label.path", v.Path)
 		p.line("%s", strings.TrimRight(v.Content, "\r\n"))
@@ -178,18 +190,10 @@ func (p printer) status(s *ops.StatusReport) {
 	p.field("label.subscriptions", s.Subscriptions)
 }
 
-func syncItemPaths(items []orchestrator.SyncItem) []string {
-	out := make([]string, 0, len(items))
-	for _, it := range items {
-		out = append(out, it.FullPath)
-	}
-	return out
-}
-
 func conflictPaths(items []orchestrator.ConflictItem) []string {
 	out := make([]string, 0, len(items))
 	for _, c := range items {
-		out = append(out, fmt.Sprintf("%s:%s (%s)", c.Profile, c.RelPath, c.Reason))
+		out = append(out, fmt.Sprintf("%s (%s)", c.Path, c.Reason))
 	}
 	return out
 }
@@ -202,8 +206,6 @@ func (p printer) plan(plan *orchestrator.SyncPlan) {
 	p.field("label.direction", direction)
 	p.field("label.ahead_behind", fmt.Sprintf("%d/%d", plan.Ahead, plan.Behind))
 	p.field("label.fingerprint", plan.Fingerprint)
-	p.list("label.downloads", syncItemPaths(plan.Downloads))
-	p.list("label.uploads", syncItemPaths(plan.Uploads))
 	p.list("label.conflicts", conflictPaths(plan.Conflicts))
 	p.list("label.commit", plan.CommitPreview)
 	p.list("label.outside", plan.DirtyOutside)
@@ -214,8 +216,6 @@ func (p printer) syncResult(r *orchestrator.SyncResult) {
 	if r == nil {
 		return
 	}
-	p.field("label.applied", r.Applied)
-	p.field("label.captured", r.Captured)
 	p.field("label.pulled", r.Pulled)
 	p.field("label.pushed", r.Pushed)
 	p.field("label.written", r.RulesWritten)
@@ -288,6 +288,18 @@ func (p printer) locations(locs []service.LocationInfo) {
 	p.table(p.headers("label.alias", "label.path", "label.exists", "label.detected", "label.rules"), rows)
 }
 
+func (p printer) backups(items []service.BackupEntry) {
+	rows := make([][]string, 0, len(items))
+	for _, b := range items {
+		owner := b.Owner
+		if b.Destination != "" {
+			owner += " -> " + b.Destination
+		}
+		rows = append(rows, []string{b.ID, b.CreatedAt, owner, b.Reason, fmt.Sprint(b.FileCount), fmt.Sprint(b.TotalSize), p.yesNo(b.Restorable)})
+	}
+	p.table(p.headers("label.id", "label.created", "label.name", "label.reason", "label.files", "label.size", "label.restorable"), rows)
+}
+
 func (p printer) suggestion(s *recognize.Suggestion) {
 	label := s.Label
 	if !s.Detected {
@@ -312,13 +324,46 @@ func (p printer) subscriptions(subs []service.SubscriptionInfo) {
 	p.table(p.headers("label.id", "label.name", "label.url", "label.auto_update", "label.behind", "label.rules"), rows)
 }
 
+func (p printer) suggestions(list []service.SuggestionInfo) {
+	rows := make([][]string, 0, len(list))
+	for _, s := range list {
+		targets := make([]string, 0, len(s.Destinations))
+		for _, d := range s.Destinations {
+			targets = append(targets, d.Location+":"+d.Path)
+		}
+		rows = append(rows, []string{s.ID, s.Name, s.Source, strings.Join(targets, ", "), p.suggestionStatus(s)})
+	}
+	p.table(p.headers("label.id", "label.name", "label.source", "label.targets", "label.status"), rows)
+}
+
+func (p printer) suggestionStatus(s service.SuggestionInfo) string {
+	switch {
+	case !s.Valid:
+		return tr(p.lang, "label.status_invalid") + " (" + s.InvalidReason + ")"
+	case s.Applied:
+		return tr(p.lang, "label.status_applied")
+	}
+	return tr(p.lang, "label.status_ready")
+}
+
+func (p printer) suggestionResults(outcome *service.SuggestionsApplyOutcome) {
+	for _, r := range outcome.Results {
+		switch r.Status {
+		case service.SuggestionApplied:
+			p.line("%s: %s (%s)", r.ID, tr(p.lang, "label.status_created"), r.RuleID)
+		case service.SuggestionSkipped:
+			p.line("%s: %s", r.ID, tr(p.lang, "label.status_skipped"))
+		default:
+			p.line("%s: %s [%s %s %s]", r.ID, tr(p.lang, "label.status_failed"), r.ErrorCode, r.ErrorReason, r.ErrorAlias)
+		}
+	}
+}
+
 func (p printer) repoChanges(c *ops.RepoChanges) {
 	p.field("label.direction", c.Direction)
 	p.field("label.ahead_behind", fmt.Sprintf("%d/%d", c.Ahead, c.Behind))
 	p.list("label.commit", c.LocalChanges)
 	p.list("label.outside", c.OutsideChanges)
-	p.list("label.downloads", syncItemPaths(c.Downloads))
-	p.list("label.uploads", syncItemPaths(c.Uploads))
 	p.list("label.conflicts", conflictPaths(c.Conflicts))
 }
 

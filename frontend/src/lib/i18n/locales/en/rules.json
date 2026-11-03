@@ -10,6 +10,17 @@
     "loading": "Loading rules...",
     "new_button": "New rule",
     "sync_button": "Sync rules",
+    "search": {
+      "placeholder": "Search rules",
+      "aria": "Search rules",
+      "clear": "Clear search",
+      "count": "{shown} of {total}",
+      "empty": {
+        "title": "No rules match",
+        "description": "Nothing matches \"{query}\".",
+        "action": "Show all rules"
+      }
+    },
     "empty": {
       "title": "Write once, sync everywhere",
       "description": "Copy a file or folder to several destinations and keep them in sync.",
@@ -29,7 +40,6 @@
       "banner_title_other": "{count} collisions detected",
       "banner_message": "Some destinations overlap and are paused.",
       "involved": "Affected items",
-      "connection_ref": "Folder connection {profile}",
       "edit_rule": "Edit {name}",
       "type": {
         "same_target": "Same destination file",
@@ -49,9 +59,6 @@
     "scope": {
       "repo": "Shared (repository)",
       "local": "Local",
-      "repo_short": "Repo",
-      "local_short": "Local",
-      "subscription_short": "Subscription",
       "subscription_hint": "Subscription source; rule saved on this computer.",
       "repo_hint": "Shared with all your computers.",
       "local_hint": "Only on this computer."

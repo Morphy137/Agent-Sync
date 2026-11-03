@@ -136,7 +136,9 @@ describe("Compact rule list", () => {
   it("shows the source, destination and readable status for a single file", async () => {
     const { getByRole, getByText, onreview } = renderRule();
     expect(getByRole("article", { name: "Agent instructions" })).toBeDefined();
-    expect(getByText("Repo")).toBeDefined();
+    expect(getByRole("img", { name: "Repository" }).getAttribute("title")).toContain(
+      "Shared with all your computers."
+    );
     expect(getByText("AGENTS.md").getAttribute("title")).toContain("Repository");
     expect(getByText("claude")).toBeDefined();
     expect(getByText("CLAUDE.md")).toBeDefined();
@@ -214,7 +216,6 @@ describe("Compact rule list", () => {
     const folder = renderRule({ folder: true, multiple: true, origin: "subscription" });
     expect(plainZones).toEqual([
       "zone-name",
-      "zone-origin",
       "zone-source",
       "zone-expand",
       "zone-chip",

@@ -37,6 +37,9 @@ Unicode true
 !define WAILS_INSTALL_SCOPE "user"
 !define AGENTSYNC_REG_KEY "Software\AgentSync"
 !define AGENTSYNC_CLI "agentsync-cli.exe"
+## The optional "Start with Windows" entry the app writes (internal/autostart); removed on uninstall.
+!define AGENTSYNC_RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
+!define AGENTSYNC_RUN_VALUE "AgentSync"
 ## Time for the running app to close before its files are replaced during an update.
 !define AGENTSYNC_UPDATE_WAIT_MS 2500
 
@@ -155,4 +158,5 @@ Section "uninstall"
     !insertmacro wails.deleteUninstaller
     # User data in %APPDATA%\AgentSync (config, rules, backups) is kept on purpose.
     DeleteRegKey HKCU "${AGENTSYNC_REG_KEY}"
+    DeleteRegValue HKCU "${AGENTSYNC_RUN_KEY}" "${AGENTSYNC_RUN_VALUE}"
 SectionEnd

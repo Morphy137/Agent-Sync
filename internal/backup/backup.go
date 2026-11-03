@@ -11,66 +11,50 @@ import (
 	"agentsync/internal/apperr"
 	"agentsync/internal/config"
 	"agentsync/internal/fsops"
-	"agentsync/internal/state"
 )
 
 const (
 	BackupTimestampLayout = "010206-030405PM"
 	ManifestFileName      = "manifest.json"
-	ReasonApply           = "apply"
 	ReasonSync            = "sync"
-	ReasonRestore         = "restore"
-	ReasonInitialLink     = "initial_link"
 	ReasonDiscardRepoEdit = "discard_repo_edit"
+
+	// RepoSnapshotID is the owner id and folder name of snapshots of discarded repository edits.
+	RepoSnapshotID = "_repo"
 )
 
-// Manifest defines the metadata stored with each backup snapshot.
+// Manifest defines the metadata stored with each backup snapshot. The legacy fields are read from
+// snapshots written by earlier versions and are never written back.
 type Manifest struct {
-	ConnectionID string   `json:"connectionId"`
-	Profile      string   `json:"profile"`
-	TargetPath   string   `json:"targetPath"`
-	CreatedAt    string   `json:"createdAt"`
-	Reason       string   `json:"reason"`
-	Files        []string `json:"files"`
+	OwnerID    string   `json:"ownerId"`
+	Name       string   `json:"name"`
+	TargetPath string   `json:"targetPath"`
+	CreatedAt  string   `json:"createdAt"`
+	Reason     string   `json:"reason"`
+	Files      []string `json:"files"`
+
+	LegacyConnectionID string `json:"connectionId,omitempty"`
+	LegacyProfile      string `json:"profile,omitempty"`
 }
 
 // BackupInfo represents a backup item listed for display.
 type BackupInfo struct {
-	ID           string   `json:"id"`
-	ConnectionID string   `json:"connectionId"`
-	Profile      string   `json:"profile"`
-	TargetPath   string   `json:"targetPath"`
-	CreatedAt    string   `json:"createdAt"`
-	Reason       string   `json:"reason"`
-	Files        []string `json:"files"`
-	Path         string   `json:"path"`
+	ID         string   `json:"id"`
+	OwnerID    string   `json:"ownerId"`
+	Name       string   `json:"name"`
+	TargetPath string   `json:"targetPath"`
+	CreatedAt  string   `json:"createdAt"`
+	Reason     string   `json:"reason"`
+	Files      []string `json:"files"`
+	Path       string   `json:"path"`
 }
 
-// TargetFolderID calculates the directory name under backupPath for a connection.
-// If another connection shares the same folder name, it appends '__' and the first 6 chars of connectionID.
-func TargetFolderID(targetPath string, connectionID string, allConnections []config.Connection) string {
-	baseName := filepath.Base(filepath.Clean(targetPath))
-	if baseName == "." || baseName == "/" || baseName == "\\" {
-		baseName = "root"
-	}
-
-	collision := false
-	for _, c := range allConnections {
-		if c.ID != connectionID && filepath.Base(filepath.Clean(c.TargetPath)) == baseName {
-			collision = true
-			break
-		}
-	}
-
-	if collision {
-		prefix := connectionID
-		if len(prefix) > 6 {
-			prefix = prefix[:6]
-		}
-		return fmt.Sprintf("%s__%s", baseName, prefix)
-	}
-
-	return baseName
+// Owner identifies what a snapshot belongs to: a rule destination, a rule source or the repository.
+type Owner struct {
+	ID   string
+	Name string
+	// Dir is the folder whose files are snapshotted; files are stored relative to it.
+	Dir string
 }
 
 // FormatTimestamp creates the timestamp folder name according to the spec, adding suffix if duplicate.
@@ -89,42 +73,47 @@ func FormatTimestamp(t time.Time, parentDir string) string {
 	}
 }
 
-// CreateBackup creates a backup of existing target files before they are overwritten.
-// If none of the files exist in the target, no backup directory is created.
-func CreateBackup(backupRoot string, conn config.Connection, allConnections []config.Connection, files []string, reason string, retention int) (*BackupInfo, error) {
-	if len(files) == 0 {
-		return nil, nil
+// snapshotFolderName is the folder under the backup root that groups the snapshots of an owner.
+func snapshotFolderName(dir string) string {
+	baseName := filepath.Base(filepath.Clean(dir))
+	if baseName == "." || baseName == "/" || baseName == "\\" {
+		return "root"
 	}
+	return baseName
+}
 
-	// Filter files that actually exist in the target directory
+// CreateSnapshot backs up the files of owner.Dir (relative paths, forward slashes) that exist before
+// they are overwritten or deleted. When none of them exist no snapshot is created.
+func CreateSnapshot(backupRoot string, owner Owner, files []string, reason string, retention int) (*BackupInfo, error) {
+	return writeSnapshot(filepath.Join(backupRoot, snapshotFolderName(owner.Dir)), owner, files, reason, retention)
+}
+
+// writeSnapshot stores a snapshot under groupDir and prunes the group down to retention snapshots.
+func writeSnapshot(groupDir string, owner Owner, files []string, reason string, retention int) (*BackupInfo, error) {
 	var existingFiles []string
 	for _, relPath := range files {
-		targetFile := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
-		if fi, err := os.Stat(targetFile); err == nil && !fi.IsDir() {
+		sourceFile := filepath.Join(owner.Dir, filepath.FromSlash(relPath))
+		if fi, err := os.Stat(sourceFile); err == nil && !fi.IsDir() {
 			existingFiles = append(existingFiles, relPath)
 		}
 	}
-
 	if len(existingFiles) == 0 {
 		return nil, nil
 	}
 
-	targetDirName := TargetFolderID(conn.TargetPath, conn.ID, allConnections)
-	connBackupDir := filepath.Join(backupRoot, targetDirName)
-	if err := os.MkdirAll(connBackupDir, fsops.DefaultDirPerms); err != nil {
+	if err := os.MkdirAll(groupDir, fsops.DefaultDirPerms); err != nil {
 		return nil, apperr.Wrap(apperr.BackupFailed, err)
 	}
 
 	now := time.Now()
-	backupFolderID := FormatTimestamp(now, connBackupDir)
-	snapshotDir := filepath.Join(connBackupDir, backupFolderID)
-
+	snapshotID := FormatTimestamp(now, groupDir)
+	snapshotDir := filepath.Join(groupDir, snapshotID)
 	if err := os.MkdirAll(snapshotDir, fsops.DefaultDirPerms); err != nil {
 		return nil, apperr.Wrap(apperr.BackupFailed, err)
 	}
 
 	for _, relPath := range existingFiles {
-		src := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
+		src := filepath.Join(owner.Dir, filepath.FromSlash(relPath))
 		dst := filepath.Join(snapshotDir, filepath.FromSlash(relPath))
 		if err := fsops.AtomicCopy(src, dst); err != nil {
 			_ = os.RemoveAll(snapshotDir)
@@ -133,49 +122,62 @@ func CreateBackup(backupRoot string, conn config.Connection, allConnections []co
 	}
 
 	manifest := Manifest{
-		ConnectionID: conn.ID,
-		Profile:      conn.Profile,
-		TargetPath:   conn.TargetPath,
-		CreatedAt:    config.FormatRFC3339(now),
-		Reason:       reason,
-		Files:        existingFiles,
+		OwnerID:    owner.ID,
+		Name:       owner.Name,
+		TargetPath: owner.Dir,
+		CreatedAt:  config.FormatRFC3339(now),
+		Reason:     reason,
+		Files:      existingFiles,
 	}
-
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		_ = os.RemoveAll(snapshotDir)
 		return nil, apperr.Wrap(apperr.BackupFailed, err)
 	}
-
 	manifestPath := filepath.Join(snapshotDir, ManifestFileName)
 	if err := fsops.AtomicWrite(manifestPath, manifestData, fsops.DefaultFilePerms); err != nil {
 		_ = os.RemoveAll(snapshotDir)
 		return nil, apperr.Wrap(apperr.BackupFailed, err)
 	}
 
-	// Prune older backups according to retention
 	if retention > 0 {
-		_ = PruneBackups(backupRoot, conn, allConnections, retention)
+		_ = pruneGroup(groupDir, retention)
 	}
 
 	return &BackupInfo{
-		ID:           backupFolderID,
-		ConnectionID: conn.ID,
-		Profile:      conn.Profile,
-		TargetPath:   conn.TargetPath,
-		CreatedAt:    manifest.CreatedAt,
-		Reason:       reason,
-		Files:        existingFiles,
-		Path:         snapshotDir,
+		ID:         snapshotID,
+		OwnerID:    owner.ID,
+		Name:       owner.Name,
+		TargetPath: owner.Dir,
+		CreatedAt:  manifest.CreatedAt,
+		Reason:     reason,
+		Files:      existingFiles,
+		Path:       snapshotDir,
 	}, nil
 }
 
-// ListBackups returns all snapshots for a connection, ordered newest first.
-func ListBackups(backupRoot string, conn config.Connection, allConnections []config.Connection) ([]BackupInfo, error) {
-	targetDirName := TargetFolderID(conn.TargetPath, conn.ID, allConnections)
-	connBackupDir := filepath.Join(backupRoot, targetDirName)
+// readManifest loads the manifest of a snapshot folder, accepting snapshots from earlier versions.
+func readManifest(snapshotDir string) (Manifest, error) {
+	var manifest Manifest
+	data, err := os.ReadFile(filepath.Join(snapshotDir, ManifestFileName))
+	if err != nil {
+		return manifest, err
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return manifest, err
+	}
+	if manifest.OwnerID == "" {
+		manifest.OwnerID = manifest.LegacyConnectionID
+	}
+	if manifest.Name == "" {
+		manifest.Name = manifest.LegacyProfile
+	}
+	return manifest, nil
+}
 
-	entries, err := os.ReadDir(connBackupDir)
+// listGroup returns the snapshots stored directly under groupDir, newest first.
+func listGroup(groupDir string) ([]BackupInfo, error) {
+	entries, err := os.ReadDir(groupDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []BackupInfo{}, nil
@@ -188,28 +190,20 @@ func ListBackups(backupRoot string, conn config.Connection, allConnections []con
 		if !entry.IsDir() {
 			continue
 		}
-
-		snapshotDir := filepath.Join(connBackupDir, entry.Name())
-		manifestPath := filepath.Join(snapshotDir, ManifestFileName)
-		data, err := os.ReadFile(manifestPath)
+		snapshotDir := filepath.Join(groupDir, entry.Name())
+		manifest, err := readManifest(snapshotDir)
 		if err != nil {
 			continue
 		}
-
-		var manifest Manifest
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			continue
-		}
-
 		results = append(results, BackupInfo{
-			ID:           entry.Name(),
-			ConnectionID: manifest.ConnectionID,
-			Profile:      manifest.Profile,
-			TargetPath:   manifest.TargetPath,
-			CreatedAt:    manifest.CreatedAt,
-			Reason:       manifest.Reason,
-			Files:        manifest.Files,
-			Path:         snapshotDir,
+			ID:         entry.Name(),
+			OwnerID:    manifest.OwnerID,
+			Name:       manifest.Name,
+			TargetPath: manifest.TargetPath,
+			CreatedAt:  manifest.CreatedAt,
+			Reason:     manifest.Reason,
+			Files:      manifest.Files,
+			Path:       snapshotDir,
 		})
 	}
 
@@ -220,216 +214,49 @@ func ListBackups(backupRoot string, conn config.Connection, allConnections []con
 		}
 		return results[i].ID > results[j].ID
 	})
-
 	return results, nil
 }
 
-// PruneBackups keeps only the newest retentionCount snapshots, removing older ones.
-func PruneBackups(backupRoot string, conn config.Connection, allConnections []config.Connection, retentionCount int) error {
+// pruneGroup keeps only the newest retentionCount snapshots under groupDir.
+func pruneGroup(groupDir string, retentionCount int) error {
 	if retentionCount <= 0 {
 		return nil
 	}
-
-	list, err := ListBackups(backupRoot, conn, allConnections)
+	list, err := listGroup(groupDir)
 	if err != nil {
 		return err
 	}
-
 	if len(list) <= retentionCount {
 		return nil
 	}
-
-	toRemove := list[retentionCount:]
-	for _, b := range toRemove {
+	for _, b := range list[retentionCount:] {
 		_ = os.RemoveAll(b.Path)
 	}
-
 	return nil
 }
 
-// RestoreBackup restores files from a snapshot back to targetPath.
-// Before restoring, it takes a backup snapshot of current target with ReasonRestore.
-// It does NOT touch state baselines so that restored files remain target_changed and will be uploaded on the next sync.
-func RestoreBackup(backupRoot string, conn config.Connection, allConnections []config.Connection, backupID string, st *state.State, retention int) error {
-	targetDirName := TargetFolderID(conn.TargetPath, conn.ID, allConnections)
-	snapshotDir := filepath.Join(backupRoot, targetDirName, backupID)
+// ListSnapshots returns the snapshots of owner stored under backupRoot, newest first.
+func ListSnapshots(backupRoot string, owner Owner) ([]BackupInfo, error) {
+	return listGroup(filepath.Join(backupRoot, snapshotFolderName(owner.Dir)))
+}
 
-	manifestPath := filepath.Join(snapshotDir, ManifestFileName)
-	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return apperr.Wrap(apperr.BackupFailed, fmt.Errorf("backup snapshot not found: %w", err))
-	}
-
-	var manifest Manifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return apperr.Wrap(apperr.BackupFailed, err)
-	}
-
-	// 1. Create mandatory backup of current target state before restoring
-	if _, err := CreateBackup(backupRoot, conn, allConnections, manifest.Files, ReasonRestore, retention); err != nil {
-		return err
-	}
-
-	// 2. Restore each file from snapshot without modifying baseline
-	for _, relPath := range manifest.Files {
-		src := filepath.Join(snapshotDir, filepath.FromSlash(relPath))
-		dst := filepath.Join(conn.TargetPath, filepath.FromSlash(relPath))
-
-		if err := fsops.AtomicCopy(src, dst); err != nil {
-			return apperr.Wrap(apperr.WriteFailed, err)
-		}
-	}
-
-	return nil
+// repoGroupDir is the folder holding snapshots of discarded repository edits.
+func repoGroupDir(backupRoot string) string {
+	return filepath.Join(backupRoot, RepoSnapshotID)
 }
 
 // CreateRepoBackup backs up uncommitted manual edits in the repository before they are discarded.
 func CreateRepoBackup(backupRoot string, repoRoot string, files []string, reason string, retention int) (*BackupInfo, error) {
-	if len(files) == 0 {
-		return nil, nil
-	}
-
-	var existingFiles []string
-	for _, relPath := range files {
-		targetFile := filepath.Join(repoRoot, filepath.FromSlash(relPath))
-		if fi, err := os.Stat(targetFile); err == nil && !fi.IsDir() {
-			existingFiles = append(existingFiles, relPath)
-		}
-	}
-
-	if len(existingFiles) == 0 {
-		return nil, nil
-	}
-
-	repoBackupDir := filepath.Join(backupRoot, "_repo")
-	if err := os.MkdirAll(repoBackupDir, fsops.DefaultDirPerms); err != nil {
-		return nil, apperr.Wrap(apperr.BackupFailed, err)
-	}
-
-	now := time.Now()
-	backupFolderID := FormatTimestamp(now, repoBackupDir)
-	snapshotDir := filepath.Join(repoBackupDir, backupFolderID)
-
-	if err := os.MkdirAll(snapshotDir, fsops.DefaultDirPerms); err != nil {
-		return nil, apperr.Wrap(apperr.BackupFailed, err)
-	}
-
-	for _, relPath := range existingFiles {
-		src := filepath.Join(repoRoot, filepath.FromSlash(relPath))
-		dst := filepath.Join(snapshotDir, filepath.FromSlash(relPath))
-		if err := fsops.AtomicCopy(src, dst); err != nil {
-			_ = os.RemoveAll(snapshotDir)
-			return nil, apperr.Wrap(apperr.BackupFailed, err)
-		}
-	}
-
-	manifest := Manifest{
-		ConnectionID: "_repo",
-		Profile:      "_repo",
-		TargetPath:   repoRoot,
-		CreatedAt:    config.FormatRFC3339(now),
-		Reason:       reason,
-		Files:        existingFiles,
-	}
-
-	manifestData, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		_ = os.RemoveAll(snapshotDir)
-		return nil, apperr.Wrap(apperr.BackupFailed, err)
-	}
-
-	manifestPath := filepath.Join(snapshotDir, ManifestFileName)
-	if err := fsops.AtomicWrite(manifestPath, manifestData, fsops.DefaultFilePerms); err != nil {
-		_ = os.RemoveAll(snapshotDir)
-		return nil, apperr.Wrap(apperr.BackupFailed, err)
-	}
-
-	if retention > 0 {
-		_ = PruneRepoBackups(backupRoot, retention)
-	}
-
-	return &BackupInfo{
-		ID:           backupFolderID,
-		ConnectionID: "_repo",
-		Profile:      "_repo",
-		TargetPath:   repoRoot,
-		CreatedAt:    manifest.CreatedAt,
-		Reason:       reason,
-		Files:        existingFiles,
-		Path:         snapshotDir,
-	}, nil
+	owner := Owner{ID: RepoSnapshotID, Name: RepoSnapshotID, Dir: repoRoot}
+	return writeSnapshot(repoGroupDir(backupRoot), owner, files, reason, retention)
 }
 
 // ListRepoBackups returns all snapshots for discarded repo edits, ordered newest first.
 func ListRepoBackups(backupRoot string) ([]BackupInfo, error) {
-	repoBackupDir := filepath.Join(backupRoot, "_repo")
-	entries, err := os.ReadDir(repoBackupDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []BackupInfo{}, nil
-		}
-		return nil, apperr.Wrap(apperr.BackupFailed, err)
-	}
-
-	var results []BackupInfo
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		snapshotDir := filepath.Join(repoBackupDir, entry.Name())
-		manifestPath := filepath.Join(snapshotDir, ManifestFileName)
-		data, err := os.ReadFile(manifestPath)
-		if err != nil {
-			continue
-		}
-
-		var manifest Manifest
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			continue
-		}
-
-		results = append(results, BackupInfo{
-			ID:           entry.Name(),
-			ConnectionID: manifest.ConnectionID,
-			Profile:      manifest.Profile,
-			TargetPath:   manifest.TargetPath,
-			CreatedAt:    manifest.CreatedAt,
-			Reason:       manifest.Reason,
-			Files:        manifest.Files,
-			Path:         snapshotDir,
-		})
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].CreatedAt != results[j].CreatedAt {
-			return results[i].CreatedAt > results[j].CreatedAt
-		}
-		return results[i].ID > results[j].ID
-	})
-
-	return results, nil
+	return listGroup(repoGroupDir(backupRoot))
 }
 
 // PruneRepoBackups keeps only the newest retentionCount snapshots of repo discards.
 func PruneRepoBackups(backupRoot string, retentionCount int) error {
-	if retentionCount <= 0 {
-		return nil
-	}
-
-	list, err := ListRepoBackups(backupRoot)
-	if err != nil {
-		return err
-	}
-
-	if len(list) <= retentionCount {
-		return nil
-	}
-
-	toRemove := list[retentionCount:]
-	for _, b := range toRemove {
-		_ = os.RemoveAll(b.Path)
-	}
-
-	return nil
+	return pruneGroup(repoGroupDir(backupRoot), retentionCount)
 }

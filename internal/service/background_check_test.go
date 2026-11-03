@@ -162,7 +162,6 @@ func TestBackgroundCheckDoesNotBlockReadsDuringFetch(t *testing.T) {
 		call func() error
 	}{
 		{"GetConfig", func() error { _, err := f.svc.GetConfig(); return err }},
-		{"ListProfiles", func() error { _, err := f.svc.ListProfiles(); return err }},
 		{"GetStatus", func() error { _, err := f.svc.GetStatus(); return err }},
 		{"ListSubscriptions", func() error { _, err := f.svc.ListSubscriptions(); return err }},
 		{"GetGitInfo", func() error { _, err := f.svc.GetGitInfo(); return err }},
@@ -357,11 +356,6 @@ func TestIgnoredRulesFileDoesNotBreakSync(t *testing.T) {
 	for _, path := range append(append([]string{}, plan.CommitPreview...), plan.DirtyOutside...) {
 		if strings.Contains(path, rules.RulesFileName) {
 			t.Fatalf("ignored rules file reported as a pending change: %v", plan)
-		}
-	}
-	for _, upload := range plan.Uploads {
-		if strings.Contains(upload.FullPath, rules.RulesFileName) {
-			t.Fatalf("ignored rules file reported as an upload: %v", plan.Uploads)
 		}
 	}
 	if _, err := f.svc.ExecuteSync(plan.Fingerprint, nil); err != nil {
