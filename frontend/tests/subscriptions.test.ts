@@ -13,6 +13,7 @@ const mockApi = vi.hoisted(() => ({
   getSubscriptionTree: vi.fn(),
   getSubscriptionIncomingDiff: vi.fn(),
   openPath: vi.fn(),
+  openURL: vi.fn(),
 }));
 
 vi.mock("../src/lib/api", async (importOriginal) => ({
@@ -57,6 +58,60 @@ describe("SubscriptionsView.svelte", () => {
     expect(getByText("2 updates")).toBeDefined();
   });
 
+  it("lists incoming files only after expanding the card's expand control", async () => {
+    const { findByText, getByRole, queryByText, container } = render(SubscriptionsView);
+    await findByText("Team skills");
+    const expand = getByRole("button", { name: "1 incoming file" });
+    expect(expand.getAttribute("aria-expanded")).toBe("false");
+    expect(queryByText("skills/review/SKILL.md")).toBeNull();
+    expect(container.querySelector(".zone-expand")).not.toBeNull();
+
+    await fireEvent.click(expand);
+    expect(expand.getAttribute("aria-expanded")).toBe("true");
+    expect(getByRole("button", { name: "View changes in skills/review/SKILL.md" })).toBeDefined();
+    await fireEvent.click(expand);
+    expect(queryByText("skills/review/SKILL.md")).toBeNull();
+  });
+
+  it("reserves the expand zone on subscriptions without incoming changes", async () => {
+    mockApi.listSubscriptions.mockResolvedValue([{ ...subscription, update: undefined }]);
+    const { findByText, queryByRole, container } = render(SubscriptionsView);
+    await findByText("Team skills");
+    expect(queryByRole("button", { name: /incoming file/ })).toBeNull();
+    expect(container.querySelector(".zone-expand")?.children.length).toBe(0);
+  });
+
+  it("opens the repository page from the branch button and hides the URL line", async () => {
+    const { findByRole, queryByText } = render(SubscriptionsView);
+    const branch = await findByRole("button", { name: /Open the repository page/ });
+    expect(branch.getAttribute("title")).toBe(subscription.url);
+    expect(branch.textContent).toContain("main");
+    expect(queryByText(subscription.url)).toBeNull();
+    await fireEvent.click(branch);
+    expect(mockApi.openURL).toHaveBeenCalledWith("https://example.com/team/skills");
+  });
+
+  it("does not navigate for URLs without a web page", async () => {
+    mockApi.listSubscriptions.mockResolvedValue([
+      { ...subscription, url: "file:///C:/repos/skills" },
+    ]);
+    const { findByText, queryByRole, container } = render(SubscriptionsView);
+    await findByText("Team skills");
+    expect(queryByRole("button", { name: /Open the repository page/ })).toBeNull();
+    expect(container.querySelector(".branch")?.getAttribute("title")).toBe(
+      "file:///C:/repos/skills"
+    );
+  });
+
+  it("shows the short hint and compact action labels with full tooltips", async () => {
+    const { findByText, findByRole, getByText } = render(SubscriptionsView);
+    await findByText("Team skills");
+    expect(getByText("Local changes are kept.")).toBeDefined();
+    const check = await findByRole("button", { name: "Check for updates" });
+    expect(check.textContent?.trim()).toBe("Check");
+    expect(check.parentElement?.getAttribute("title")).toBe("Check for updates");
+  });
+
   it("updates a subscription and reports the result", async () => {
     mockApi.updateSubscription.mockResolvedValue({
       changedFiles: ["skills/review/SKILL.md"],
@@ -70,9 +125,9 @@ describe("SubscriptionsView.svelte", () => {
       },
     });
     const addToast = vi.spyOn(appState, "addToast");
-    const { findByText } = render(SubscriptionsView);
+    const { findByRole } = render(SubscriptionsView);
 
-    await fireEvent.click(await findByText("Update now"));
+    await fireEvent.click(await findByRole("button", { name: "Update now" }));
     await waitFor(() => expect(mockApi.updateSubscription).toHaveBeenCalledWith("s_1"));
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(

@@ -66,6 +66,46 @@ describe("LocationsView.svelte", () => {
     expect(getByText("Built-in")).toBeDefined();
   });
 
+  it("lays every location out in the same zones, keeping empty ones reserved", async () => {
+    const { findByText, container } = render(LocationsView);
+    await findByText("Detected: Claude Code");
+    const rows = [...container.querySelectorAll("ul.card > li.row")];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect([...row.children].map((child) => child.className.split(" ")[0])).toEqual([
+        "alias",
+        "path",
+        "tags",
+        "hint",
+        "row-actions",
+      ]);
+      // The built-in location has no edit button but keeps its slot, so icons do not shift.
+      expect(row.querySelector(".row-actions")!.children).toHaveLength(3);
+    }
+    expect(rows[0].querySelector(".action-slot")).not.toBeNull();
+    expect(rows[1].querySelector(".action-slot")).toBeNull();
+  });
+
+  it("keeps the full path available for tooltip and screen readers when it is cut", async () => {
+    const { findByText, container } = render(LocationsView);
+    await findByText("Detected: Claude Code");
+    const path = container.querySelector("ul.card > li.row .middle-ellipsis")!;
+    expect(path.getAttribute("title")).toBe("C:/home");
+    const claude = container.querySelectorAll("ul.card > li.row .middle-ellipsis")[1];
+    expect(claude.getAttribute("title")).toBe("C:/home/.claude");
+    expect(claude.textContent).toBe("C:/home/.claude");
+    expect(claude.querySelector(".end")!.textContent).toBe("/.claude");
+  });
+
+  it("explains that folders are named per computer", async () => {
+    const { findByText } = render(LocationsView);
+    expect(
+      await findByText(
+        "Name the folders on this PC. Rules use the name, so each computer can have its own path."
+      )
+    ).toBeDefined();
+  });
+
   it("shows singular and plural destination counts in Spanish", async () => {
     setLocale("es");
     const { findByText, getByText } = render(LocationsView);

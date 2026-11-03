@@ -15,6 +15,7 @@
   import DiffModal from "../components/DiffModal.svelte";
   import RuleCard from "../components/rules/RuleCard.svelte";
   import CollisionList from "../components/rules/CollisionList.svelte";
+  import RuleSourceViewer from "../components/rules/RuleSourceViewer.svelte";
   import {
     RESOLUTION,
     canWriteBack,
@@ -38,6 +39,8 @@
   let deleteTarget = $state<rulesync.RuleStatus | null>(null);
   let deleting = $state(false);
   let review = $state<ReviewState | null>(null);
+  /** The viewer lives here, outside the cards: a card's containment would trap its fixed overlay. */
+  let viewer = $state<{ rule: rules.Rule; path: string } | null>(null);
 
   const ruleStatuses = $derived(report?.rules ?? []);
   const collisions = $derived(report?.collisions ?? []);
@@ -89,6 +92,7 @@
   async function handleToggle(status: rulesync.RuleStatus, enabled: boolean) {
     try {
       await api.saveRule(rules.Rule.createFrom({ ...status.rule, enabled }), scopeOf(status));
+      void appState.refreshLocalStatus();
       await load();
     } catch (err) {
       appState.showError(err);
@@ -119,7 +123,7 @@
       await api.deleteRule(deleteTarget.rule.id);
       appState.addToast("success", t("rules.toast.deleted", { name: deleteTarget.rule.name }));
       deleteTarget = null;
-      appState.bumpRules();
+      appState.afterRuleChange();
     } catch (err) {
       appState.showError(err);
     } finally {
@@ -275,12 +279,21 @@
           onduplicate={() => handleDuplicate(status)}
           ondelete={() => (deleteTarget = status)}
           onopen={handleOpen}
+          onview={(path) => (viewer = { rule: status.rule, path: path ?? "" })}
           onreview={(destId, file) => openReview(status, destId, file)}
         />
       {/each}
     </div>
   {/if}
 </section>
+
+<RuleSourceViewer
+  open={Boolean(viewer)}
+  ruleId={viewer?.rule.id ?? ""}
+  ruleName={viewer?.rule.name ?? ""}
+  initialPath={viewer?.path ?? ""}
+  onclose={() => (viewer = null)}
+/>
 
 <Modal
   open={appState.collisionDetailsOpen}

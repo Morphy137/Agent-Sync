@@ -1,19 +1,57 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, fireEvent, cleanup } from "@testing-library/svelte";
+import { render, fireEvent, waitFor, cleanup } from "@testing-library/svelte";
 import SettingsDrawer from "../src/lib/components/SettingsDrawer.svelte";
-import { appState } from "../src/lib/stores/appState.svelte";
+import { appState, SETTINGS_DEFAULTS } from "../src/lib/stores/appState.svelte";
+import { updateState } from "../src/lib/stores/updates.svelte";
 import { setLocale, getActiveLocale } from "../src/lib/i18n";
 import { applyTheme } from "../src/lib/theme/theme";
 
+const validFolder = vi.hoisted(() => ({
+  normalized: "",
+  exists: true,
+  isDir: true,
+  writable: true,
+  isInsideRoot: false,
+  alreadyConnected: false,
+}));
+
 vi.mock("../wailsjs/go/main/App", () => ({
-  InspectPath: vi.fn(),
+  InspectPath: vi.fn().mockResolvedValue(validFolder),
   SelectFolder: vi.fn(),
   CreateFolder: vi.fn(),
   GetChangelog: vi.fn().mockResolvedValue("## [0.0.1] - 2026-10-31\n### Added\n- First release\n"),
 }));
 
-const runtime = vi.hoisted(() => ({ BrowserOpenURL: vi.fn() }));
-vi.mock("../wailsjs/runtime/runtime", () => runtime);
+const mockApi = vi.hoisted(() => ({
+  updateSettings: vi.fn(),
+  setGitIdentity: vi.fn(),
+  getGitInfo: vi.fn(),
+  setRootPath: vi.fn(),
+  openURL: vi.fn(),
+}));
+vi.mock("../src/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/api")>()),
+  api: mockApi,
+}));
+
+/** Longer than the autosave debounce so a pending save has fired. */
+const PAST_DEBOUNCE_MS = 1500;
+
+function savedConfig(overrides: Record<string, unknown> = {}) {
+  return {
+    language: "en",
+    theme: "light",
+    backupPath: "C:/backups",
+    backupRetention: 20,
+    checkIntervalMinutes: 5,
+    confirmBeforeSync: true,
+    disableUpdateCheck: false,
+    rootPath: "C:/repo/root",
+    tutorialCompleted: true,
+    connections: [],
+    ...overrides,
+  };
+}
 
 describe("SettingsDrawer.svelte", () => {
   beforeEach(() => {
@@ -21,98 +59,205 @@ describe("SettingsDrawer.svelte", () => {
     setLocale("en");
     applyTheme("light");
 
-    appState.config = {
-      language: "en",
-      theme: "light",
-      backupPath: "C:/backups",
-      backupRetention: 20,
-      checkIntervalMinutes: 5,
-      confirmBeforeSync: true,
-      rootPath: "C:/repo/root",
-      connections: [],
-    } as any;
-
+    appState.config = savedConfig() as any;
     appState.gitInfo = {
       isInstalled: true,
       isRepo: true,
       userName: "Initial User",
       userEmail: "user@example.com",
     } as any;
+    appState.alertNotifications = [];
+    updateState.info = { dataDir: "C:\\Users\\me\\AppData\\Roaming\\AgentSync" } as any;
+
+    mockApi.updateSettings.mockImplementation(async (payload) => ({
+      ...(appState.config as any),
+      ...payload,
+    }));
+    mockApi.getGitInfo.mockResolvedValue({ isRepo: true, userName: "x", userEmail: "x@x.com" });
   });
 
   afterEach(() => {
     cleanup();
+    updateState.info = null;
   });
 
-  it("reverts unsaved theme and language changes on close without saving (R5)", async () => {
-    const closeSpy = vi.fn();
-    const saveSpy = vi.fn();
+  function renderDrawer(onclose = vi.fn()) {
+    return { onclose, ...render(SettingsDrawer, { open: true, onclose }) };
+  }
 
-    const { getByText, getByRole } = render(SettingsDrawer, {
-      open: true,
-      onclose: closeSpy,
-      onsave: saveSpy,
-    });
+  it("has no save button", () => {
+    const { queryByRole, getByRole } = renderDrawer();
+    expect(queryByRole("button", { name: /save settings/i })).toBeNull();
+    expect(getByRole("button", { name: "Restore defaults" })).toBeDefined();
+  });
 
-    expect(getActiveLocale()).toBe("en");
-    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+  it("saves language and theme right away and keeps them applied", async () => {
+    const { getByText } = renderDrawer();
 
-    // Change language to Spanish
-    const esOption = getByText("Español");
-    await fireEvent.click(esOption);
+    await fireEvent.click(getByText("Español"));
+    await waitFor(() =>
+      expect(mockApi.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ language: "es", theme: "light" })
+      )
+    );
     expect(getActiveLocale()).toBe("es");
+    await waitFor(() => expect(appState.config?.language).toBe("es"));
 
-    // Labels re-render live in the previewed language
-    const darkOption = getByText("Negro");
-    await fireEvent.click(darkOption);
+    await fireEvent.click(getByText("Negro"));
+    await waitFor(() =>
+      expect(mockApi.updateSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ language: "es", theme: "dark" })
+      )
+    );
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-
-    // Close without saving
-    const closeBtn = getByRole("button", { name: "Cerrar" });
-    await fireEvent.click(closeBtn);
-
-    expect(closeSpy).toHaveBeenCalled();
-    // Verify reverted to initial values
-    expect(getActiveLocale()).toBe("en");
-    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-    expect(saveSpy).not.toHaveBeenCalled();
+    expect(appState.toasts).toHaveLength(0);
   });
 
-  it("commits theme and language changes when user clicks save", async () => {
-    const closeSpy = vi.fn();
-    const saveSpy = vi.fn();
-
-    const { getByText, getByRole } = render(SettingsDrawer, {
-      open: true,
-      onclose: closeSpy,
-      onsave: saveSpy,
-    });
-
-    // Change language to Spanish
-    const esOption = getByText("Español");
-    await fireEvent.click(esOption);
-
-    // Click Save
-    const saveBtn = getByRole("button", { name: "Guardar Ajustes" });
-    await fireEvent.click(saveBtn);
-
-    expect(saveSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        language: "es",
-      }),
-      "Initial User",
-      "user@example.com",
-      undefined
+  it("saves a toggle immediately", async () => {
+    const { getByRole } = renderDrawer();
+    const confirmSwitch = getByRole("switch", { name: "Confirm before syncing" });
+    await fireEvent.click(confirmSwitch);
+    await waitFor(() =>
+      expect(mockApi.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmBeforeSync: false })
+      )
     );
   });
 
-  it("opens the public GitHub repository from the star button", async () => {
-    const { getByRole } = render(SettingsDrawer, {
-      open: true,
-      onclose: vi.fn(),
-      onsave: vi.fn(),
+  it("saves the retention after the debounce, not on every keystroke", async () => {
+    const { getByLabelText } = renderDrawer();
+    const retention = getByLabelText("Number of backups to keep");
+
+    await fireEvent.input(retention, { target: { value: "3" } });
+    await fireEvent.input(retention, { target: { value: "30" } });
+    expect(mockApi.updateSettings).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(mockApi.updateSettings).toHaveBeenCalledTimes(1), {
+      timeout: PAST_DEBOUNCE_MS,
     });
+    expect(mockApi.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ backupRetention: 30 })
+    );
+  });
+
+  it("flushes a pending edit when the drawer closes", async () => {
+    const { getByLabelText, getByRole, onclose } = renderDrawer();
+    await fireEvent.input(getByLabelText("Number of backups to keep"), {
+      target: { value: "7" },
+    });
+    expect(mockApi.updateSettings).not.toHaveBeenCalled();
+
+    await fireEvent.click(getByRole("button", { name: "Close" }));
+    expect(onclose).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(mockApi.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ backupRetention: 7 })
+      )
+    );
+  });
+
+  it("does not save an invalid retention and shows the inline message", async () => {
+    const { getByLabelText, findByRole, getByRole } = renderDrawer();
+    await fireEvent.input(getByLabelText("Number of backups to keep"), {
+      target: { value: "0" },
+    });
+    expect((await findByRole("alert")).textContent).toContain("whole number");
+
+    // Closing flushes nothing and another setting still keeps the saved retention.
+    await fireEvent.click(getByRole("button", { name: "Close" }));
+    await new Promise((resolve) => setTimeout(resolve, PAST_DEBOUNCE_MS));
+    expect(mockApi.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("never overwrites with an invalid value when another setting changes", async () => {
+    const { getByLabelText, getByRole } = renderDrawer();
+    await fireEvent.input(getByLabelText("Number of backups to keep"), {
+      target: { value: "-4" },
+    });
+    await fireEvent.click(getByRole("switch", { name: "Confirm before syncing" }));
+    await waitFor(() => expect(mockApi.updateSettings).toHaveBeenCalled());
+    expect(mockApi.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ backupRetention: 20, confirmBeforeSync: false })
+    );
+  });
+
+  it("reports a failed save and restores the last saved values", async () => {
+    mockApi.updateSettings.mockRejectedValueOnce(new Error("disk full"));
+    const { getByText } = renderDrawer();
+
+    await fireEvent.click(getByText("Español"));
+    await waitFor(() => expect(appState.alertNotifications.length).toBe(1));
+    await waitFor(() => expect(getActiveLocale()).toBe("en"));
+    expect(appState.config?.language).toBe("en");
+  });
+
+  it("serializes saves so an older response cannot overwrite a newer edit", async () => {
+    const resolvers: Array<() => void> = [];
+    mockApi.updateSettings.mockImplementation(
+      (payload) =>
+        new Promise((resolve) => {
+          resolvers.push(() => resolve({ ...(appState.config as any), ...payload }));
+        })
+    );
+    const { getByText } = renderDrawer();
+
+    await fireEvent.click(getByText("Español"));
+    await fireEvent.click(getByText("Negro"));
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    expect(mockApi.updateSettings).toHaveBeenCalledTimes(1);
+
+    resolvers[0]();
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+    resolvers[1]();
+    await waitFor(() => expect(appState.config?.theme).toBe("dark"));
+    expect(appState.config?.language).toBe("es");
+  });
+
+  describe("restore defaults", () => {
+    it("asks for confirmation and sends nothing until confirmed", async () => {
+      const { getByRole, findByRole } = renderDrawer();
+      await fireEvent.click(getByRole("button", { name: "Restore defaults" }));
+      expect(await findByRole("dialog", { name: "Restore default settings?" })).toBeDefined();
+      expect(mockApi.updateSettings).not.toHaveBeenCalled();
+
+      await fireEvent.click(getByRole("button", { name: "Cancel" }));
+      expect(mockApi.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("sends only the drawer settings with their default values", async () => {
+      appState.config = savedConfig({
+        language: "es",
+        theme: "dark",
+        backupRetention: 3,
+        checkIntervalMinutes: 30,
+        confirmBeforeSync: false,
+        disableUpdateCheck: true,
+        backupPath: "D:/elsewhere",
+      }) as any;
+      const { getByRole } = renderDrawer();
+
+      await fireEvent.click(getByRole("button", { name: "Restore defaults" }));
+      await fireEvent.click(getByRole("button", { name: "Restore" }));
+
+      await waitFor(() => expect(mockApi.updateSettings).toHaveBeenCalledTimes(1));
+      expect(mockApi.updateSettings).toHaveBeenCalledWith({
+        language: SETTINGS_DEFAULTS.language,
+        theme: SETTINGS_DEFAULTS.theme,
+        backupPath: "C:\\Users\\me\\AppData\\Roaming\\AgentSync\\backups",
+        backupRetention: SETTINGS_DEFAULTS.backupRetention,
+        checkIntervalMinutes: SETTINGS_DEFAULTS.checkIntervalMinutes,
+        confirmBeforeSync: SETTINGS_DEFAULTS.confirmBeforeSync,
+        disableUpdateCheck: SETTINGS_DEFAULTS.disableUpdateCheck,
+      });
+      expect(mockApi.setRootPath).not.toHaveBeenCalled();
+      expect(mockApi.setGitIdentity).not.toHaveBeenCalled();
+      await waitFor(() => expect(appState.config?.rootPath).toBe("C:/repo/root"));
+    });
+  });
+
+  it("opens the public GitHub repository from the star button", async () => {
+    const { getByRole } = renderDrawer();
     await fireEvent.click(getByRole("button", { name: "Star on GitHub" }));
-    expect(runtime.BrowserOpenURL).toHaveBeenCalledWith("https://github.com/Morphy137/Agent-Sync");
+    expect(mockApi.openURL).toHaveBeenCalledWith("https://github.com/Morphy137/Agent-Sync");
   });
 });

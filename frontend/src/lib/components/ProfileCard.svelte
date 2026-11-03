@@ -1,18 +1,13 @@
 <script lang="ts">
-  import {
-    ChevronDown,
-    ChevronRight,
-    MoreHorizontal,
-    ExternalLink,
-    FolderSync,
-    Unlink,
-  } from "@lucide/svelte";
+  import { MoreHorizontal, ExternalLink, FolderSync, Unlink } from "@lucide/svelte";
   import type { profiles, config, syncer } from "../../../wailsjs/go/models";
   import { t } from "../i18n";
   import Button from "./Button.svelte";
+  import ExpandToggle from "./ExpandToggle.svelte";
   import IconButton from "./IconButton.svelte";
   import StatusPill from "./StatusPill.svelte";
   import Tooltip from "./Tooltip.svelte";
+  import "./cardZones.css";
 
   interface Props {
     profile: profiles.Profile;
@@ -38,6 +33,8 @@
     ondisconnect,
   }: Props = $props();
 
+  const uid = $props.id();
+  const filesId = `profile-files-${uid}`;
   let expanded = $state(false);
   let menuOpen = $state(false);
   let menuContainer = $state<HTMLDivElement | null>(null);
@@ -57,6 +54,7 @@
   }
 
   const isConnected = $derived(!!connection);
+  const files = $derived(status?.files ?? []);
   const aggregateStatus = $derived(status?.status || (isConnected ? "in_sync" : "not_connected"));
   const initialLetter = $derived((profile.name || "P").trim().charAt(0).toUpperCase());
 
@@ -65,6 +63,10 @@
     const parts = connection.targetPath.split(/[/\\]/).filter(Boolean);
     return parts[parts.length - 1] || connection.targetPath;
   });
+
+  const profileTitle = $derived(
+    connection && targetFolderName ? `${profile.name} ⇄ ${targetFolderName}` : profile.name
+  );
 
   const targetTruncated = $derived.by(() => {
     if (!connection) return "";
@@ -108,7 +110,7 @@
 <svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeyDown} />
 
 <div class="profile-card" class:disconnected={!isConnected}>
-  <!-- Top section: Tile + Info + StatusPill -->
+  <!-- Top section: Tile + Info + StatusPill + expand control (its zone is always reserved) -->
   <div class="card-top">
     <div class="tile" class:tile-muted={!isConnected} aria-hidden="true">
       {initialLetter}
@@ -116,10 +118,7 @@
 
     <div class="info-col">
       <div class="header-row">
-        <span class="profile-name">
-          {profile.name}{#if connection && targetFolderName}
-            ⇄ {targetFolderName}{/if}
-        </span>
+        <span class="profile-name" title={profileTitle}>{profileTitle}</span>
         <StatusPill status={aggregateStatus} text={t(`status.${aggregateStatus}`)} />
       </div>
 
@@ -150,7 +149,35 @@
         })}
       </div>
     </div>
+
+    <div class="zone-expand">
+      {#if connection && files.length > 0}
+        <ExpandToggle
+          {expanded}
+          label={expanded
+            ? t("connections.card.hide_files")
+            : t("connections.card.view_files", { count: files.length })}
+          count={files.length}
+          controls={filesId}
+          onclick={() => (expanded = !expanded)}
+        />
+      {/if}
+    </div>
   </div>
+
+  {#if connection && expanded && files.length > 0}
+    <div class="files-panel" id={filesId}>
+      {#each files as file (file.relPath)}
+        <div class="file-row">
+          <div class="file-left">
+            <span class="file-dot {getFileDotClass(file.status)}"></span>
+            <span class="file-path" title={file.relPath}>{file.relPath}</span>
+          </div>
+          <span class="file-status-text">{t(`status.${file.status}`)}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
 
   <div class="hairline" aria-hidden="true"></div>
 
@@ -233,38 +260,6 @@
       </div>
     {/if}
   </div>
-
-  <!-- Expandable Files Section -->
-  {#if connection && status?.files && status.files.length > 0}
-    <button
-      type="button"
-      class="expand-toggle"
-      onclick={() => (expanded = !expanded)}
-      aria-expanded={expanded}
-    >
-      {#if expanded}
-        <ChevronDown size={14} />
-        <span>{t("connections.card.hide_files")}</span>
-      {:else}
-        <ChevronRight size={14} />
-        <span>{t("connections.card.view_files", { count: status.files.length })}</span>
-      {/if}
-    </button>
-
-    {#if expanded}
-      <div class="files-panel">
-        {#each status.files as file (file.relPath)}
-          <div class="file-row">
-            <div class="file-left">
-              <span class="file-dot {getFileDotClass(file.status)}"></span>
-              <span class="file-path">{file.relPath}</span>
-            </div>
-            <span class="file-status-text">{t(`status.${file.status}`)}</span>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  {/if}
 </div>
 
 <style>
@@ -284,9 +279,16 @@
   }
 
   .card-top {
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) var(--card-zone-expand);
+    align-items: start;
     gap: var(--space-4);
+  }
+
+  .zone-expand {
+    display: flex;
+    justify-content: center;
+    min-height: var(--card-zone-icon);
   }
 
   .tile {
@@ -318,17 +320,21 @@
   }
 
   .header-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-2);
   }
 
   .profile-name {
+    min-width: 0;
     font-size: var(--text-md);
     font-weight: var(--weight-semibold);
     color: var(--ink);
     letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .paths-block {
@@ -444,24 +450,6 @@
 
   .dropdown-item:hover {
     background-color: var(--surface-sunken);
-  }
-
-  .expand-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-    font-weight: var(--weight-medium);
-    cursor: pointer;
-    padding: 0;
-    align-self: flex-start;
-  }
-
-  .expand-toggle:hover {
-    color: var(--ink);
   }
 
   .files-panel {

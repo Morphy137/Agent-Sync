@@ -8,10 +8,12 @@
   import { t } from "../i18n";
   import Button from "../components/Button.svelte";
   import IconButton from "../components/IconButton.svelte";
+  import MiddleEllipsis from "../components/MiddleEllipsis.svelte";
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Badge from "../components/rules/Badge.svelte";
   import LocationForm from "../components/rules/LocationForm.svelte";
+  import "../components/cardZones.css";
 
   let locations = $state<service.LocationInfo[]>([]);
   let loading = $state(true);
@@ -65,6 +67,14 @@
     }
   }
 
+  function tagLabels(loc: service.LocationInfo): string[] {
+    return [
+      ...(loc.builtin ? [t("locations.builtin")] : []),
+      ...(loc.profileLabel ? [t("locations.detected", { label: loc.profileLabel })] : []),
+      ...(loc.exists ? [] : [t("locations.missing")]),
+    ];
+  }
+
   async function openRecognizers() {
     try {
       recognizersPath = await api.getRecognizersPath();
@@ -93,22 +103,22 @@
         <p class="hint">{t("locations.unmapped_desc")}</p>
         <ul class="list">
           {#each unmapped as loc (loc.alias)}
-            <li class="row">
-              <div class="row-main">
-                <span class="alias">{loc.alias}</span>
-                <span class="hint"
-                  >{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, {
-                    count: loc.ruleCount,
-                  })}</span
-                >
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onclick={() => (editing = { alias: loc.alias, path: "", locked: true })}
+            <li class="row row-unmapped">
+              <span class="alias" title={loc.alias}>{loc.alias}</span>
+              <span class="hint usage"
+                >{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, {
+                  count: loc.ruleCount,
+                })}</span
               >
-                {t("locations.map_folder")}
-              </Button>
+              <div class="map-action">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onclick={() => (editing = { alias: loc.alias, path: "", locked: true })}
+                >
+                  {t("locations.map_folder")}
+                </Button>
+              </div>
             </li>
           {/each}
         </ul>
@@ -118,22 +128,20 @@
     <ul class="list card">
       {#each mapped as loc (loc.alias)}
         <li class="row">
-          <div class="row-main">
-            <div class="row-title">
-              <span class="alias">{loc.alias}</span>
-              {#if loc.builtin}<Badge>{t("locations.builtin")}</Badge>{/if}
-              {#if loc.profileLabel}
-                <Badge tone="success">{t("locations.detected", { label: loc.profileLabel })}</Badge>
-              {/if}
-              {#if !loc.exists}<Badge tone="danger">{t("locations.missing")}</Badge>{/if}
-            </div>
-            <span class="path" title={loc.path}>{loc.path}</span>
-            <span class="hint"
-              >{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, {
-                count: loc.ruleCount,
-              })}</span
-            >
+          <span class="alias" title={loc.alias}>{loc.alias}</span>
+          <span class="path"><MiddleEllipsis text={loc.path} /></span>
+          <div class="tags" title={tagLabels(loc).join(" · ")}>
+            {#if loc.builtin}<Badge>{t("locations.builtin")}</Badge>{/if}
+            {#if loc.profileLabel}
+              <Badge tone="success">{t("locations.detected", { label: loc.profileLabel })}</Badge>
+            {/if}
+            {#if !loc.exists}<Badge tone="danger">{t("locations.missing")}</Badge>{/if}
           </div>
+          <span class="hint usage"
+            >{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, {
+              count: loc.ruleCount,
+            })}</span
+          >
           <div class="row-actions">
             <IconButton label={t("locations.open")} onclick={() => openFolder(loc.path)}>
               <FolderOpen size={16} />
@@ -142,6 +150,8 @@
               <IconButton label={t("locations.edit")} onclick={() => startEdit(loc)}>
                 <Pencil size={16} />
               </IconButton>
+            {:else}
+              <span class="action-slot" aria-hidden="true"></span>
             {/if}
             <IconButton label={t("locations.remove")} onclick={() => (removing = loc)}>
               <Trash2 size={16} />
@@ -157,7 +167,7 @@
         <h3 class="card-title">{t("locations.recognizers_title")}</h3>
       </div>
       <p class="hint">{t("locations.recognizers_desc")}</p>
-      {#if recognizersPath}<span class="path" title={recognizersPath}>{recognizersPath}</span>{/if}
+      {#if recognizersPath}<span class="path"><MiddleEllipsis text={recognizersPath} /></span>{/if}
       <div>
         <Button variant="secondary" size="sm" onclick={openRecognizers}>
           {t("locations.recognizers_open")}
@@ -249,23 +259,48 @@
     padding: 0;
   }
 
+  /*
+   * One line per row on shared tracks, so alias, path, tags, usage and actions line up from row to row.
+   * The path takes the flexible space and is cut in the middle when it does not fit.
+   */
+  .list {
+    container-type: inline-size;
+  }
+
   .row {
-    display: flex;
+    display: grid;
+    grid-template-columns:
+      var(--card-zone-alias)
+      minmax(0, 1fr)
+      var(--card-zone-tags)
+      var(--card-zone-usage)
+      calc(3 * var(--card-zone-icon) + 2 * var(--space-1));
+    grid-template-areas: "alias path tags usage actions";
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) 0;
+    column-gap: var(--space-3);
+    min-height: var(--card-zone-row);
+  }
+
+  .row-unmapped {
+    grid-template-columns: var(--card-zone-alias) minmax(0, 1fr) var(--card-zone-usage) var(
+        --card-zone-action
+      );
+    grid-template-areas: "alias . usage map";
+  }
+
+  @container (max-width: 900px) {
+    .row {
+      grid-template-columns:
+        var(--card-zone-alias-compact)
+        minmax(0, 1fr)
+        var(--card-zone-tags-compact)
+        var(--card-zone-usage-compact)
+        calc(3 * var(--card-zone-icon) + 2 * var(--space-1));
+    }
   }
 
   .row + .row {
     border-top: 1px solid var(--hairline);
-  }
-
-  .row-main {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    min-width: 0;
   }
 
   .row-title {
@@ -277,30 +312,65 @@
   }
 
   .alias {
+    grid-area: alias;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: var(--weight-semibold);
     font-size: var(--text-sm);
     color: var(--ink);
   }
 
-  .path {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--text-muted);
+  .tags {
+    grid-area: tags;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .usage {
+    grid-area: usage;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .path {
+    display: block;
+    grid-area: path;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  .map-action {
+    grid-area: map;
+    display: flex;
+    justify-content: flex-end;
+  }
+
   .row-actions {
+    grid-area: actions;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--space-1);
-    flex-shrink: 0;
   }
 
   .row-actions.end {
-    justify-content: flex-end;
     gap: var(--space-2);
+  }
+
+  .action-slot {
+    width: var(--card-zone-icon);
+    height: var(--card-zone-icon);
+    flex-shrink: 0;
   }
 
   .card-title {

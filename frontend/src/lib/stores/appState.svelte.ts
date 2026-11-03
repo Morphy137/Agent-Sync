@@ -15,6 +15,21 @@ import { setLocale, t } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
 import type { AppNotification } from "../components/notifications/NotificationCenter.svelte";
 
+/**
+ * Default values of the settings shown in the settings drawer.
+ * Mirrors the Default* constants and DefaultConfig() in internal/config/config.go.
+ * The backup folder default is <data dir>/backups, so it is resolved from the app info.
+ */
+export const SETTINGS_DEFAULTS = {
+  language: "system",
+  theme: "system",
+  backupRetention: 20,
+  checkIntervalMinutes: 5,
+  confirmBeforeSync: true,
+  disableUpdateCheck: false,
+  backupFolderName: "backups",
+} as const;
+
 export type AppView = "rules" | "files" | "connections" | "subscriptions" | "locations";
 
 export interface RuleEditorState {
@@ -42,6 +57,7 @@ class AppState {
   collisionDetailsOpen = $state(false);
   alertNotifications = $state<AppNotification[]>([]);
   private ruleReportRequest = 0;
+  private localStatusRequest = 0;
   private ruleReportRoot = "";
 
   get ruleNotifications(): AppNotification[] {
@@ -151,6 +167,28 @@ class AppState {
     this.rulesVersion++;
     void this.refreshRuleReport();
   }
+
+  /**
+   * Recomputes the local sync plan (no network) so pending rule work and the Sync button
+   * show right after a rule changes. Does not touch the global checking state.
+   */
+  async refreshLocalStatus() {
+    if (!this.config?.rootPath) return;
+    const request = ++this.localStatusRequest;
+    try {
+      const plan = await api.getStatus();
+      if (request === this.localStatusRequest) this.statusPlan = plan;
+    } catch (err) {
+      this.showError(err);
+    }
+  }
+
+  /** Reloads rule views and the pending state after a rule is saved, toggled or deleted. */
+  afterRuleChange() {
+    this.bumpRules();
+    void this.refreshLocalStatus();
+  }
+
   config = $state<config.Config | null>(null);
   configLoaded = $state(false);
   gitInfo = $state<service.GitInfoPayload | null>(null);

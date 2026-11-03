@@ -5,13 +5,15 @@
     tone?: "neutral" | "info" | "warning" | "danger" | "success" | "accent";
     mono?: boolean;
     title?: string;
+    /** Text-only badge that shrinks with its cell and ends in an ellipsis instead of overflowing. */
+    truncate?: boolean;
     children?: Snippet;
   }
 
-  let { tone = "neutral", mono = false, title, children }: Props = $props();
+  let { tone = "neutral", mono = false, title, truncate = false, children }: Props = $props();
 </script>
 
-<span class="badge tone-{tone}" class:mono {title}>
+<span class="badge tone-{tone}" class:mono class:truncate {title}>
   {@render children?.()}
 </span>
 
@@ -38,6 +40,12 @@
 
   .mono {
     font-family: var(--font-mono);
+  }
+
+  .truncate {
+    display: block;
+    min-width: 0;
+    line-height: 22px;
   }
 
   .tone-info {

@@ -2,7 +2,7 @@
   "locations": {
     "title": "Locations",
     "summary": "{count} on this PC",
-    "intro": "Name the folders on this PC so rules work on any computer.",
+    "intro": "Name the folders on this PC. Rules use the name, so each computer can have its own path.",
     "add": "Add location",
     "add_title": "New location",
     "edit_title": "Edit location {alias}",

@@ -13,13 +13,13 @@
     RefreshCw,
     Braces,
   } from "@lucide/svelte";
-  import { marked } from "marked";
-  import DOMPurify from "dompurify";
   import { api, parseError } from "../api";
   import { appState } from "../stores/appState.svelte";
   import { t } from "../i18n";
+  import { supportsPreview } from "../fileKinds";
   import Button from "../components/Button.svelte";
   import IconButton from "../components/IconButton.svelte";
+  import MarkdownPreview from "../components/MarkdownPreview.svelte";
   import Spinner from "../components/Spinner.svelte";
   import ViewHeader from "../components/ViewHeader.svelte";
 
@@ -36,22 +36,16 @@
   let hash = $state("");
   let usesCrLf = false;
   let readOnly = $state(false);
-  let preview = $state(false);
+  /** Markdown opens as a rendered preview; the eye toggle switches this file to the editor. */
+  let editing = $state(false);
   let loading = $state(true);
   let busy = $state(false);
   let editor = $state<HTMLTextAreaElement>();
   let request = 0;
-  const isMarkdown = $derived(/\.(md|markdown)$/i.test(selected?.name ?? ""));
+  const isMarkdown = $derived(supportsPreview(selected?.name ?? ""));
   const isJson = $derived(/\.json$/i.test(selected?.name ?? ""));
   const rootName = $derived(roots.find((root) => root.id === rootId)?.name ?? rootId);
-  const previewHtml = $derived(
-    preview
-      ? DOMPurify.sanitize(marked.parse(content, { async: false }), {
-          USE_PROFILES: { html: true },
-          FORBID_ATTR: ["style"],
-        })
-      : ""
-  );
+  const preview = $derived(isMarkdown && !editing);
 
   $effect(() => {
     appState.fileDirty = content !== original;
@@ -141,7 +135,7 @@
       const result = await api.readBrowserFile(root, path);
       if (current !== request) return;
       selected = { rootId: root, path, name, absolutePath: result.absolutePath };
-      preview = false;
+      editing = false;
       usesCrLf =
         result.content.includes("\r\n") && !result.content.replaceAll("\r\n", "").includes("\n");
       content = original = result.content.replaceAll("\r\n", "\n");
@@ -240,16 +234,8 @@
     }
   }
 
-  function handlePreviewClick(event: MouseEvent) {
-    const link = (event.target as Element).closest("a");
-    if (!link) return;
-    event.preventDefault();
-    if (/^https?:\/\//i.test(link.getAttribute("href") ?? "")) api.openURL(link.href);
-  }
-
-  function previewLinks(node: HTMLElement) {
-    node.addEventListener("click", handlePreviewClick);
-    return { destroy: () => node.removeEventListener("click", handlePreviewClick) };
+  function togglePreview() {
+    editing = preview;
   }
 </script>
 
@@ -335,10 +321,8 @@
                 ><FolderOpen size={16} /></IconButton
               >
               {#if isMarkdown}
-                <IconButton
-                  label={t("files.preview")}
-                  ariaPressed={preview}
-                  onclick={() => (preview = !preview)}><Eye size={16} /></IconButton
+                <IconButton label={t("files.preview")} ariaPressed={preview} onclick={togglePreview}
+                  ><Eye size={16} /></IconButton
                 >
               {/if}
               {#if !readOnly}<Button
@@ -350,10 +334,7 @@
             </div>
           </div>
           {#if preview}
-            <div class="markdown-preview" role="document" use:previewLinks>
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -- previewHtml is sanitized with DOMPurify -->
-              {@html previewHtml}
-            </div>
+            <MarkdownPreview source={content} />
           {:else}<textarea
               bind:this={editor}
               bind:value={content}
@@ -375,6 +356,7 @@
     gap: var(--space-4);
     flex: 1;
     min-width: 0;
+    min-height: 0;
   }
   .files-header {
     width: 100%;
@@ -389,6 +371,7 @@
     display: grid;
     flex: 1;
     grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     min-height: 480px;
     gap: var(--space-3);
   }
@@ -456,6 +439,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    min-height: 0;
+    --markdown-preview-min-height: 360px;
   }
   .toolbar,
   .actions {
@@ -481,7 +466,7 @@
     margin-left: auto;
   }
   textarea {
-    flex: 1 0 auto;
+    flex: 1 1 0;
     min-height: 360px;
     width: 100%;
     box-sizing: border-box;
@@ -495,40 +480,6 @@
     font-size: var(--text-sm);
     line-height: 1.6;
   }
-  .markdown-preview {
-    flex: 1 0 auto;
-    min-height: 360px;
-    overflow: auto;
-    padding: var(--space-3);
-    background: var(--surface-sunken);
-    border-radius: var(--radius-md);
-    color: var(--ink);
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-    user-select: text;
-  }
-  .markdown-preview :global(pre) {
-    overflow-x: auto;
-    padding: var(--space-3);
-    background: var(--surface);
-    border-radius: var(--radius-sm);
-  }
-  .markdown-preview :global(code) {
-    font-family: var(--font-mono);
-  }
-  .markdown-preview :global(img) {
-    max-width: 100%;
-  }
-  .markdown-preview :global(table) {
-    display: block;
-    overflow-x: auto;
-    border-collapse: collapse;
-  }
-  .markdown-preview :global(th),
-  .markdown-preview :global(td) {
-    padding: var(--space-2);
-    border: 1px solid var(--border-subtle);
-  }
   .hint {
     margin: auto;
     text-align: center;
@@ -536,6 +487,7 @@
   @media (max-width: 850px) {
     .workspace {
       grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
     }
     .file-browser {
       max-height: 240px;

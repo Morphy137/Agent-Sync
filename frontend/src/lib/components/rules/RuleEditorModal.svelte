@@ -202,7 +202,7 @@
     saving = true;
     try {
       await api.saveRule(buildRulePayload(form), form.scope);
-      appState.bumpRules();
+      appState.afterRuleChange();
       appState.addToast("success", t("rules.editor.saved"));
       close();
     } catch (err) {
