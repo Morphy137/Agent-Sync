@@ -14,24 +14,8 @@ export function AddSubscription(arg1, arg2) {
   return window['go']['main']['App']['AddSubscription'](arg1, arg2);
 }
 
-export function ApplyConnection(arg1) {
-  return window['go']['main']['App']['ApplyConnection'](arg1);
-}
-
-export function BeginConnection(arg1) {
-  return window['go']['main']['App']['BeginConnection'](arg1);
-}
-
-export function CancelConnection(arg1) {
-  return window['go']['main']['App']['CancelConnection'](arg1);
-}
-
-export function CancelPendingLink(arg1) {
-  return window['go']['main']['App']['CancelPendingLink'](arg1);
-}
-
-export function ChangeTarget(arg1, arg2) {
-  return window['go']['main']['App']['ChangeTarget'](arg1, arg2);
+export function ApplySubscriptionSuggestions(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ApplySubscriptionSuggestions'](arg1, arg2, arg3);
 }
 
 export function CheckForUpdate() {
@@ -50,24 +34,12 @@ export function CloneRepository(arg1, arg2, arg3) {
   return window['go']['main']['App']['CloneRepository'](arg1, arg2, arg3);
 }
 
-export function CommitConnection(arg1, arg2) {
-  return window['go']['main']['App']['CommitConnection'](arg1, arg2);
-}
-
-export function ConnectProfile(arg1, arg2) {
-  return window['go']['main']['App']['ConnectProfile'](arg1, arg2);
-}
-
 export function ConnectRemote(arg1) {
   return window['go']['main']['App']['ConnectRemote'](arg1);
 }
 
 export function CreateFolder(arg1) {
   return window['go']['main']['App']['CreateFolder'](arg1);
-}
-
-export function CreateProfile(arg1) {
-  return window['go']['main']['App']['CreateProfile'](arg1);
 }
 
 export function CreateRoot(arg1, arg2) {
@@ -78,20 +50,12 @@ export function DeleteRule(arg1) {
   return window['go']['main']['App']['DeleteRule'](arg1);
 }
 
-export function DetectAgentFolders() {
-  return window['go']['main']['App']['DetectAgentFolders']();
-}
-
 export function DetectSource(arg1) {
   return window['go']['main']['App']['DetectSource'](arg1);
 }
 
 export function DiscardRepoFile(arg1) {
   return window['go']['main']['App']['DiscardRepoFile'](arg1);
-}
-
-export function DisconnectProfile(arg1) {
-  return window['go']['main']['App']['DisconnectProfile'](arg1);
 }
 
 export function ExcludeRepoPath(arg1) {
@@ -138,6 +102,10 @@ export function GetRulesReport() {
   return window['go']['main']['App']['GetRulesReport']();
 }
 
+export function GetStartupStatus() {
+  return window['go']['main']['App']['GetStartupStatus']();
+}
+
 export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
 }
@@ -166,8 +134,8 @@ export function InstallUpdate() {
   return window['go']['main']['App']['InstallUpdate']();
 }
 
-export function ListBackups(arg1) {
-  return window['go']['main']['App']['ListBackups'](arg1);
+export function ListBackups() {
+  return window['go']['main']['App']['ListBackups']();
 }
 
 export function ListFileDirectory(arg1, arg2) {
@@ -182,10 +150,6 @@ export function ListLocations() {
   return window['go']['main']['App']['ListLocations']();
 }
 
-export function ListProfiles() {
-  return window['go']['main']['App']['ListProfiles']();
-}
-
 export function ListRepoTree() {
   return window['go']['main']['App']['ListRepoTree']();
 }
@@ -194,12 +158,12 @@ export function ListRuleSourceFiles(arg1) {
   return window['go']['main']['App']['ListRuleSourceFiles'](arg1);
 }
 
-export function ListSubscriptions() {
-  return window['go']['main']['App']['ListSubscriptions']();
+export function ListSubscriptionSuggestions(arg1) {
+  return window['go']['main']['App']['ListSubscriptionSuggestions'](arg1);
 }
 
-export function ListTargetEntries(arg1, arg2) {
-  return window['go']['main']['App']['ListTargetEntries'](arg1, arg2);
+export function ListSubscriptions() {
+  return window['go']['main']['App']['ListSubscriptions']();
 }
 
 export function OpenInExplorer(arg1) {
@@ -228,10 +192,6 @@ export function RemoveLocation(arg1) {
 
 export function RemoveSubscription(arg1) {
   return window['go']['main']['App']['RemoveSubscription'](arg1);
-}
-
-export function ResolveInitialLink(arg1, arg2) {
-  return window['go']['main']['App']['ResolveInitialLink'](arg1, arg2);
 }
 
 export function ResolveRuleFile(arg1) {
@@ -276,10 +236,6 @@ export function SelectFolder(arg1, arg2) {
 
 export function SelectRootFolder(arg1) {
   return window['go']['main']['App']['SelectRootFolder'](arg1);
-}
-
-export function SelectTargetFolder(arg1) {
-  return window['go']['main']['App']['SelectTargetFolder'](arg1);
 }
 
 export function SetGitIdentity(arg1, arg2) {

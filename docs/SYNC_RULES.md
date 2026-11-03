@@ -137,7 +137,7 @@ Drift detection only looks at the managed entries, so the rest of the file can c
 |---|---|
 | `same_target` | Two rules write `claude/CLAUDE.md` |
 | `case_conflict` | `CLAUDE.md` vs `claude.md` (same file on Windows/macOS) |
-| `folder_overlap` | A folder destination contains another destination, or a legacy folder connection target |
+| `folder_overlap` | A folder destination contains another destination |
 | `cycle` | A destination is (inside) a rule source |
 | `inside_repo` | A destination is inside the repository |
 
@@ -157,6 +157,29 @@ Each file needing attention has a **Review** button that opens the diff view
 | Use this version | Copy the destination into the source (writable sources without transform only) |
 | Edit merged version | Write your edited content to both sides (writable sources without transform only) |
 | Keep local, stop syncing this file | Adds the file to the destination's `ignore` list |
+
+## Backups and restore
+
+Before AgentSync overwrites or deletes a destination file, a capture replaces a source file, or you
+discard a repository edit, the old version is saved under the backup folder (Settings → Backups).
+**Settings → Backups → View and restore** lists them (newest first, grouped by rule) and restores all
+files of a backup or only the ones you tick. The same is available as `backups list` /
+`backups restore <id> [--file F]... --yes` and the MCP tools `list_backups` / `restore_backup`.
+
+- Files go back to where the rule writes them today (the rule destination, the rule source or the
+  repository). A backup whose rule or destination was deleted, or that was made by a version
+  without rules, can be listed but not restored.
+- Stored paths must stay inside the target: `..`, absolute paths and symlinks pointing out are
+  rejected before anything is written.
+- The current versions are backed up first, so a restore shows up in the list and can be undone.
+- A restore never changes the next sync silently. A restored destination file that differs from the
+  source loses its baseline and is reported as `untracked_diff` (a conflict to review), which a sync
+  skips; resolve it with Use source, Use this version, Edit merged version or Keep local. If the
+  restored file equals the source it is simply in sync. Transform destinations keep their baselines:
+  restored files whose managed entries changed are reported as drift (also skipped by a sync).
+  Restoring a source backup leaves destination baselines alone, so the restored source appears as a
+  pending source change in the next sync preview. Restored repository edits are uncommitted changes
+  again.
 
 ## Folder sources
 

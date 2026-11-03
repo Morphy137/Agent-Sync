@@ -98,7 +98,7 @@ Destructive tools need `confirm: true`, which the model is told to request only 
 | `status` | Root, git state, pending work, rule counts, unmapped aliases | read-only, no network |
 | `set_root` | Set the repository root folder | |
 | `plan_sync` | Fetch and preview a full sync; returns a `fingerprint` | read-only, network |
-| `sync` | Pull, apply rules, commit, push (pass the plan `fingerprint`; `resolutions` for conflicts) | network |
+| `sync` | Pull, apply rules, commit, push (pass the plan `fingerprint`; `resolutions` — `{path, resolution: keep_repo or keep_local}` — for conflicts) | network |
 | `sync_rules` | Apply pending rule changes only (no git) | writes files, with backups |
 | `list_rules` / `get_rule` | Rules with destination states and per-file status | read-only |
 | `add_rule` | New rule; destinations without `path` get AgentSync's suggestion | |
@@ -111,14 +111,25 @@ Destructive tools need `confirm: true`, which the model is told to request only 
 | `detect_source` / `suggest_placement` / `list_repo_tree` | What a source is and where it should go | read-only |
 | `list_subscriptions` / `add_subscription` / `check_subscription` / `update_subscription` / `set_subscription_auto_update` / `list_subscription_tree` | Shared repositories | |
 | `remove_subscription` | Remove a subscription and its rules | **`confirm: true`** |
+| `list_subscription_suggestions` | Rules the repository owner suggests, resolved for this PC (nothing is created) | read-only |
+| `apply_subscription_suggestions` | Create local rules from chosen suggestions (`suggestions` ids, `locations` alias→folder for unmapped aliases); files are copied later by a sync | **`confirm: true`** |
+| `export_subscription_suggestions` | Build the `agentsync.suggestions.json` content from the rules that read from a subscription (writes no file) | read-only |
 | `connect_remote` | Attach the repository to a remote without losing local files | network |
 | `list_repo_changes` / `repo_file_diff` | Repository changes and per-file diffs | read-only |
 | `discard_repo_file` | Revert a local repository change (backup first) | **`confirm: true`** |
+| `list_backups` | Backups taken before files were overwritten, deleted or discarded: `id`, owner (rule and destination), date, reason, files, size, `restorable` | read-only |
+| `restore_backup` | Restore a backup (all files, or only `files`) to where it came from; the current files are backed up first and the result carries `undoBackupId` | **`confirm: true`** |
 | `get_gitignore` / `exclude_repo_path` / `add_recommended_gitignore` | Read `.gitignore`, exclude a repo path, add the recommended patterns | |
 
 Subscription updates are blocked by local changes; removal is also blocked when local files,
 commits or stashes would be lost. Save those changes elsewhere before cleaning the clone.
 | `save_gitignore` | Replace the whole `.gitignore` | **`confirm: true`** |
+
+Restored destination files are not pushed again by the next sync: they show up as differences to
+review (see [SYNC_RULES.md](SYNC_RULES.md#backups-and-restore)). Backups of removed rules or of
+versions that predate rules are listed with `restorable: false`; `restore_backup` refuses them with
+`backup_not_restorable`. Other refusals: `backup_not_found` (unknown id or file), `location_unmapped`,
+`target_not_found`, `source_read_only` and `backup_unsafe_path` (a stored path leaves the target).
 
 Input and output JSON schemas are generated from the Go types and published through `tools/list`.
 Errors are returned as tool errors whose text starts with a stable code, e.g.
@@ -139,7 +150,7 @@ Exit codes: `0` success, `1` operation failed, `2` invalid command line.
 |---|---|
 | `status` | Overview (no network) |
 | `plan` | Fetch and preview a full sync |
-| `sync [--rules-only] [--fingerprint F] [--resolve PROFILE:RELPATH=keep_repo\|keep_local]…` | Run a sync |
+| `sync [--rules-only] [--fingerprint F] [--resolve PATH=keep_repo\|keep_local]…` | Run a sync |
 | `root set <folder>` | Set the repository root |
 | `rules list` · `rules show <id>` | Inspect rules |
 | `rules add --source PATH --to LOCATION[:PATH]… [--include FILE]… [--origin …] [--subscription ID] [--name N] [--scope repo\|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]… [--disabled]` | Create a rule |
@@ -151,6 +162,10 @@ Exit codes: `0` success, `1` operation failed, `2` invalid command line.
 | `locations list` · `locations set <alias> <folder>` · `locations remove <alias>` | Location aliases |
 | `detect <path> [--origin O] [--subscription ID]` · `suggest <path> --location L` | Detection and placement |
 | `subscriptions list\|add <url> [--name N]\|check <id>\|update <id>\|auto-update <id> on\|off\|tree <id>\|remove <id> --yes` | Subscriptions |
+| `suggestions list --subscription ID` | Suggested rules of a subscription with their target paths and status |
+| `suggestions apply --subscription ID (--id SUGGESTION… \| --all) [--map ALIAS=FOLDER]…` | Create rules from suggestions; `--map` gives a folder for a location alias not mapped yet. Needs `--id` or `--all`: nothing is applied by default |
+| `suggestions export --subscription ID [--output FILE]` | Write the suggestions file for a repository from the rules that read from a subscription (stdout without `--output`) |
+| `backups list` · `backups restore <id> [--file F]… --yes` | Backups: list them, restore all files or only the given ones |
 | `repo tree` · `repo changes [--fetch]` · `repo diff <path> [--mode working\|incoming]` · `repo discard <path> --yes` · `repo connect <url>` | Repository |
 | `repo gitignore show` · `repo gitignore exclude <path>` · `repo gitignore add-recommended` · `repo gitignore save --file FILE\|- --yes` | Repository exclusions |
 | `mcp` | Run the MCP server on stdio |

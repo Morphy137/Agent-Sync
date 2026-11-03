@@ -174,16 +174,15 @@ var DefaultSecretExcludes = []string{".credentials.json", "auth.json", "*.pem", 
 ```go
 const (
     CollisionSameTarget    = "same_target"    // two destinations write the same file
-    CollisionFolderOverlap = "folder_overlap" // a folder destination contains another destination's file/folder, or a legacy connection target folder contains it
+    CollisionFolderOverlap = "folder_overlap" // a folder destination contains another destination's file/folder
     CollisionCycle         = "cycle"          // a destination target is (or is inside) a rule source
     CollisionInsideRepo    = "inside_repo"    // destination inside the repo root
     CollisionCaseConflict  = "case_conflict"  // same path differing only by case (always checked; Windows/macOS are case-insensitive)
 )
 
 type DestRef struct {
-    RuleID       string `json:"ruleId,omitempty"`
-    DestID       string `json:"destId,omitempty"`
-    ConnectionID string `json:"connectionId,omitempty"` // legacy folder connection
+    RuleID string `json:"ruleId"`
+    DestID string `json:"destId"`
 }
 
 type Collision struct {
@@ -192,9 +191,9 @@ type Collision struct {
     Refs []DestRef `json:"refs"`
 }
 
-// DetectCollisions checks all resolved enabled destinations plus legacy connection target folders.
+// DetectCollisions checks all resolved enabled destinations.
 // Every DestRef involved in any collision must be treated as blocked by callers.
-func DetectCollisions(env Env, resolved []ResolvedDestination, sources []string /*absolute rule sources*/, legacy []config.Connection) []Collision
+func DetectCollisions(env Env, resolved []ResolvedDestination, sources []string /*absolute rule sources*/) []Collision
 ```
 
 Collisions are **never** resolved by priority. Callers block every involved destination
@@ -356,7 +355,7 @@ package rulesync
 
 const BaselinePrefix = "rule:" // state key: "rule:<ruleID>:<destID>"; managed transform entries stored under key + "#managed" relPath "__managed__" as comma-joined names
 
-// File statuses (reuse syncer constants where identical).
+// File statuses.
 const (
     StatusInSync        = "in_sync"
     StatusNewInSource   = "new_in_source"
@@ -423,11 +422,10 @@ type Engine struct {
     BackupRoot  string
     Retention   int
     Transformer Transformer
-    Legacy      []config.Connection
     DetectKind  func(absPath string) string // optional; returns rules.Kind*
 }
 
-// Status computes the full report (no writes). Uses the same 3-way matrix as syncer.EvaluateFileStatus
+// Status computes the full report (no writes). Uses the 3-way matrix of EvaluateFileStatus
 // with source/target/baseline hashes. For transformed destinations: sourceHash = hash(SourceView),
 // targetHash = hash(TargetView(managed)), and a target-side difference is StatusDrift (never upload).
 // For ModeOneWay plain copies a target-side edit is StatusDrift. For ModeCreateOnly an existing
@@ -447,8 +445,8 @@ type ApplyResult struct {
 // target_missing, source_deleted), and for ModeTwoWay with a writable source (repo/local) captures
 // target_changed back to the source. Subscription sources are read-only: target edits are reported
 // as drift. Every overwrite/delete of a destination file is preceded by a backup
-// (backup.CreateBackup with a synthetic config.Connection{ID: "rule:<ruleID>:<destID>", Profile: rule.Name,
-// TargetPath: TargetRoot}). Blocked/unmapped/disabled destinations are skipped. Baselines are updated
+// (backup.CreateSnapshot with backup.Owner{ID: "rule:<ruleID>:<destID>", Name: rule.Name,
+// Dir: TargetRoot}). Blocked/unmapped/disabled destinations are skipped. Baselines are updated
 // after each successful write and state saved at the end.
 func (e *Engine) Sync(all []rules.Rule) (ApplyResult, error)
 
@@ -580,7 +578,7 @@ New `Service` methods exposed through `app.go` (Wails):
 - Repo: `ConnectRemote(url)`, `GetRepoFileDiff(path, mode)` (mode `working` = HEAD vs working tree,
   `incoming` = HEAD vs upstream), `DiscardRepoFile(path)`.
 
-Global `ExecuteSync`: after the orchestrator finishes (commit/pull/connections/push),
+Global `ExecuteSync`: after the orchestrator finishes (commit/pull/push),
 run `rulesync.Engine.Sync`; if it captured repo files, commit them and push.
 The orchestrator treats rule source paths and `agentsync.rules.json` as managed
 (not `DirtyOutside`). Scheduler checks also refresh subscriptions.

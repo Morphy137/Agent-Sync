@@ -34,6 +34,8 @@ type SubscriptionInfo struct {
 	config.Subscription
 	Update    *subscriptions.UpdateInfo `json:"update,omitempty"`
 	RuleCount int                       `json:"ruleCount"`
+	// SuggestionsPending counts suggested rules (see rules.SuggestionsFileName) not applied yet.
+	SuggestionsPending int `json:"suggestionsPending"`
 }
 
 // SubscriptionUpdateResult summarizes an update: files changed in the clone and what the rules applied.
@@ -79,9 +81,10 @@ func (s *Service) ListSubscriptions() ([]SubscriptionInfo, error) {
 	defer s.mu.Unlock()
 
 	counts := s.subscriptionRuleCountsLocked()
+	existing, _ := s.allRulesLocked()
 	result := make([]SubscriptionInfo, 0, len(s.cfg.Subscriptions))
 	for _, sub := range s.cfg.Subscriptions {
-		info := SubscriptionInfo{Subscription: sub, RuleCount: counts[sub.ID]}
+		info := SubscriptionInfo{Subscription: sub, RuleCount: counts[sub.ID], SuggestionsPending: s.pendingSuggestionsLocked(sub.ID, existing)}
 		if upd, ok := s.subUpdates[sub.ID]; ok {
 			copied := upd
 			info.Update = &copied
@@ -135,8 +138,8 @@ func (s *Service) RemoveSubscription(id string) error {
 	for _, r := range localFile.Rules {
 		if r.Source.Origin == rules.OriginSubscription && r.Source.Subscription == id {
 			for _, d := range r.Destinations {
-				s.st.RemoveConnection(rulesync.BaselineKey(r.ID, d.ID))
-				s.st.RemoveConnection(rulesync.ManagedKey(r.ID, d.ID))
+				s.st.RemoveBaselines(rulesync.BaselineKey(r.ID, d.ID))
+				s.st.RemoveBaselines(rulesync.ManagedKey(r.ID, d.ID))
 			}
 			continue
 		}
@@ -280,12 +283,13 @@ func (s *Service) GetSubscriptionTree(id string) ([]SourceTreeEntry, error) {
 	return withoutOwnerRulesFile(entries), nil
 }
 
-// withoutOwnerRulesFile drops the repository owner's rules file from a subscription root listing:
-// it holds the rules of the owner's machine and subscribers never read it.
+// withoutOwnerRulesFile drops the repository owner's rules file and suggestions file from a subscription
+// root listing: the first holds the rules of the owner's machine, the second is offered through the
+// suggestions modal, and subscribers never pick either as a source.
 func withoutOwnerRulesFile(entries []SourceTreeEntry) []SourceTreeEntry {
 	kept := make([]SourceTreeEntry, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Path != rules.RulesFileName {
+		if entry.Path != rules.RulesFileName && entry.Path != rules.SuggestionsFileName {
 			kept = append(kept, entry)
 		}
 	}
@@ -327,7 +331,8 @@ func fetchSubscriptions(subs []config.Subscription) map[string]subscriptionFetch
 // checkFetchedSubscriptionsLocked runs after a periodic check fetched the clones: it records the
 // status of every subscription still configured and auto-updates opted-in ones from the fetched refs.
 // Subscriptions removed or added while fetching are ignored.
-func (s *Service) checkFetchedSubscriptionsLocked(fetched map[string]subscriptionFetch) {
+// Files written by those auto-updates are added to applied.
+func (s *Service) checkFetchedSubscriptionsLocked(fetched map[string]subscriptionFetch, applied *autoApplied) {
 	for idx := range s.cfg.Subscriptions {
 		sub := s.cfg.Subscriptions[idx]
 		outcome, ok := fetched[sub.ID]
@@ -342,7 +347,10 @@ func (s *Service) checkFetchedSubscriptionsLocked(fetched map[string]subscriptio
 		if info.Offline || info.Behind == 0 || !sub.AutoUpdate {
 			continue
 		}
-		_, err = s.applySubscriptionUpdateLocked(idx, subscriptions.UpdateFromFetched)
+		result, err := s.applySubscriptionUpdateLocked(idx, subscriptions.UpdateFromFetched)
+		if err == nil {
+			applied.add(sub.Name, result.Applied.Written+result.Applied.Deleted)
+		}
 		if apperr.HasCode(err, apperr.SubscriptionDirty) && s.emitFunc != nil {
 			s.emitFunc("subscription:blocked", sub.Name)
 		}

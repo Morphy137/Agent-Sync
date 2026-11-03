@@ -20,15 +20,12 @@ const (
 	DefaultLanguage             = "system"
 	DefaultTheme                = "system"
 	DefaultConfirmBeforeSync    = true
+	// Background options (auto-apply updates, close to tray, start with Windows) are off by default;
+	// the frontend mirrors this in SETTINGS_DEFAULTS.
+	DefaultAutoApplyUpdates = false
+	DefaultCloseToTray      = false
+	DefaultStartWithWindows = false
 )
-
-// Connection links a profile name to a target directory.
-type Connection struct {
-	ID         string `json:"id"`
-	Profile    string `json:"profile"`
-	TargetPath string `json:"targetPath"`
-	CreatedAt  string `json:"createdAt"`
-}
 
 // Location maps a user-defined alias to a folder on this machine.
 // Rules stored in the repository reference aliases so they stay portable across PCs.
@@ -49,7 +46,7 @@ type Subscription struct {
 	LastUpdatedAt string `json:"lastUpdatedAt,omitempty"`
 }
 
-// Config stores user preferences and configured connections.
+// Config stores user preferences, locations and subscriptions.
 type Config struct {
 	Version              int    `json:"version"`
 	RootPath             string `json:"rootPath"`
@@ -61,9 +58,14 @@ type Config struct {
 	// TutorialCompleted records that the first-run tutorial was finished or skipped.
 	TutorialCompleted bool `json:"tutorialCompleted"`
 	// DisableUpdateCheck turns off the automatic check for new versions.
-	DisableUpdateCheck   bool           `json:"disableUpdateCheck"`
+	DisableUpdateCheck bool `json:"disableUpdateCheck"`
+	// AutoApplyUpdates writes pending changes of subscription rules during periodic checks.
+	AutoApplyUpdates bool `json:"autoApplyUpdates"`
+	// CloseToTray hides the window instead of quitting when it is closed and shows a tray icon.
+	CloseToTray bool `json:"closeToTray"`
+	// StartWithWindows records the wish to open AgentSync at sign-in; the real state is the Run registry entry.
+	StartWithWindows     bool           `json:"startWithWindows"`
 	ConfirmBeforeSync    bool           `json:"confirmBeforeSync"`
-	Connections          []Connection   `json:"connections"`
 	Locations            []Location     `json:"locations"`
 	HomeLocationDisabled bool           `json:"homeLocationDisabled,omitempty"`
 	Subscriptions        []Subscription `json:"subscriptions"`
@@ -99,7 +101,9 @@ func DefaultConfig() *Config {
 		Language:             DefaultLanguage,
 		Theme:                DefaultTheme,
 		ConfirmBeforeSync:    DefaultConfirmBeforeSync,
-		Connections:          make([]Connection, 0),
+		AutoApplyUpdates:     DefaultAutoApplyUpdates,
+		CloseToTray:          DefaultCloseToTray,
+		StartWithWindows:     DefaultStartWithWindows,
 		Locations:            make([]Location, 0),
 		Subscriptions:        make([]Subscription, 0),
 	}
@@ -139,9 +143,6 @@ func Load() (*Config, error) {
 	}
 	if cfg.BackupPath == "" {
 		cfg.BackupPath = filepath.Join(configDir, "backups")
-	}
-	if cfg.Connections == nil {
-		cfg.Connections = make([]Connection, 0)
 	}
 	if cfg.Locations == nil {
 		cfg.Locations = make([]Location, 0)
@@ -190,38 +191,6 @@ func IsSubdirectory(childPath, parentPath string) bool {
 		return false
 	}
 	return !strings.HasPrefix(rel, "..") && !strings.HasPrefix(rel, "/") && !strings.HasPrefix(rel, "\\")
-}
-
-// ValidateConnection checks that a connection target is valid.
-func ValidateConnection(rootPath, targetPath string, existing []Connection, currentID string) error {
-	absTarget, err := filepath.Abs(targetPath)
-	if err != nil {
-		return apperr.New(apperr.TargetNotFound).WithParam("path", targetPath)
-	}
-
-	targetInfo, err := os.Stat(absTarget)
-	if err != nil {
-		return apperr.New(apperr.TargetNotFound).WithParam("path", targetPath)
-	}
-	if !targetInfo.IsDir() {
-		return apperr.New(apperr.TargetNotFound).WithParam("path", targetPath)
-	}
-
-	if rootPath != "" && IsSubdirectory(absTarget, rootPath) {
-		return apperr.New(apperr.TargetInsideRoot).WithParam("path", targetPath)
-	}
-
-	for _, conn := range existing {
-		if conn.ID == currentID {
-			continue
-		}
-		absExisting, err := filepath.Abs(conn.TargetPath)
-		if err == nil && strings.EqualFold(absExisting, absTarget) {
-			return apperr.New(apperr.TargetAlreadyConnected).WithParam("path", targetPath)
-		}
-	}
-
-	return nil
 }
 
 // FormatRFC3339 formats a time.Time using RFC3339.

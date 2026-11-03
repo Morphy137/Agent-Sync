@@ -77,62 +77,76 @@ func (s *State) Save() error {
 	return fsops.AtomicWrite(statePath, data, fsops.DefaultFilePerms)
 }
 
-// GetBaseline retrieves the baseline hash for a connection and relative path.
-func (s *State) GetBaseline(connectionID, relPath string) string {
+// GetBaseline retrieves the baseline hash stored under key for a relative path.
+func (s *State) GetBaseline(key, relPath string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	connMap, ok := s.Baselines[connectionID]
+	entries, ok := s.Baselines[key]
 	if !ok {
 		return ""
 	}
-	return connMap[relPath]
+	return entries[relPath]
 }
 
-// SetBaseline sets or updates the baseline hash for a connection and relative path.
-func (s *State) SetBaseline(connectionID, relPath, hash string) {
+// SetBaseline sets or updates the baseline hash stored under key for a relative path.
+func (s *State) SetBaseline(key, relPath, hash string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.Baselines == nil {
 		s.Baselines = make(map[string]map[string]string)
 	}
-	if _, ok := s.Baselines[connectionID]; !ok {
-		s.Baselines[connectionID] = make(map[string]string)
+	if _, ok := s.Baselines[key]; !ok {
+		s.Baselines[key] = make(map[string]string)
 	}
-	s.Baselines[connectionID][relPath] = hash
+	s.Baselines[key][relPath] = hash
 }
 
-// RemoveBaseline removes a specific file baseline for a connection.
-func (s *State) RemoveBaseline(connectionID, relPath string) {
+// RemoveBaseline removes a specific file baseline stored under key.
+func (s *State) RemoveBaseline(key, relPath string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if connMap, ok := s.Baselines[connectionID]; ok {
-		delete(connMap, relPath)
+	if entries, ok := s.Baselines[key]; ok {
+		delete(entries, relPath)
 	}
 }
 
-// GetConnectionBaselines returns a copy of all baselines for a connection.
-func (s *State) GetConnectionBaselines(connectionID string) map[string]string {
+// GetBaselines returns a copy of all baselines stored under key.
+func (s *State) GetBaselines(key string) map[string]string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	result := make(map[string]string)
-	if connMap, ok := s.Baselines[connectionID]; ok {
-		for k, v := range connMap {
-			result[k] = v
-		}
+	for k, v := range s.Baselines[key] {
+		result[k] = v
 	}
 	return result
 }
 
-// RemoveConnection deletes all baselines for a given connection ID.
-func (s *State) RemoveConnection(connectionID string) {
+// RemoveBaselines deletes all baselines stored under key.
+func (s *State) RemoveBaselines(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.Baselines, connectionID)
+	delete(s.Baselines, key)
+}
+
+// PruneBaselines deletes every baseline group whose key keep rejects and reports whether any
+// was removed. It drops entries left behind by features that no longer exist.
+func (s *State) PruneBaselines(keep func(key string) bool) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	pruned := false
+	for key := range s.Baselines {
+		if !keep(key) {
+			delete(s.Baselines, key)
+			pruned = true
+		}
+	}
+	return pruned
 }
 
 // SetTimestamps updates lastSyncAt and lastCheckAt.

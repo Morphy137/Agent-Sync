@@ -285,3 +285,48 @@ func TestGitignoreTools(t *testing.T) {
 		t.Fatalf("save_gitignore: %q", gi.Content)
 	}
 }
+
+func TestBackupTools(t *testing.T) {
+	f := newFixture(t)
+	f.mustCall(t, "set_root", map[string]any{"path": f.root}, nil)
+	claudeDir := filepath.Join(f.home, ".claude")
+	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.mustCall(t, "set_location", map[string]any{"alias": "claude", "path": claudeDir}, nil)
+	f.mustCall(t, "add_rule", map[string]any{
+		"sourcePath":   "AGENTS.md",
+		"destinations": []map[string]any{{"location": "claude", "path": "CLAUDE.md"}},
+	}, nil)
+	f.mustCall(t, "sync_rules", nil, nil)
+	writeFile(t, filepath.Join(f.root, "AGENTS.md"), "# changed\n")
+	f.mustCall(t, "sync_rules", nil, nil)
+
+	var listed BackupsOutput
+	f.mustCall(t, "list_backups", nil, &listed)
+	if len(listed.Backups) != 1 || !listed.Backups[0].Restorable {
+		t.Fatalf("list_backups: %+v", listed.Backups)
+	}
+	id := listed.Backups[0].ID
+
+	res := f.call(t, "restore_backup", map[string]any{"id": id}, nil)
+	if !res.IsError || !strings.Contains(errorText(res), "confirmation_required") {
+		t.Fatalf("restore without confirm: %s", errorText(res))
+	}
+	var restored service.RestoreBackupResult
+	f.mustCall(t, "restore_backup", map[string]any{"id": id, "confirm": true}, &restored)
+	got, err := os.ReadFile(filepath.Join(claudeDir, "CLAUDE.md"))
+	if err != nil || string(got) != "# shared instructions\n" || restored.UndoBackupID == "" {
+		t.Fatalf("restore_backup: %q %v %+v", got, err, restored)
+	}
+
+	tools, err := f.session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range tools.Tools {
+		if tool.Name == "restore_backup" && (tool.Annotations == nil || tool.Annotations.DestructiveHint == nil || !*tool.Annotations.DestructiveHint) {
+			t.Error("restore_backup must be annotated destructive")
+		}
+	}
+}

@@ -1,4 +1,3 @@
-import type { orchestrator } from "../../../../wailsjs/go/models";
 import type { RepoDiffMode } from "../../api";
 import { t } from "../../i18n";
 
@@ -32,14 +31,6 @@ export function changeStatusLabel(status: ChangeStatus): string {
     default:
       return t("remote.status.changed");
   }
-}
-
-/**
- * Files listed as downloads change because of the remote when the branch is behind
- * (HEAD vs upstream); otherwise the repository copy itself was edited (HEAD vs working tree).
- */
-export function downloadDiffMode(plan: orchestrator.SyncPlan | null): RepoDiffMode {
-  return (plan?.behind ?? 0) > 0 ? "incoming" : "working";
 }
 
 export function diffModeTitle(mode: RepoDiffMode): string {

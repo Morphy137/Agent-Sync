@@ -1,4 +1,4 @@
-package syncer_test
+package autostart_test
 
 import (
 	"os"

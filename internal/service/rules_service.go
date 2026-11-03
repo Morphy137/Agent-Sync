@@ -147,7 +147,6 @@ func (s *Service) engineLocked() *rulesync.Engine {
 		BackupRoot:  s.cfg.BackupPath,
 		Retention:   s.cfg.BackupRetention,
 		Transformer: transformAdapter{},
-		Legacy:      s.cfg.Connections,
 		DetectKind: func(absPath string) string {
 			info, err := set.DetectSource(absPath)
 			if err != nil {
@@ -373,8 +372,8 @@ func (s *Service) DeleteRule(id string) error {
 	}
 
 	for _, d := range removed.Destinations {
-		s.st.RemoveConnection(rulesync.BaselineKey(removed.ID, d.ID))
-		s.st.RemoveConnection(rulesync.ManagedKey(removed.ID, d.ID))
+		s.st.RemoveBaselines(rulesync.BaselineKey(removed.ID, d.ID))
+		s.st.RemoveBaselines(rulesync.ManagedKey(removed.ID, d.ID))
 	}
 	if err := s.st.Save(); err != nil {
 		return err
@@ -537,16 +536,25 @@ func (s *Service) SaveLocation(alias, path string) (*config.Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if err := s.saveLocationLocked(alias, path); err != nil {
+		return nil, err
+	}
+	s.emitRulesChangedLocked()
+	return cloneConfig(s.cfg), nil
+}
+
+// saveLocationLocked validates and stores an alias mapping without emitting events.
+func (s *Service) saveLocationLocked(alias, path string) error {
 	alias = strings.ToLower(strings.TrimSpace(alias))
 	if (alias == rules.BuiltinHomeAlias && !s.cfg.HomeLocationDisabled) || len(alias) > maxAliasLength || !aliasPattern.MatchString(alias) {
-		return nil, apperr.New(apperr.LocationInvalid).WithParam("reason", "invalid_alias")
+		return apperr.New(apperr.LocationInvalid).WithParam("reason", "invalid_alias")
 	}
 	abs := filepath.Clean(expandPath(path))
 	if !filepath.IsAbs(abs) {
-		return nil, apperr.New(apperr.PathNotAbsolute).WithParam("path", path)
+		return apperr.New(apperr.PathNotAbsolute).WithParam("path", path)
 	}
 	if fi, err := os.Stat(abs); err != nil || !fi.IsDir() {
-		return nil, apperr.New(apperr.TargetNotFound).WithParam("path", abs)
+		return apperr.New(apperr.TargetNotFound).WithParam("path", abs)
 	}
 
 	updated := false
@@ -559,11 +567,7 @@ func (s *Service) SaveLocation(alias, path string) (*config.Config, error) {
 	if !updated {
 		s.cfg.Locations = append(s.cfg.Locations, config.Location{Alias: alias, Path: abs})
 	}
-	if err := config.Save(s.cfg); err != nil {
-		return nil, err
-	}
-	s.emitRulesChangedLocked()
-	return cloneConfig(s.cfg), nil
+	return config.Save(s.cfg)
 }
 
 // RemoveLocation deletes an alias mapping on this PC; rules referencing it become unmapped (skipped).

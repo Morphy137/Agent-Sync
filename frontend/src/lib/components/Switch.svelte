@@ -6,18 +6,20 @@
     label?: string;
     /** Accessible name when the label is not shown. */
     ariaLabel?: string;
+    disabled?: boolean;
     onchange?: (checked: boolean) => void;
   }
 
-  let { checked = false, label, ariaLabel, onchange }: Props = $props();
+  let { checked = false, label, ariaLabel, disabled = false, onchange }: Props = $props();
 
   function toggle() {
+    if (disabled) return;
     const next = !checked;
     onchange?.(next);
   }
 </script>
 
-<label class="switch-container">
+<label class="switch-container" class:disabled>
   {#if label}
     <span class="label">{label}</span>
   {/if}
@@ -25,6 +27,7 @@
     type="button"
     role="switch"
     aria-checked={checked}
+    {disabled}
     aria-label={label || ariaLabel || t("common.toggle_switch")}
     class="switch-track"
     class:checked
@@ -43,6 +46,15 @@
     cursor: pointer;
     user-select: none;
     gap: var(--space-4);
+  }
+
+  .switch-container.disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .switch-container.disabled .switch-track {
+    cursor: not-allowed;
   }
 
   .label {

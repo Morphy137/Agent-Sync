@@ -1,5 +1,5 @@
 /*
- * Shared zone sizes for repeated cards (rules, subscriptions, connections, locations).
+ * Shared zone sizes for repeated cards (rules, subscriptions, locations).
  * Cards place their content in grid tracks built from these values, so a given indicator
  * sits at the same position on every card of a tab regardless of how long its text is.
  */
@@ -9,7 +9,6 @@
   --card-zone-icon: 32px;
   --card-zone-toggle: 40px;
   --card-zone-expand: 40px;
-  --card-zone-origin: 84px;
   --card-zone-chip: 96px;
   --card-zone-dest-chip: 80px;
   --card-zone-arrow: 12px;
@@ -28,7 +27,9 @@
   --card-zone-action: 128px;
   /* Flexible tracks, weighted so names get the most of the room that is left. */
   --card-track-name: minmax(0, 3fr);
-  --card-track-source: minmax(0, 1.3fr);
+  /* Never below the longest usual file name (mono, about 125px) plus its origin icon. */
+  --card-zone-source-min: 148px;
+  --card-track-source: minmax(var(--card-zone-source-min), 1.3fr);
   --card-track-file: minmax(0, 1fr);
   /* Disabled cards keep their layout; they are only dimmed. */
   --card-disabled-opacity: 0.55;

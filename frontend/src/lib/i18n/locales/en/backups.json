@@ -1,0 +1,34 @@
+{
+  "backups": {
+    "open_button": "View and restore",
+    "section_hint": "See what was backed up before files were overwritten or deleted, and put files back.",
+    "title": "Backups",
+    "list_label": "Backups",
+    "search_placeholder": "Search by rule or file",
+    "no_match": "No backups match your search.",
+    "select_hint": "Choose a backup to see its files.",
+    "empty_title": "No backups yet",
+    "empty_hint": "AgentSync backs up files before it overwrites or deletes them. They will show up here.",
+    "owner_repo": "Repository edits",
+    "owner_unknown": "Unknown rule",
+    "destination_source": "Rule source",
+    "destination_legacy": "Earlier version",
+    "reason": {
+      "sync": "Before a sync",
+      "discard_repo_edit": "Before discarding an edit",
+      "restore": "Before a restore"
+    },
+    "file_count": "{count} files",
+    "file_count_one": "{count} file",
+    "not_restorable": "This backup cannot be restored from here because its rule or destination no longer exists, or it was made by an earlier version. You can still open its folder and copy files by hand.",
+    "select_all": "All files",
+    "open_folder": "Open folder",
+    "restore_all": "Restore all",
+    "restore_selected": "Restore selected ({count})",
+    "confirm_message": "Restore {count} files to {target}? The current versions are backed up first, so you can undo this from the same list.",
+    "confirm_message_one": "Restore {count} file to {target}? The current version is backed up first, so you can undo this from the same list.",
+    "confirm_button": "Restore",
+    "restored_toast": "Restored {count} files to {target}. Review any differences in Rules.",
+    "restored_toast_one": "Restored {count} file to {target}. Review any differences in Rules."
+  }
+}

@@ -17,12 +17,10 @@
       case "down":
         return "dot-down";
       case "target_changed":
-      case "diverged":
       case "untracked_diff":
       case "up":
         return "dot-up";
       case "conflict":
-      case "target_unavailable":
       case "unreadable":
         return "dot-conflict";
       default:

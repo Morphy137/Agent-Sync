@@ -2,11 +2,14 @@ package main
 
 import (
 	"embed"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+
+	"agentsync/internal/config"
 )
 
 //go:embed all:frontend/dist
@@ -15,6 +18,10 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
+
+	launch := parseLaunchArgs(os.Args[1:])
+	startHidden, startState := launch.windowStart(app.closeToTrayConfigured())
+	app.startedHidden = startHidden
 
 	// Create application with options matching AgentSync Round 2 specifications
 	err := wails.Run(&options.App{
@@ -28,7 +35,15 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 0, G: 0, B: 0, A: 0},
+		StartHidden:      startHidden,
+		WindowStartState: startState,
 		OnStartup:        app.startup,
+		OnBeforeClose:    app.beforeClose,
+		OnShutdown:       app.shutdown,
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId:               singleInstanceID(config.GetConfigDir(), devBuild),
+			OnSecondInstanceLaunch: func(options.SecondInstanceData) { app.showWindow() },
+		},
 		Windows: &windows.Options{
 			DisableFramelessWindowDecorations: false,
 		},

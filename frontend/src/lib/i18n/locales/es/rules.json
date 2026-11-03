@@ -10,6 +10,17 @@
     "loading": "Cargando reglas...",
     "new_button": "Nueva regla",
     "sync_button": "Sincronizar reglas",
+    "search": {
+      "placeholder": "Buscar reglas",
+      "aria": "Buscar reglas",
+      "clear": "Borrar búsqueda",
+      "count": "{shown} de {total}",
+      "empty": {
+        "title": "Ninguna regla coincide",
+        "description": "Nada coincide con \"{query}\".",
+        "action": "Mostrar todas las reglas"
+      }
+    },
     "empty": {
       "title": "Edita una vez, sincroniza en todas partes",
       "description": "Copia un archivo o carpeta a varios destinos y mantenlos sincronizados.",
@@ -29,7 +40,6 @@
       "banner_title_other": "{count} colisiones detectadas",
       "banner_message": "Algunos destinos se superponen y están en pausa.",
       "involved": "Elementos afectados",
-      "connection_ref": "Conexión de carpeta {profile}",
       "edit_rule": "Editar {name}",
       "type": {
         "same_target": "Mismo archivo de destino",
@@ -49,9 +59,6 @@
     "scope": {
       "repo": "Compartida (repositorio)",
       "local": "Local",
-      "repo_short": "Repo",
-      "local_short": "Local",
-      "subscription_short": "Suscripción",
       "subscription_hint": "Origen de suscripción; regla guardada en este equipo.",
       "repo_hint": "Compartida con todos tus equipos.",
       "local_hint": "Solo en este equipo."

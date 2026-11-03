@@ -3,7 +3,6 @@
   import {
     CloudDownload,
     Eye,
-    FolderPen,
     GitCommitHorizontal,
     TriangleAlert,
   } from "@lucide/svelte";
@@ -16,7 +15,7 @@
   import Button from "../Button.svelte";
   import DiffModal from "../DiffModal.svelte";
   import { reportError } from "./reportError";
-  import { diffModeTitle, downloadDiffMode } from "./repoChanges";
+  import { diffModeTitle } from "./repoChanges";
   import { RepoDiffViewer } from "./repoDiffViewer.svelte";
 
   interface Props {
@@ -36,19 +35,15 @@
 
   const plan = $derived(appState.statusPlan);
   const behind = $derived(plan?.behind ?? 0);
-  const downloads = $derived(plan?.downloads ?? []);
-  const uploads = $derived(plan?.uploads ?? []);
   const conflicts = $derived(plan?.conflicts ?? []);
   const localChanges = $derived(plan?.commitPreview ?? []);
   const outsideChanges = $derived(plan?.dirtyOutside ?? []);
-  const downloadMode = $derived(downloadDiffMode(plan));
   const discardablePaths = $derived(new Set([...localChanges, ...outsideChanges]));
-  const hasIncoming = $derived(behind > 0 || downloads.length > 0);
+  const hasIncoming = $derived(behind > 0);
   const isEmpty = $derived(
     !hasIncoming &&
       conflicts.length === 0 &&
       localChanges.length === 0 &&
-      uploads.length === 0 &&
       outsideChanges.length === 0
   );
 
@@ -208,17 +203,8 @@
           <h3 id="review-incoming" class="group-title">{t("remote.changes.incoming_title")}</h3>
         </header>
         <p class="group-hint">
-          {behind > 0
-            ? t(`remote.changes.incoming_behind_${behind === 1 ? "one" : "other"}`, { count: behind })
-            : t("remote.changes.incoming_hint")}
+          {t(`remote.changes.incoming_behind_${behind === 1 ? "one" : "other"}`, { count: behind })}
         </p>
-        {#if downloads.length > 0}
-          <ul class="file-list">
-            {#each downloads as item (item.fullPath)}
-              {@render fileRow(item.fullPath, downloadMode, false)}
-            {/each}
-          </ul>
-        {/if}
       </section>
     {/if}
 
@@ -232,8 +218,8 @@
         </header>
         <p class="group-hint">{t("remote.changes.conflicts_hint")}</p>
         <ul class="file-list">
-          {#each conflicts as conflict (`${conflict.profile}/${conflict.relPath}`)}
-            {@const path = `${conflict.profile}/${conflict.relPath}`}
+          {#each conflicts as conflict (conflict.path)}
+            {@const path = conflict.path}
             <li class="file-row">
               <div class="file-line">
                 <span class="file-path" title={path}>{path}</span>
@@ -278,23 +264,6 @@
         <ul class="file-list">
           {#each localChanges as path (path)}
             {@render fileRow(path, "working", true)}
-          {/each}
-        </ul>
-      </section>
-    {/if}
-
-    {#if uploads.length > 0}
-      <section class="group" aria-labelledby="review-uploads">
-        <header class="group-header">
-          <span class="group-icon dot-up"><FolderPen size={15} /></span>
-          <h3 id="review-uploads" class="group-title">
-            {t("remote.changes.uploads_title", { count: uploads.length })}
-          </h3>
-        </header>
-        <p class="group-hint">{t("remote.changes.uploads_hint")}</p>
-        <ul class="file-list">
-          {#each uploads as item (item.fullPath)}
-            {@render fileRow(item.fullPath, "working", false)}
           {/each}
         </ul>
       </section>

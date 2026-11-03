@@ -460,8 +460,6 @@ type RepoChanges struct {
 	IsOffline      bool                        `json:"isOffline"`
 	LocalChanges   []string                    `json:"localChanges"`
 	OutsideChanges []string                    `json:"outsideChanges"`
-	Downloads      []orchestrator.SyncItem     `json:"downloads"`
-	Uploads        []orchestrator.SyncItem     `json:"uploads"`
 	Conflicts      []orchestrator.ConflictItem `json:"conflicts"`
 }
 
@@ -485,8 +483,6 @@ func (a *API) ListRepoChanges(fetch bool) (*RepoChanges, error) {
 		IsOffline:      plan.IsOffline,
 		LocalChanges:   nonNil(plan.CommitPreview),
 		OutsideChanges: nonNil(plan.DirtyOutside),
-		Downloads:      nonNil(plan.Downloads),
-		Uploads:        nonNil(plan.Uploads),
 		Conflicts:      nonNil(plan.Conflicts),
 	}, nil
 }
@@ -505,6 +501,18 @@ func (a *API) RepoFileDiff(relPath, mode string) (*rulesync.Diff, error) {
 // DiscardRepoFile reverts a local repository change to the committed version (backup first).
 func (a *API) DiscardRepoFile(relPath string) error {
 	return a.svc.DiscardRepoFile(relPath)
+}
+
+// ---- Backups ----
+
+// ListBackups returns the backups taken before files were overwritten, deleted or discarded, newest first.
+func (a *API) ListBackups() ([]service.BackupEntry, error) {
+	return a.svc.ListBackups()
+}
+
+// RestoreBackup restores a backup (all its files, or only the given ones), backing up the current files first.
+func (a *API) RestoreBackup(id string, files []string) (*service.RestoreBackupResult, error) {
+	return a.svc.RestoreBackup(id, files)
 }
 
 // ---- Repository exclusions (.gitignore) ----

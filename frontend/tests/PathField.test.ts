@@ -23,7 +23,7 @@ describe("PathField.svelte", () => {
   it("shows empty path hint when value is empty", async () => {
     const { getByText } = render(PathField, {
       value: "",
-      mode: "target",
+      mode: "root",
     });
 
     expect(getByText("Please enter a folder path")).toBeDefined();
@@ -36,12 +36,11 @@ describe("PathField.svelte", () => {
       isDir: true,
       writable: true,
       isInsideRoot: false,
-      alreadyConnected: false,
     } as any);
 
     const { getByText } = render(PathField, {
       value: "C:/valid/dir",
-      mode: "target",
+      mode: "root",
     });
 
     await waitFor(() => {
@@ -56,12 +55,11 @@ describe("PathField.svelte", () => {
       isDir: false,
       writable: false,
       isInsideRoot: false,
-      alreadyConnected: false,
     } as any);
 
     const { getByText } = render(PathField, {
       value: "C:/missing/dir",
-      mode: "target",
+      mode: "root",
       allowCreate: true,
     });
 
@@ -71,73 +69,22 @@ describe("PathField.svelte", () => {
     });
   });
 
-  it("shows error when target path is inside repository root", async () => {
+  it("shows error when a backup path is inside repository root", async () => {
     vi.mocked(App.InspectPath).mockResolvedValue({
       normalized: "C:/repo/root/sub",
       exists: true,
       isDir: true,
       writable: true,
       isInsideRoot: true,
-      alreadyConnected: false,
     } as any);
 
     const { getByText } = render(PathField, {
       value: "C:/repo/root/sub",
-      mode: "target",
+      mode: "backup",
     });
 
     await waitFor(() => {
       expect(getByText("Target cannot be inside repository root")).toBeDefined();
-    });
-  });
-
-  it("shows warning when target is already connected in target mode", async () => {
-    vi.mocked(App.InspectPath).mockResolvedValue({
-      normalized: "C:/already/connected",
-      exists: true,
-      isDir: true,
-      writable: true,
-      isInsideRoot: false,
-      alreadyConnected: true,
-    } as any);
-
-    const { getByText } = render(PathField, {
-      value: "C:/already/connected",
-      mode: "target",
-    });
-
-    await waitFor(() => {
-      expect(getByText("Folder is already connected to another profile")).toBeDefined();
-    });
-  });
-
-  it("populates input when suggestion chip is clicked", async () => {
-    vi.mocked(App.InspectPath).mockResolvedValue({
-      normalized: "C:/Users/User/.claude",
-      exists: true,
-      isDir: true,
-      writable: true,
-      isInsideRoot: false,
-      alreadyConnected: false,
-    } as any);
-
-    const { getByText, getByDisplayValue } = render(PathField, {
-      value: "",
-      mode: "target",
-      suggestions: [
-        {
-          path: "C:/Users/User/.claude",
-          label: "Claude Code",
-          suggestedProfile: "CLAUDE",
-        } as any,
-      ],
-    });
-
-    const chip = getByText("Claude Code");
-    await fireEvent.click(chip);
-
-    await waitFor(() => {
-      expect(getByDisplayValue("C:/Users/User/.claude")).toBeDefined();
     });
   });
 
@@ -149,7 +96,7 @@ describe("PathField.svelte", () => {
       writable: true,
     } as any);
 
-    const { getByRole, getByDisplayValue } = render(PathField, { value: "", mode: "target" });
+    const { getByRole, getByDisplayValue } = render(PathField, { value: "", mode: "root" });
     await fireEvent.click(getByRole("button", { name: "Browse" }));
 
     await waitFor(() => {
@@ -160,7 +107,7 @@ describe("PathField.svelte", () => {
   it("shows an error when the browse dialog fails", async () => {
     vi.mocked(App.SelectFolder).mockRejectedValue("dialog exploded");
 
-    const { getByRole, getByText } = render(PathField, { value: "", mode: "target" });
+    const { getByRole, getByText } = render(PathField, { value: "", mode: "root" });
     await fireEvent.click(getByRole("button", { name: "Browse" }));
 
     await waitFor(() => {

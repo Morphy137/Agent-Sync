@@ -269,6 +269,33 @@ export function destinationLabel(dest: Pick<rules.Destination, "location" | "pat
   return dest.path ? `${dest.location}/${dest.path}` : dest.location;
 }
 
+/** Translated texts of a rule that its status alone does not carry. */
+export interface RuleSearchLabels {
+  origin: string;
+  subscription: string;
+}
+
+/** Case-insensitive match of the query (trimmed) against the texts the rule row shows. */
+export function matchesRuleQuery(
+  status: rulesync.RuleStatus,
+  query: string,
+  labels: RuleSearchLabels
+): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  const { rule } = status;
+  const fields = [
+    rule.name,
+    rule.source.path,
+    ...(rule.source.include ?? []),
+    rule.source.subscription,
+    labels.subscription,
+    labels.origin,
+    ...rule.destinations.flatMap((dest) => [dest.location, dest.path, destinationLabel(dest)]),
+  ];
+  return fields.some((field) => field?.toLowerCase().includes(needle));
+}
+
 /** Editable draft of one destination in the rule editor. */
 export interface DestinationDraft {
   /** Local key for keyed each blocks; never sent to the backend. */

@@ -25,6 +25,9 @@ type command struct {
 // stdinPath means "read the JSON input from stdin".
 const stdinPath = "-"
 
+// exportedFileMode is the permission of a file written by "suggestions export --output".
+const exportedFileMode = 0o644
+
 // Toggle values accepted by "subscriptions auto-update".
 const (
 	toggleOn  = "on"
@@ -47,7 +50,7 @@ func init() {
 	commands = []command{
 		{path: "status", desc: "cmd.status", run: cmdStatus},
 		{path: "plan", desc: "cmd.plan", run: cmdPlan},
-		{path: "sync", usage: "[--rules-only] [--fingerprint F] [--resolve PROFILE:RELPATH=keep_repo|keep_local]...", desc: "cmd.sync", run: cmdSync},
+		{path: "sync", usage: "[--rules-only] [--fingerprint F] [--resolve PATH=keep_repo|keep_local]...", desc: "cmd.sync", run: cmdSync},
 		{path: "root set", usage: "<folder>", desc: "cmd.root_set", run: cmdRootSet},
 
 		{path: "rules list", desc: "cmd.rules_list", run: cmdRulesList},
@@ -77,6 +80,10 @@ func init() {
 		{path: "subscriptions remove", usage: "<id> --yes", desc: "cmd.sub_remove", run: cmdSubRemove},
 		{path: "subscriptions tree", usage: "<id>", desc: "cmd.sub_tree", run: cmdSubTree},
 
+		{path: "suggestions list", usage: "--subscription ID", desc: "cmd.sug_list", run: cmdSuggestionsList},
+		{path: "suggestions apply", usage: "--subscription ID (--id SUGGESTION... | --all) [--map ALIAS=FOLDER]...", desc: "cmd.sug_apply", run: cmdSuggestionsApply},
+		{path: "suggestions export", usage: "--subscription ID [--output FILE]", desc: "cmd.sug_export", run: cmdSuggestionsExport},
+
 		{path: "repo tree", desc: "cmd.repo_tree", run: cmdRepoTree},
 		{path: "repo changes", usage: "[--fetch]", desc: "cmd.repo_changes", run: cmdRepoChanges},
 		{path: "repo diff", usage: "<path> [--mode working|incoming]", desc: "cmd.repo_diff", run: cmdRepoDiff},
@@ -87,6 +94,9 @@ func init() {
 		{path: "repo gitignore exclude", usage: "<path>", desc: "cmd.gitignore_exclude", run: cmdGitignoreExclude},
 		{path: "repo gitignore add-recommended", desc: "cmd.gitignore_recommended", run: cmdGitignoreRecommended},
 		{path: "repo gitignore save", usage: "--file FILE|- --yes", desc: "cmd.gitignore_save", run: cmdGitignoreSave},
+
+		{path: "backups list", desc: "cmd.backups_list", run: cmdBackupsList},
+		{path: "backups restore", usage: "<backupId> [--file F]... --yes", desc: "cmd.backups_restore", run: cmdBackupsRestore},
 
 		{path: "mcp", desc: "cmd.mcp", raw: runMCP},
 		{path: "version", desc: "cmd.version", run: func(*env, []string) (any, error) { return map[string]string{"version": Version}, nil }},
@@ -154,16 +164,15 @@ func cmdSync(e *env, args []string) (any, error) {
 	return e.API().Sync(*fingerprint, resolutions)
 }
 
-// parseResolutions reads PROFILE:RELPATH=CHOICE values.
+// parseResolutions reads PATH=CHOICE values, where PATH is a repository-relative file path.
 func parseResolutions(values []string) ([]orchestrator.ConflictResolution, error) {
 	out := make([]orchestrator.ConflictResolution, 0, len(values))
 	for _, v := range values {
 		eq := strings.LastIndex(v, "=")
-		colon := strings.Index(v, ":")
-		if eq < 0 || colon < 0 || colon > eq {
-			return nil, usagef("--resolve %q: expected PROFILE:RELPATH=keep_repo|keep_local", v)
+		if eq <= 0 {
+			return nil, usagef("--resolve %q: expected PATH=keep_repo|keep_local", v)
 		}
-		out = append(out, orchestrator.ConflictResolution{Profile: v[:colon], RelPath: v[colon+1 : eq], Resolution: v[eq+1:]})
+		out = append(out, orchestrator.ConflictResolution{Path: v[:eq], Resolution: v[eq+1:]})
 	}
 	return out, nil
 }
@@ -515,6 +524,86 @@ func cmdSubTree(e *env, args []string) (any, error) {
 	return e.API().SubscriptionTree(pos[0])
 }
 
+// ---- Suggested rules ----
+
+// subscriptionFlag registers --subscription and returns its value once parsed.
+func subscriptionFlag(fs *flag.FlagSet) *string {
+	return fs.String("subscription", "", "")
+}
+
+func requireSubscription(name, id string) error {
+	if id == "" {
+		return usagef("%s: --subscription is required", name)
+	}
+	return nil
+}
+
+func cmdSuggestionsList(e *env, args []string) (any, error) {
+	fs := newFlags("suggestions list")
+	subscription := subscriptionFlag(fs)
+	if _, err := expectArgs(fs, args); err != nil {
+		return nil, err
+	}
+	if err := requireSubscription("suggestions list", *subscription); err != nil {
+		return nil, err
+	}
+	return e.API().ListSubscriptionSuggestions(*subscription)
+}
+
+func cmdSuggestionsApply(e *env, args []string) (any, error) {
+	fs := newFlags("suggestions apply")
+	subscription := subscriptionFlag(fs)
+	all := fs.Bool("all", false, "")
+	var ids, mappings stringList
+	fs.Var(&ids, "id", "")
+	fs.Var(&mappings, "map", "")
+	if _, err := expectArgs(fs, args); err != nil {
+		return nil, err
+	}
+	if err := requireSubscription("suggestions apply", *subscription); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 && !*all {
+		return nil, usagef("suggestions apply: pass --id for each suggestion to apply, or --all")
+	}
+	folders := make(map[string]string, len(mappings))
+	for _, mapping := range mappings {
+		alias, folder, ok := strings.Cut(mapping, "=")
+		if !ok || alias == "" || folder == "" {
+			return nil, usagef("suggestions apply: --map expects ALIAS=FOLDER, got %q", mapping)
+		}
+		folders[alias] = folder
+	}
+	return e.API().ApplySubscriptionSuggestions(*subscription, ids, *all, folders)
+}
+
+func cmdSuggestionsExport(e *env, args []string) (any, error) {
+	fs := newFlags("suggestions export")
+	subscription := subscriptionFlag(fs)
+	output := fs.String("output", "", "")
+	if _, err := expectArgs(fs, args); err != nil {
+		return nil, err
+	}
+	if err := requireSubscription("suggestions export", *subscription); err != nil {
+		return nil, err
+	}
+	file, err := e.API().ExportSubscriptionSuggestions(*subscription)
+	if err != nil {
+		return nil, err
+	}
+	if *output == "" {
+		return file, nil
+	}
+	data, err := json.MarshalIndent(file, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(*output, append(data, '\n'), exportedFileMode); err != nil {
+		return nil, usagef("--output: %v", err)
+	}
+	return okMessage("msg.suggestions_exported")
+}
+
 // ---- Repository ----
 
 func cmdRepoTree(e *env, args []string) (any, error) {
@@ -557,6 +646,30 @@ func cmdRepoDiscard(e *env, args []string) (any, error) {
 		return nil, err
 	}
 	return okMessage("msg.change_discarded")
+}
+
+// ---- Backups ----
+
+func cmdBackupsList(e *env, args []string) (any, error) {
+	if _, err := expectArgs(newFlags("backups list"), args); err != nil {
+		return nil, err
+	}
+	return e.API().ListBackups()
+}
+
+func cmdBackupsRestore(e *env, args []string) (any, error) {
+	fs := newFlags("backups restore")
+	var files stringList
+	fs.Var(&files, "file", "")
+	yes := fs.Bool("yes", false, "")
+	pos, err := expectArgs(fs, args, "<backupId>")
+	if err != nil {
+		return nil, err
+	}
+	if err := requireYes("backups restore", *yes); err != nil {
+		return nil, err
+	}
+	return e.API().RestoreBackup(pos[0], files)
 }
 
 func cmdRepoConnect(e *env, args []string) (any, error) {
