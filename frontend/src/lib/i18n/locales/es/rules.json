@@ -23,6 +23,7 @@
       "action": "Configurar ubicaciones"
     },
     "collisions": {
+      "review": "Revisar colisiones",
       "banner_title": "{count} colisión(es) detectada(s)",
       "banner_title_one": "{count} colisión detectada",
       "banner_title_other": "{count} colisiones detectadas",
@@ -50,6 +51,8 @@
       "local": "Local",
       "repo_short": "Repo",
       "local_short": "Local",
+      "subscription_short": "Suscripción",
+      "subscription_hint": "Origen de suscripción; regla guardada en este equipo.",
       "repo_hint": "Compartida con todos tus equipos.",
       "local_hint": "Solo en este equipo."
     },

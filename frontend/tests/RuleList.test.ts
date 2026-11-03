@@ -112,7 +112,9 @@ describe("Compact rule list", () => {
   });
 
   it("exposes the enabled state and forwards the toggle", async () => {
-    const { getByRole, ontoggle } = renderRule(false, false);
+    const { getByRole, ontoggle, onopen } = renderRule(false, false);
+    await fireEvent.click(getByRole("button", { name: "Open claude destination" }));
+    expect(onopen).toHaveBeenCalledWith("C:/home/.claude");
     const toggle = getByRole("switch", { name: "Rule enabled" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     await fireEvent.click(toggle);

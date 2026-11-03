@@ -96,6 +96,10 @@ export function InstallUpdate():Promise<void>;
 
 export function ListBackups(arg1:string):Promise<Array<backup.BackupInfo>>;
 
+export function ListFileDirectory(arg1:string,arg2:string):Promise<Array<service.FileDirectoryEntry>>;
+
+export function ListFileRoots():Promise<Array<service.FileRoot>>;
+
 export function ListLocations():Promise<Array<service.LocationInfo>>;
 
 export function ListProfiles():Promise<Array<profiles.Profile>>;
@@ -114,6 +118,8 @@ export function OpenPath(arg1:string):Promise<void>;
 
 export function PlanSync():Promise<orchestrator.SyncPlan>;
 
+export function ReadBrowserFile(arg1:string,arg2:string):Promise<service.RuleSourceContent>;
+
 export function ReadRuleSourceFile(arg1:string,arg2:string):Promise<service.RuleSourceContent>;
 
 export function RemoveLocation(arg1:string):Promise<config.Config>;
@@ -125,6 +131,8 @@ export function ResolveInitialLink(arg1:string,arg2:string):Promise<void>;
 export function ResolveRuleFile(arg1:rulesync.Resolution):Promise<void>;
 
 export function RestoreBackup(arg1:string,arg2:string):Promise<void>;
+
+export function SaveBrowserFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
 
 export function SaveGitignore(arg1:string):Promise<service.GitignorePayload>;
 

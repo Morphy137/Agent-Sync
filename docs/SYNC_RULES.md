@@ -42,7 +42,7 @@ to its own folder in the **Locations** view (stored in `config.json`):
 ```
 
 - Alias format: lowercase letters, digits, `-`, `_` (max 40 chars).
-- `home` is builtin and always points to the user folder.
+- `home` initially points to the user folder. It can be removed or mapped again on each computer; rules using an unmapped location pause until it is configured.
 - A rule using an alias that is not mapped on this PC is **skipped** (state `location_unmapped`),
   never an error. Map it in Locations and it starts syncing.
 

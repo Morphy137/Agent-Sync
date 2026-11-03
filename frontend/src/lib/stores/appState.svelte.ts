@@ -1,11 +1,19 @@
 import { describeError } from "../i18n/errors";
 import { api, parseError } from "../api";
-import type { config, service, orchestrator, profiles, rules } from "../../../wailsjs/go/models";
+import type {
+  config,
+  service,
+  orchestrator,
+  profiles,
+  rules,
+  rulesync,
+} from "../../../wailsjs/go/models";
 import type { RuleScope } from "../api";
 import { initTheme } from "../theme/theme";
 import { updateState } from "./updates.svelte";
-import { setLocale } from "../i18n";
+import { setLocale, t } from "../i18n";
 import type { ToastItem } from "../components/Toast.svelte";
+import type { AppNotification } from "../components/notifications/NotificationCenter.svelte";
 
 export type AppView = "rules" | "files" | "connections" | "subscriptions" | "locations";
 
@@ -30,6 +38,101 @@ class AppState {
   });
   /** Incremented whenever rules, locations or subscriptions change; views reload when it changes. */
   rulesVersion = $state(0);
+  ruleReport = $state<rulesync.Report | null>(null);
+  collisionDetailsOpen = $state(false);
+  alertNotifications = $state<AppNotification[]>([]);
+  private ruleReportRequest = 0;
+  private ruleReportRoot = "";
+
+  get ruleNotifications(): AppNotification[] {
+    const collisions = this.ruleReport?.collisions ?? [];
+    const unmapped = this.ruleReport?.unmapped ?? [];
+    const items: AppNotification[] = [];
+    if (collisions.length)
+      items.push({
+        id: `rule_collisions:${this.config?.rootPath ?? ""}`,
+        variant: "warning",
+        title: t(`rules.collisions.banner_title_${collisions.length === 1 ? "one" : "other"}`, {
+          count: collisions.length,
+        }),
+        message: t("rules.collisions.banner_message"),
+        actions: [
+          {
+            label: t("rules.collisions.review"),
+            primary: true,
+            onclick: () => {
+              if (this.navigate("rules")) this.collisionDetailsOpen = true;
+            },
+          },
+        ],
+      });
+    if (unmapped.length)
+      items.push({
+        id: `rule_unmapped:${this.config?.rootPath ?? ""}`,
+        variant: "warning",
+        title: t(`rules.unmapped.title_${unmapped.length === 1 ? "one" : "other"}`, {
+          count: unmapped.length,
+        }),
+        message: t("rules.unmapped.message", { aliases: unmapped.join(", ") }),
+        actions: [
+          {
+            label: t("rules.unmapped.action"),
+            primary: true,
+            onclick: () => {
+              this.navigate("locations");
+            },
+          },
+        ],
+      });
+    return [...items, ...this.alertNotifications];
+  }
+
+  navigate(view: AppView): boolean {
+    if (this.fileDirty && !window.confirm(t("files.unsaved_confirm"))) return false;
+    this.fileDirty = false;
+    this.activeView = view;
+    return true;
+  }
+
+  async refreshRuleReport(): Promise<rulesync.Report | null> {
+    const request = ++this.ruleReportRequest;
+    if (!this.config?.rootPath) {
+      this.ruleReport = null;
+      this.ruleReportRoot = "";
+      return null;
+    }
+    try {
+      const report = await api.getRulesReport();
+      if (request === this.ruleReportRequest) this.setRuleReport(report);
+    } catch (err) {
+      if (request === this.ruleReportRequest) this.showError(err);
+    }
+    return this.ruleReport;
+  }
+
+  setRuleReport(report: rulesync.Report) {
+    this.ruleReportRequest++;
+    const root = this.config?.rootPath ?? "";
+    const previous = this.ruleReportRoot === root ? this.ruleNotifications : [];
+    for (const id of ["rule_collisions", "rule_unmapped"]) {
+      const old = previous.find((item) => item.id.startsWith(`${id}:`));
+      const stillActive =
+        id === "rule_collisions" ? report.collisions?.length : report.unmapped?.length;
+      if (old && !stillActive) {
+        this.alertNotifications = [
+          ...this.alertNotifications,
+          {
+            id: `${id}_resolved_${this.ruleReportRequest}`,
+            variant: "info",
+            title: t("notifications.resolved_title", { title: old.title }),
+            message: old.message,
+          },
+        ];
+      }
+    }
+    this.ruleReport = report;
+    this.ruleReportRoot = root;
+  }
 
   openRuleEditor(options: Partial<Omit<RuleEditorState, "open">> = {}) {
     this.ruleEditor = {
@@ -46,8 +149,10 @@ class AppState {
 
   bumpRules() {
     this.rulesVersion++;
+    void this.refreshRuleReport();
   }
   config = $state<config.Config | null>(null);
+  configLoaded = $state(false);
   gitInfo = $state<service.GitInfoPayload | null>(null);
   profiles = $state<profiles.Profile[]>([]);
   statusPlan = $state<orchestrator.SyncPlan | null>(null);
@@ -70,10 +175,27 @@ class AppState {
 
   addToast(type: "success" | "error" | "info", message: string) {
     const id = Math.random().toString(36).slice(2, 9);
+    if (type === "error") {
+      if (this.alertNotifications.some((item) => item.message === message)) return;
+      this.alertNotifications = [
+        ...this.alertNotifications,
+        { id: `alert_${id}`, variant: "warning", title: t("notifications.error_title"), message },
+      ];
+      return;
+    }
     this.toasts = [...this.toasts, { id, type, message }];
     setTimeout(() => {
       this.dismissToast(id);
     }, 4000);
+  }
+
+  addWarning(message: string) {
+    if (this.alertNotifications.some((item) => item.message === message)) return;
+    const id = Math.random().toString(36).slice(2, 9);
+    this.alertNotifications = [
+      ...this.alertNotifications,
+      { id: `alert_${id}`, variant: "warning", title: t("notifications.warning_title"), message },
+    ];
   }
 
   dismissToast(id: string) {
@@ -105,6 +227,7 @@ class AppState {
       this.isChecking = true;
       const cfg = await api.getConfig();
       this.config = cfg;
+      this.configLoaded = true;
 
       if (cfg) {
         initTheme(cfg.theme || "system");
@@ -121,6 +244,7 @@ class AppState {
     } catch (err) {
       this.showError(err);
     } finally {
+      this.configLoaded = true;
       this.isChecking = false;
     }
   }
@@ -137,6 +261,7 @@ class AppState {
       this.profiles = profilesList ?? [];
       this.gitInfo = git;
       this.statusPlan = plan;
+      void this.refreshRuleReport();
     } catch (err) {
       this.showError(err);
     }
@@ -159,6 +284,7 @@ class AppState {
   handleStatusChanged(plan: orchestrator.SyncPlan) {
     if (!plan) return;
     this.statusPlan = plan;
+    void this.refreshRuleReport();
     if (this.gitInfo) {
       this.gitInfo.ahead = plan.ahead;
       this.gitInfo.behind = plan.behind;

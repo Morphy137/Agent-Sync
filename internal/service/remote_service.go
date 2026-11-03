@@ -118,9 +118,17 @@ func (s *Service) RemoveSubscription(id string) error {
 	if idx < 0 {
 		return apperr.New(apperr.SubscriptionNotFound).WithParam("subscription", id)
 	}
+	if err := subscriptions.EnsureCanRemove(id); err != nil {
+		return err
+	}
 
 	localFile, err := rules.LoadLocalRules()
 	if err != nil {
+		return err
+	}
+	// Remove the clone before changing its rules or configuration: removal can
+	// still be refused if a file changed after the initial check.
+	if err := subscriptions.Remove(id); err != nil {
 		return err
 	}
 	kept := make([]rules.Rule, 0, len(localFile.Rules))
@@ -147,9 +155,6 @@ func (s *Service) RemoveSubscription(id string) error {
 		return err
 	}
 	delete(s.subUpdates, id)
-	if err := subscriptions.Remove(id); err != nil {
-		return err
-	}
 	s.emitRulesChangedLocked()
 	return nil
 }
@@ -285,7 +290,10 @@ func (s *Service) checkSubscriptionsLocked() {
 			continue
 		}
 		if s.cfg.Subscriptions[idx].AutoUpdate {
-			_, _ = s.updateSubscriptionLocked(idx)
+			_, err := s.updateSubscriptionLocked(idx)
+			if apperr.HasCode(err, apperr.SubscriptionDirty) && s.emitFunc != nil {
+				s.emitFunc("subscription:blocked", s.cfg.Subscriptions[idx].Name)
+			}
 		}
 	}
 }

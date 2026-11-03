@@ -16,11 +16,11 @@ server** (tools such as `status`, `add_rule`, `sync`) when it is connected; othe
   final name (`CLAUDE.md`, `GEMINI.md`, `skills/review`) and a mode:
   `two_way` (default, edits flow both ways), `one_way` (source wins) or `create_only`.
 - **Source origin**: `repo` (path relative to the repository root, shared with every PC),
-  `local` (absolute path on this PC, rule stored locally) or `subscription` (read-only shared repo).
+  `local` (absolute path on this PC, rule stored locally) or `subscription` (local clone of a shared repo; edits are never pushed).
 - **Selection**: a folder source plus `include` (list of files relative to it) syncs only those
   files. Use `sourcePath: "."` for files at the repository root.
 - **Location**: alias for a folder on this PC (`claude` → `C:\Users\me\.claude`). Rules use aliases so
-  they work on every computer. `home` always exists.
+  they work on every computer. `home` initially points to the user folder and can be removed or remapped.
 - **Transform**: `json_merge:<key>` / `toml_merge:<key>` merges only AgentSync's MCP entries into an
   agent config file and keeps the rest.
 
@@ -60,6 +60,9 @@ agentsync-cli sync --rules-only --json
 ```
 
 ## Safety
+
+- Subscription updates are blocked by local changes; removal is blocked by local files, commits or
+  stashes. Preserve those changes outside the clone before cleaning it.
 
 - Destructive tools (`delete_rule`, `remove_destination`, `remove_subscription`,
   `discard_repo_file`, `save_gitignore`) require `confirm: true` (CLI: `--yes`). Ask the user first,

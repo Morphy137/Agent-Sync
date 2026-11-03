@@ -353,6 +353,7 @@
     "transform_failed": "No se pudo combinar el archivo. Puede que no sea válido o que contenga una entrada no gestionada por AgentSync.",
     "invalid_remote_url": "La URL del repositorio no es válida o no está permitida.",
     "subscription_not_found": "No se encontró la suscripción.",
+    "subscription_dirty": "Esta suscripción tiene cambios locales. Guárdalos fuera de la suscripción antes de actualizarla o quitarla.",
     "remote_branch_not_found": "El repositorio remoto aún no tiene ramas.",
     "recognizers_invalid": "recognizers.json no es válido. Se están usando los reconocedores por defecto.",
     "unknown": "Ocurrió un error inesperado.",
@@ -367,6 +368,9 @@
     "bell": "Notificaciones",
     "bell_count": "Notificaciones ({count})",
     "empty": "No hay novedades.",
+    "warning_title": "Advertencia",
+    "error_title": "Error",
+    "resolved_title": "{title} · Resuelta",
     "close": "Cerrar notificación"
   },
   "changelog": {

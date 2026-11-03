@@ -102,6 +102,7 @@ export namespace config {
 	    confirmBeforeSync: boolean;
 	    connections: Connection[];
 	    locations: Location[];
+	    homeLocationDisabled?: boolean;
 	    subscriptions: Subscription[];
 	
 	    static createFrom(source: any = {}) {
@@ -122,6 +123,7 @@ export namespace config {
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
 	        this.connections = this.convertValues(source["connections"], Connection);
 	        this.locations = this.convertValues(source["locations"], Location);
+	        this.homeLocationDisabled = source["homeLocationDisabled"];
 	        this.subscriptions = this.convertValues(source["subscriptions"], Subscription);
 	    }
 	
@@ -999,6 +1001,36 @@ export namespace service {
 	    }
 	}
 	
+	export class FileDirectoryEntry {
+	    path: string;
+	    name: string;
+	    isDir: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileDirectoryEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.isDir = source["isDir"];
+	    }
+	}
+	export class FileRoot {
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileRoot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
 	export class GitInfoPayload {
 	    isInstalled: boolean;
 	    isRepo: boolean;
@@ -1132,11 +1164,11 @@ export namespace service {
 	    hash: string;
 	    readOnly: boolean;
 	    absolutePath: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RuleSourceContent(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.content = source["content"];
@@ -1149,11 +1181,11 @@ export namespace service {
 	    path: string;
 	    name: string;
 	    absolutePath: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RuleSourceFile(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];

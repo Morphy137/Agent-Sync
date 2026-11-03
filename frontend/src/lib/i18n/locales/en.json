@@ -353,6 +353,7 @@
     "transform_failed": "The file could not be merged. It may be invalid or contain an entry not managed by AgentSync.",
     "invalid_remote_url": "The repository URL is not valid or not allowed.",
     "subscription_not_found": "The subscription was not found.",
+    "subscription_dirty": "This subscription has local changes. Save them outside the subscription before updating or removing it.",
     "remote_branch_not_found": "The remote repository has no branches yet.",
     "recognizers_invalid": "recognizers.json is not valid. The default recognizers are being used.",
     "unknown": "An unexpected error occurred.",
@@ -367,6 +368,9 @@
     "bell": "Notifications",
     "bell_count": "Notifications ({count})",
     "empty": "You're all caught up.",
+    "warning_title": "Warning",
+    "error_title": "Error",
+    "resolved_title": "{title} · Resolved",
     "close": "Close notification"
   },
   "changelog": {

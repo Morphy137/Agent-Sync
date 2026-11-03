@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"agentsync/internal/rules"
-	"agentsync/internal/rulesync"
 )
 
 func TestRuleSourceEditor(t *testing.T) {
@@ -49,7 +48,7 @@ func TestRuleSourceEditor(t *testing.T) {
 	if got := readFile(t, path); got != "updated" {
 		t.Fatalf("stale write changed file: %q", got)
 	}
-	if _, err := f.svc.SaveRuleSourceFile(id, "AGENTS.md", strings.Repeat("x", rulesync.MaxDiffBytes+1), file.Hash); err == nil {
+	if _, err := f.svc.SaveRuleSourceFile(id, "AGENTS.md", strings.Repeat("x", 10<<20+1), file.Hash); err == nil {
 		t.Fatal("accepted large file")
 	}
 	if err := os.WriteFile(path, []byte{'x', 0}, 0o644); err != nil {

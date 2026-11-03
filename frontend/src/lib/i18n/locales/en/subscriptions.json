@@ -86,7 +86,7 @@
       "select_prompt": "Choose the file or folder you want to sync.",
       "selected": "Selected",
       "picked": "Rule created",
-      "read_only_hint": "The subscription is read-only. Local edits are not sent to the source repository.",
+      "read_only_hint": "Edits to the subscription stay local and are not sent to the source repository.",
       "sync_file": "Sync this file...",
       "sync_folder": "Sync this folder...",
       "sync_skill": "Sync this skill...",

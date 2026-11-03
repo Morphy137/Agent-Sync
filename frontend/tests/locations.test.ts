@@ -78,12 +78,20 @@ describe("LocationsView.svelte", () => {
     const { findAllByRole, findByText, getAllByText } = render(LocationsView);
 
     const removeButtons = await findAllByRole("button", { name: "Remove" });
-    await fireEvent.click(removeButtons[0]);
+    await fireEvent.click(removeButtons[1]);
     expect(await findByText(/2 destinations use it/)).toBeDefined();
 
     const confirm = getAllByText("Remove").at(-1)!;
     await fireEvent.click(confirm);
     await waitFor(() => expect(mockApi.removeLocation).toHaveBeenCalledWith("claude"));
+  });
+
+  it("allows removing the built-in home location", async () => {
+    mockApi.removeLocation.mockResolvedValue({});
+    const { findAllByRole, getAllByText } = render(LocationsView);
+    await fireEvent.click((await findAllByRole("button", { name: "Remove" }))[0]);
+    await fireEvent.click(getAllByText("Remove").at(-1)!);
+    await waitFor(() => expect(mockApi.removeLocation).toHaveBeenCalledWith("home"));
   });
 
   it("opens the recognizers file", async () => {

@@ -5,11 +5,12 @@
     label: string;
     disabled?: boolean;
     ariaExpanded?: boolean;
+    ariaPressed?: boolean;
     onclick?: (e: MouseEvent) => void;
     children?: Snippet;
   }
 
-  let { label, disabled = false, ariaExpanded, onclick, children }: Props = $props();
+  let { label, disabled = false, ariaExpanded, ariaPressed, onclick, children }: Props = $props();
 </script>
 
 <button
@@ -18,6 +19,7 @@
   aria-label={label}
   title={label}
   aria-expanded={ariaExpanded}
+  aria-pressed={ariaPressed}
   {disabled}
   {onclick}
 >

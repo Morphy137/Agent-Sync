@@ -88,7 +88,7 @@
     <div class="loading"><Spinner size="sm" /></div>
   {:else}
     {#if unmapped.length > 0}
-      <div class="unmapped" role="alert">
+      <div class="unmapped">
         <h3 class="card-title">{t("locations.unmapped_title")}</h3>
         <p class="hint">{t("locations.unmapped_desc")}</p>
         <ul class="list">
@@ -96,7 +96,11 @@
             <li class="row">
               <div class="row-main">
                 <span class="alias">{loc.alias}</span>
-                <span class="hint">{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, { count: loc.ruleCount })}</span>
+                <span class="hint"
+                  >{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, {
+                    count: loc.ruleCount,
+                  })}</span
+                >
               </div>
               <Button
                 variant="secondary"
@@ -124,7 +128,11 @@
               {#if !loc.exists}<Badge tone="danger">{t("locations.missing")}</Badge>{/if}
             </div>
             <span class="path" title={loc.path}>{loc.path}</span>
-            <span class="hint">{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, { count: loc.ruleCount })}</span>
+            <span class="hint"
+              >{t(`locations.used_by_${loc.ruleCount === 1 ? "one" : "other"}`, {
+                count: loc.ruleCount,
+              })}</span
+            >
           </div>
           <div class="row-actions">
             <IconButton label={t("locations.open")} onclick={() => openFolder(loc.path)}>
@@ -134,10 +142,10 @@
               <IconButton label={t("locations.edit")} onclick={() => startEdit(loc)}>
                 <Pencil size={16} />
               </IconButton>
-              <IconButton label={t("locations.remove")} onclick={() => (removing = loc)}>
-                <Trash2 size={16} />
-              </IconButton>
             {/if}
+            <IconButton label={t("locations.remove")} onclick={() => (removing = loc)}>
+              <Trash2 size={16} />
+            </IconButton>
           </div>
         </li>
       {/each}
@@ -185,7 +193,9 @@
   <div class="confirm">
     <p class="hint">
       {removing && removing.ruleCount > 0
-        ? t(`locations.remove_used_${removing.ruleCount === 1 ? "one" : "other"}`, { count: removing.ruleCount })
+        ? t(`locations.remove_used_${removing.ruleCount === 1 ? "one" : "other"}`, {
+            count: removing.ruleCount,
+          })
         : t("locations.remove_desc")}
     </p>
     <div class="row-actions end">
