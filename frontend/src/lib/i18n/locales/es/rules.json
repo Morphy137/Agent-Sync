@@ -12,18 +12,23 @@
     "sync_button": "Sincronizar reglas",
     "empty": {
       "title": "Edita una vez, sincroniza en todas partes",
-      "description": "Escribe un archivo o carpeta en varios lugares y mantenlos sincronizados.",
+      "description": "Copia un archivo o carpeta a varios destinos y mantenlos sincronizados.",
       "action": "Crear tu primera regla"
     },
     "unmapped": {
       "title": "{count} ubicación(es) sin configurar en este PC",
+      "title_one": "{count} ubicación sin configurar en este equipo",
+      "title_other": "{count} ubicaciones sin configurar en este equipo",
       "message": "{aliases} sin carpeta en este PC. Esas reglas están en pausa.",
       "action": "Configurar ubicaciones"
     },
     "collisions": {
+      "review": "Revisar colisiones",
       "banner_title": "{count} colisión(es) detectada(s)",
+      "banner_title_one": "{count} colisión detectada",
+      "banner_title_other": "{count} colisiones detectadas",
       "banner_message": "Algunos destinos se superponen y están en pausa.",
-      "involved": "Implicados",
+      "involved": "Elementos afectados",
       "connection_ref": "Conexión de carpeta {profile}",
       "edit_rule": "Editar {name}",
       "type": {
@@ -44,6 +49,10 @@
     "scope": {
       "repo": "Compartida (repositorio)",
       "local": "Local",
+      "repo_short": "Repo",
+      "local_short": "Local",
+      "subscription_short": "Suscripción",
+      "subscription_hint": "Origen de suscripción; regla guardada en este equipo.",
       "repo_hint": "Compartida con todos tus equipos.",
       "local_hint": "Solo en este equipo."
     },
@@ -68,8 +77,8 @@
     },
     "mode_hint": {
       "two_way": "Los cambios van en ambos sentidos.",
-      "one_way": "El origen siempre gana.",
-      "create_only": "Se escribe una vez y nunca se sobrescribe."
+      "one_way": "Los cambios se aplican del origen al destino.",
+      "create_only": "Crea el archivo si no existe; no sobrescribe uno existente."
     },
     "transform": {
       "none": "Sin transformación (copia simple)",
@@ -78,8 +87,9 @@
     },
     "dest_state": {
       "ready": "Listo",
+      "unknown": "Estado no disponible",
       "location_unmapped": "Ubicación sin configurar en este PC",
-      "blocked_collision": "En pausa: colisión",
+      "blocked_collision": "En pausa por superposición",
       "disabled": "Desactivado",
       "source_missing": "Origen no encontrado"
     },
@@ -97,6 +107,9 @@
       "ignored": "Se mantiene local"
     },
     "card": {
+      "rule_status": "Estado de la regla: {status}",
+      "show_destinations": "Mostrar destinos de {name}",
+      "hide_destinations": "Ocultar destinos de {name}",
       "source_label": "Origen",
       "destinations_label": "Destinos ({count})",
       "files_label": "Archivos",
@@ -126,10 +139,10 @@
       "subtitle": "{rule} → {destination} · {file} · {status}",
       "use_source": "Usar el origen",
       "use_target": "Usar esta versión",
-      "keep_local": "Mantener local y dejar de sincronizar este archivo"
+      "keep_local": "Conservar la versión local y dejar de sincronizar este archivo"
     },
     "toast": {
-      "synced": "Reglas sincronizadas: {written} escritos, {captured} capturados, {skipped} por revisar.",
+      "synced": "Sincronización terminada: {written} archivos escritos, {captured} archivos de origen actualizados y {skipped} por revisar.",
       "deleted": "Regla {name} eliminada.",
       "resolved": "{file} resuelto.",
       "saved_with_collisions": "Regla guardada. Los destinos superpuestos están en pausa."
@@ -140,15 +153,15 @@
       "name_label": "Nombre",
       "name_placeholder": "p. ej. Instrucciones de agentes",
       "enabled_label": "Activada",
-      "scope_label": "¿Dónde se guarda esta regla?",
+      "scope_label": "¿Dónde quieres guardar esta regla?",
       "source_title": "Origen",
       "detected_kind": "Detectado: {kind}",
       "kind_label": "Tipo de contenido",
       "exclude_label": "Patrones a excluir",
       "exclude_placeholder": "*.log\nnode_modules",
-      "exclude_hint": "Un patrón por línea. Los secretos siempre se excluyen.",
+      "exclude_hint": "Un patrón por línea. Se excluyen automáticamente ciertos archivos sensibles.",
       "destinations_title": "Destinos",
-      "destinations_hint": "Dónde escribirlo y con qué nombre.",
+      "destinations_hint": "Elige dónde guardar el contenido y con qué nombre.",
       "add_destination": "Añadir destino",
       "destination_legend": "Destino {index}",
       "destination_enabled": "Destino activado",
@@ -156,14 +169,14 @@
       "suggesting": "Buscando la mejor ubicación...",
       "detected_chip": "Detectado: {label}",
       "suggestion_edited": "Editado por ti",
-      "path_label": "Ruta y nombre final",
+      "path_label": "Ruta y nombre de destino",
       "path_placeholder": "p. ej. CLAUDE.md o skills/mi-skill",
-      "path_hint": "Ruta y nombre dentro de la ubicación.",
+      "path_hint": "Ruta y nombre del archivo o carpeta dentro de la ubicación.",
       "path_preview": "Se escribirá en {path}",
       "mode_label": "Modo",
       "mode_forced": "Las transformaciones siempre usan modo unidireccional.",
       "transform_label": "Transformación",
-      "transform_hint": "Combina solo sus entradas; el resto se conserva.",
+      "transform_hint": "Combina las entradas del origen y conserva las demás.",
       "transform_key_label": "Clave",
       "transform_key_placeholder": "p. ej. mcpServers",
       "ignored_title": "Archivos que se mantienen locales",
@@ -183,10 +196,12 @@
         "path_required": "Escribe la ruta o el nombre final.",
         "path_relative": "Usa una ruta relativa sin '..'.",
         "path_duplicate": "Otro destino ya usa esta ruta.",
-        "transform_key_required": "Escribe la clave donde combinar."
+        "transform_key_required": "Escribe la clave en la que se combinarán las entradas."
       },
       "not_detected": "Tipo no detectado",
-      "selection_name": "{count} archivos"
+      "selection_name": "{count} archivos",
+      "selection_name_one": "{count} archivo",
+      "selection_name_other": "{count} archivos"
     },
     "location_select": {
       "label": "Ubicación",
@@ -198,7 +213,7 @@
       "pick_title": "Elige una carpeta para la nueva ubicación"
     },
     "source": {
-      "tabs_label": "Procedencia del origen",
+      "tabs_label": "Origen",
       "tab_repo": "Repositorio",
       "tab_local": "Este PC",
       "tab_subscription": "Suscripción",
@@ -212,9 +227,9 @@
       "collapse": "Contraer",
       "pick_folder": "Elegir carpeta",
       "pick_folder_title": "Elige la carpeta de origen",
-      "local_hint": "Solo en este PC. Impórtalo para compartirlo.",
+      "local_hint": "Este origen solo está en este equipo. Impórtalo al repositorio para compartirlo.",
       "import_title": "Importar al repositorio",
-      "import_hint": "Lo copia al repositorio.",
+      "import_hint": "Copia el origen al repositorio.",
       "import_dir_label": "Carpeta del repositorio",
       "import_dir_placeholder": "p. ej. shared",
       "import_button": "Importar",
@@ -229,6 +244,8 @@
       "selection_no_common_folder": "Los archivos deben estar en la misma unidad.",
       "root_label": "Raíz del repositorio",
       "selection_count": "{count} elemento(s)",
+      "selection_count_one": "{count} elemento",
+      "selection_count_other": "{count} elementos",
       "view_label": "Vista",
       "view_grid": "Vista de cuadrícula",
       "view_list": "Vista de lista",

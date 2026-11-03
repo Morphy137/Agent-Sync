@@ -86,7 +86,7 @@
         <ShieldCheck size={16} />
         <span>
           {missingCount > 0
-            ? t("exclusions.recommended_missing", { count: missingCount })
+            ? t(`exclusions.recommended_missing_${missingCount === 1 ? "one" : "other"}`, { count: missingCount })
             : t("exclusions.recommended_ok")}
         </span>
       </div>

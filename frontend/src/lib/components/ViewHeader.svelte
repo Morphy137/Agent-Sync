@@ -9,8 +9,8 @@
     summary?: string;
     intro?: string;
     /** Label of the main "add" action; every view uses the same button size. */
-    primaryLabel: string;
-    onprimary: () => void;
+    primaryLabel?: string;
+    onprimary?: () => void;
     /** Extra icon actions shown before the main action. */
     actions?: Snippet;
   }
@@ -24,15 +24,19 @@
       <h2 id={titleId} class="view-title">{title}</h2>
       {#if summary}<span class="view-summary">{summary}</span>{/if}
     </div>
-    <div class="header-actions">
-      {@render actions?.()}
-      <div class="primary-action">
-        <Button variant="primary" size="sm" onclick={onprimary}>
-          <Plus size={16} />
-          <span>{primaryLabel}</span>
-        </Button>
+    {#if actions || (primaryLabel && onprimary)}
+      <div class="header-actions">
+        {@render actions?.()}
+        {#if primaryLabel && onprimary}
+          <div class="primary-action">
+            <Button variant="primary" size="sm" onclick={onprimary}>
+              <Plus size={16} />
+              <span>{primaryLabel}</span>
+            </Button>
+          </div>
+        {/if}
       </div>
-    </div>
+    {/if}
   </div>
   {#if intro}<p class="view-intro">{intro}</p>{/if}
 </header>

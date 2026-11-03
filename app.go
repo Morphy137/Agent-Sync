@@ -242,6 +242,27 @@ func (a *App) GetRuleDiff(ruleID, destID, relPath string) (*rulesync.Diff, error
 // ListRepoTree lists repository entries with detected kinds for picking rule sources.
 func (a *App) ListRepoTree() ([]service.SourceTreeEntry, error) { return a.svc.ListRepoTree() }
 
+func (a *App) ListFileRoots() ([]service.FileRoot, error) { return a.svc.ListFileRoots() }
+func (a *App) ListFileDirectory(rootID, path string) ([]service.FileDirectoryEntry, error) {
+	return a.svc.ListFileDirectory(rootID, path)
+}
+func (a *App) ReadBrowserFile(rootID, path string) (*service.RuleSourceContent, error) {
+	return a.svc.ReadBrowserFile(rootID, path)
+}
+func (a *App) SaveBrowserFile(rootID, path, content, expectedHash, expectedPath string) (string, error) {
+	return a.svc.SaveBrowserFile(rootID, path, content, expectedHash, expectedPath)
+}
+
+func (a *App) ListRuleSourceFiles(ruleID string) ([]service.RuleSourceFile, error) {
+	return a.svc.ListRuleSourceFiles(ruleID)
+}
+func (a *App) ReadRuleSourceFile(ruleID, path string) (*service.RuleSourceContent, error) {
+	return a.svc.ReadRuleSourceFile(ruleID, path)
+}
+func (a *App) SaveRuleSourceFile(ruleID, path, content, expectedHash string) (string, error) {
+	return a.svc.SaveRuleSourceFile(ruleID, path, content, expectedHash)
+}
+
 // SetTutorialCompleted stores whether the first-run tutorial should stay hidden.
 func (a *App) SetTutorialCompleted(done bool) (*config.Config, error) {
 	return a.svc.SetTutorialCompleted(done)

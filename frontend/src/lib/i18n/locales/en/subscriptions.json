@@ -1,7 +1,7 @@
 {
   "subscriptions": {
     "title": "Subscriptions",
-    "intro": "Follow shared repositories and keep what you need.",
+    "intro": "Subscribe to shared repositories and choose what to use.",
     "summary": "{count} subscription(s)",
     "summary_updates": "{count} subscription(s) · {updates} with updates",
     "summary_one": "{count} subscription",
@@ -13,7 +13,7 @@
     "check_all": "Check all",
     "empty": {
       "title": "Use configurations shared by others",
-      "description": "Paste a repository URL and pick what to bring.",
+      "description": "Add a repository URL and choose what to use.",
       "step_share_title": "1. Get the link",
       "step_share_desc": "Someone shares the URL of their repository.",
       "step_pick_title": "2. Pick what you want",
@@ -27,7 +27,7 @@
       "url_label": "Repository URL",
       "name_label": "Name (optional)",
       "name_placeholder": "e.g. Team skills",
-      "name_hint": "Defaults to the repository name.",
+      "name_hint": "Leave blank to use the repository name.",
       "submit": "Add",
       "submitting": "Adding...",
       "cloning": "Downloading the repository..."
@@ -48,9 +48,9 @@
       "rules_other": "Used by {count} rules",
       "check": "Check for updates",
       "update_now": "Update now",
-      "browse": "Browse and pick",
+      "browse": "Browse content",
       "auto_update": "Auto-update",
-      "auto_update_hint": "Apply updates automatically. Local edits are kept.",
+      "auto_update_hint": "Updates are applied automatically. Local edits are kept.",
       "remove_for": "Remove {name}"
     },
     "incoming": {
@@ -71,7 +71,7 @@
       "confirm": "Remove subscription"
     },
     "tree": {
-      "title": "Pick from {name}",
+      "title": "Choose content from {name}",
       "aria_label": "Repository contents",
       "loading": "Loading files...",
       "empty": "This repository has no files.",
@@ -79,12 +79,14 @@
       "filter_placeholder": "Filter by name...",
       "no_matches": "No matching files.",
       "count": "{count} items",
+      "count_one": "{count} item",
+      "count_other": "{count} items",
       "expand": "Expand {name}",
       "collapse": "Collapse {name}",
-      "select_prompt": "Select a file or folder to sync it.",
+      "select_prompt": "Choose the file or folder you want to sync.",
       "selected": "Selected",
       "picked": "Rule created",
-      "read_only_hint": "Read-only. Local edits are kept, never sent back.",
+      "read_only_hint": "Edits to the subscription stay local and are not sent to the source repository.",
       "sync_file": "Sync this file...",
       "sync_folder": "Sync this folder...",
       "sync_skill": "Sync this skill...",
@@ -104,9 +106,13 @@
       "up_to_date": "{name} is up to date.",
       "already_current": "{name} was already up to date.",
       "updates_available": "{name} has {count} update(s).",
+      "updates_available_one": "{name} has {count} update available.",
+      "updates_available_other": "{name} has {count} updates available.",
       "offline": "Could not reach {name}. Check your connection.",
-      "updated": "{name} updated: {files} file(s) changed, {written} written.",
+      "updated": "{name} updated: {files} changed · {written} written.",
       "skipped": "{skipped} file(s) need review in Sync rules.",
+      "skipped_one": "{count} file needs review in Sync rules.",
+      "skipped_other": "{count} files need review in Sync rules.",
       "auto_on": "Auto-update enabled for {name}.",
       "auto_off": "Auto-update disabled for {name}."
     }

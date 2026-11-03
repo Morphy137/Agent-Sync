@@ -298,6 +298,52 @@ func TestSubscriptionLifecycle(t *testing.T) {
 	}
 }
 
+func TestSubscriptionProtectsLocalFilesAndCommits(t *testing.T) {
+	setupEnv(t)
+	bare, work := newPublisher(t, "rules", map[string]string{
+		"README.md":  "original",
+		".gitignore": "private.log\n",
+	})
+	sub, err := subscriptions.Add(fileURL(bare), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := subscriptions.Root(sub.ID)
+	writeFiles(t, root, map[string]string{"README.md": "local changes"})
+	_, err = subscriptions.Update(sub)
+	assertCode(t, err, apperr.SubscriptionDirty)
+	assertCode(t, subscriptions.EnsureCanRemove(sub.ID), apperr.SubscriptionDirty)
+	if data, _ := os.ReadFile(filepath.Join(root, "README.md")); string(data) != "local changes" {
+		t.Fatal("update discarded local changes")
+	}
+	runGit(t, root, "checkout", "--", "README.md")
+	writeFiles(t, root, map[string]string{"private.log": "private"})
+	assertCode(t, subscriptions.EnsureCanRemove(sub.ID), apperr.SubscriptionDirty)
+	_, err = subscriptions.Update(sub)
+	assertCode(t, err, apperr.SubscriptionDirty)
+	writeFiles(t, work, map[string]string{"private.log": "remote"})
+	runGit(t, work, "add", "-f", "private.log")
+	runGit(t, work, "commit", "-m", "add tracked file")
+	runGit(t, work, "push", "origin", "HEAD:main")
+	if _, err := subscriptions.Update(sub); err == nil {
+		t.Fatal("overwrote an ignored file")
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, "private.log")); string(data) != "private" {
+		t.Fatal("ignored file was overwritten")
+	}
+	if err := os.Remove(filepath.Join(root, "private.log")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := subscriptions.Update(sub); err != nil {
+		t.Fatal(err)
+	}
+	writeFiles(t, root, map[string]string{"README.md": "committed local change"})
+	runGit(t, root, "config", "user.name", "Local")
+	runGit(t, root, "config", "user.email", "local@example.com")
+	runGit(t, root, "commit", "-am", "local change")
+	assertCode(t, subscriptions.EnsureCanRemove(sub.ID), apperr.SubscriptionDirty)
+}
+
 func TestIncomingDiffRejectsEscapingPaths(t *testing.T) {
 	setupEnv(t)
 	bare, _ := newPublisher(t, "rules", map[string]string{"a.md": "a"})

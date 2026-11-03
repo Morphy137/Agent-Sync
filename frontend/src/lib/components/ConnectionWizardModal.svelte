@@ -578,7 +578,7 @@
 
               <div class="import-summary-row">
                 <span class="summary-text">
-                  {t("wizard.selection_summary", {
+                  {t(`wizard.selection_summary_${selectedSizeInfo.count === 1 ? "one" : "other"}`, {
                     count: selectedSizeInfo.count,
                     size: selectedSizeInfo.size,
                   })}

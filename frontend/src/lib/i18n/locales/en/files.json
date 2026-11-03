@@ -1,0 +1,29 @@
+{
+  "files": {
+    "title": "Files",
+    "intro": "Browse and edit files in your repositories.",
+    "roots": "Repositories",
+    "back": "Back",
+    "home": "All repositories",
+    "refresh": "Refresh files",
+    "empty_folder": "This folder is empty.",
+    "select_repository": "Choose a repository to browse its files.",
+    "format_json": "Format JSON",
+    "invalid_json": "This file is not valid JSON and could not be formatted.",
+    "file_too_large": "This file is too large to edit (maximum 10 MiB).",
+    "file_not_text": "This file cannot be opened as UTF-8 text.",
+    "subscription_blocked": "Automatic update of {name} was blocked because it has local changes.",
+    "select_file": "Choose a file to view or edit it.",
+    "read_only": "Read only",
+    "bold": "Bold (Markdown)",
+    "italic": "Italic (Markdown)",
+    "heading": "Heading (Markdown)",
+    "open_explorer": "Show in file explorer",
+    "preview": "Markdown preview",
+    "save": "Save",
+    "saved": "File saved.",
+    "editor_label": "Edit {name}",
+    "unsaved_confirm": "Discard unsaved changes?",
+    "changed_externally": "This file changed outside AgentSync. Copy your edits and reopen it before saving."
+  }
+}

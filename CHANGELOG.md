@@ -4,6 +4,31 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-11-03
+
+### Added
+- Browse and edit sync rule source files directly in the new Files tab.
+- Preview Markdown files while editing them.
+- Navigate repository folders and format JSON files in the file editor.
+
+### Changed
+- Show subscription sources clearly and keep sync rules in a single list layout.
+- Allow removing the built-in home location and reassigning it later.
+- Protect local subscription edits when updating or removing a subscription.
+- Keep warnings and errors in the notification center for review.
+- Show subscription names in sync rules.
+- Removed the folder connections tab.
+- Clarified interface text and improved singular and plural messages in English and Spanish.
+- Made the sync rules list more compact, with paths and actions on the same row.
+
+### Fixed
+- Avoid flashing setup and file navigation controls while the app loads.
+- Keep destination folders accessible when their rules are disabled.
+- Keep the navigation and headings aligned when switching tabs.
+- The file editor now expands with the application window.
+- Kept the navigation tabs the same size in the file editor.
+- Kept rule destinations consistently sized when disabled.
+
 ## [0.0.5] - 2026-10-31
 
 ### Changed

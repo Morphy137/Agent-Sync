@@ -2,20 +2,19 @@
   import IconButton from "../components/IconButton.svelte";
   import ViewHeader from "../components/ViewHeader.svelte";
   import { untrack } from "svelte";
-  import { LayoutGrid, List, RefreshCw } from "@lucide/svelte";
+  import { RefreshCw } from "@lucide/svelte";
   import { rules, type rulesync } from "../../../wailsjs/go/models";
   import { api, type RuleScope } from "../api";
   import { appState } from "../stores/appState.svelte";
   import { t } from "../i18n";
   import type { DiffAction, FileDiff } from "../diff/types";
-  import Banner from "../components/Banner.svelte";
   import Button from "../components/Button.svelte";
   import EmptyState from "../components/EmptyState.svelte";
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
   import DiffModal from "../components/DiffModal.svelte";
   import RuleCard from "../components/rules/RuleCard.svelte";
-  import CollisionBanner from "../components/rules/CollisionBanner.svelte";
+  import CollisionList from "../components/rules/CollisionList.svelte";
   import {
     RESOLUTION,
     canWriteBack,
@@ -23,28 +22,6 @@
     duplicateRule,
     sourceAbsPath,
   } from "../components/rules/ruleUi";
-
-  const LAYOUT_STORAGE_KEY = "agentsync_rules_layout";
-  type Layout = "grid" | "list";
-
-  function storedLayout(): Layout {
-    try {
-      return localStorage?.getItem(LAYOUT_STORAGE_KEY) === "list" ? "list" : "grid";
-    } catch {
-      return "grid";
-    }
-  }
-
-  let layout = $state<Layout>(storedLayout());
-
-  function toggleLayout() {
-    layout = layout === "grid" ? "list" : "grid";
-    try {
-      localStorage?.setItem(LAYOUT_STORAGE_KEY, layout);
-    } catch {
-      // ignore storage errors
-    }
-  }
 
   interface ReviewState {
     status: rulesync.RuleStatus;
@@ -55,7 +32,7 @@
     busy: boolean;
   }
 
-  let report = $state<rulesync.Report | null>(null);
+  const report = $derived(appState.ruleReport);
   let loading = $state(true);
   let syncing = $state(false);
   let deleteTarget = $state<rulesync.RuleStatus | null>(null);
@@ -64,7 +41,6 @@
 
   const ruleStatuses = $derived(report?.rules ?? []);
   const collisions = $derived(report?.collisions ?? []);
-  const unmapped = $derived(report?.unmapped ?? []);
   const knownRules = $derived(ruleStatuses.map((s) => s.rule));
   const rootPath = $derived(appState.config?.rootPath ?? "");
 
@@ -78,7 +54,7 @@
 
   async function load() {
     try {
-      report = await api.getRulesReport();
+      await appState.refreshRuleReport();
     } catch (err) {
       appState.showError(err);
     } finally {
@@ -95,14 +71,13 @@
     syncing = true;
     try {
       const result = await api.syncRules();
-      appState.addToast(
-        "success",
-        t("rules.toast.synced", {
-          written: result.written,
-          captured: result.captured,
-          skipped: result.skipped,
-        })
-      );
+      const message = t("rules.toast.synced", {
+        written: result.written,
+        captured: result.captured,
+        skipped: result.skipped,
+      });
+      if (result.skipped > 0) appState.addWarning(message);
+      else appState.addToast("success", message);
       await load();
     } catch (err) {
       appState.showError(err);
@@ -113,13 +88,7 @@
 
   async function handleToggle(status: rulesync.RuleStatus, enabled: boolean) {
     try {
-      const result = await api.saveRule(
-        rules.Rule.createFrom({ ...status.rule, enabled }),
-        scopeOf(status)
-      );
-      if (result.collisions?.length) {
-        appState.addToast("info", t("rules.toast.saved_with_collisions"));
-      }
+      await api.saveRule(rules.Rule.createFrom({ ...status.rule, enabled }), scopeOf(status));
       await load();
     } catch (err) {
       appState.showError(err);
@@ -132,7 +101,10 @@
 
   function handleEditById(ruleId: string) {
     const status = ruleStatuses.find((s) => s.rule.id === ruleId);
-    if (status) handleEdit(status);
+    if (status) {
+      appState.collisionDetailsOpen = false;
+      handleEdit(status);
+    }
   }
 
   function handleDuplicate(status: rulesync.RuleStatus) {
@@ -266,12 +238,6 @@
   >
     {#snippet actions()}
       <IconButton
-        label={layout === "grid" ? t("rules.layout_list") : t("rules.layout_grid")}
-        onclick={toggleLayout}
-      >
-        {#if layout === "grid"}<List size={16} />{:else}<LayoutGrid size={16} />{/if}
-      </IconButton>
-      <IconButton
         label={t("rules.sync_button")}
         disabled={syncing || ruleStatuses.length === 0}
         onclick={handleSync}
@@ -280,20 +246,6 @@
       </IconButton>
     {/snippet}
   </ViewHeader>
-
-  {#if unmapped.length > 0}
-    <Banner
-      variant="warning"
-      title={t("rules.unmapped.title", { count: unmapped.length })}
-      message={t("rules.unmapped.message", { aliases: unmapped.join(", ") })}
-      actionLabel={t("rules.unmapped.action")}
-      onaction={() => (appState.activeView = "locations")}
-    />
-  {/if}
-
-  {#if collisions.length > 0}
-    <CollisionBanner {collisions} {knownRules} onedit={handleEditById} />
-  {/if}
 
   {#if loading && !report}
     <div class="loading-row">
@@ -308,11 +260,16 @@
       onaction={() => appState.openRuleEditor()}
     />
   {:else}
-    <div class="rules-grid" class:list={layout === "list"}>
+    <div class="rules-grid">
       {#each ruleStatuses as status (status.rule.id)}
         <RuleCard
           {status}
+          compact={true}
           sourcePath={sourceAbsPath(status, rootPath)}
+          onsource={() => {
+            appState.fileRuleId = status.rule.id;
+            appState.activeView = "files";
+          }}
           ontoggle={(enabled) => handleToggle(status, enabled)}
           onedit={() => handleEdit(status)}
           onduplicate={() => handleDuplicate(status)}
@@ -324,6 +281,16 @@
     </div>
   {/if}
 </section>
+
+<Modal
+  open={appState.collisionDetailsOpen}
+  title={t(`rules.collisions.banner_title_${collisions.length === 1 ? "one" : "other"}`, {
+    count: collisions.length,
+  })}
+  onclose={() => (appState.collisionDetailsOpen = false)}
+>
+  <CollisionList {collisions} {knownRules} onedit={handleEditById} />
+</Modal>
 
 <Modal
   open={Boolean(deleteTarget)}
@@ -378,13 +345,9 @@
 
   .rules-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-    gap: var(--space-3);
-    align-items: start;
-  }
-
-  .rules-grid.list {
     grid-template-columns: 1fr;
+    gap: var(--space-3);
+    align-items: stretch;
   }
 
   .confirm-body {

@@ -77,7 +77,7 @@ describe("SubscriptionsView.svelte", () => {
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(
         "success",
-        "Team skills updated: 1 file(s) changed, 1 written."
+        "Team skills updated: 1 changed · 1 written."
       )
     );
   });

@@ -53,7 +53,7 @@ describe("ConnectionWizardModal.svelte", () => {
     await waitFor(() => {
       expect(getByText("CLAUDE")).toBeDefined();
       expect(getByText("GEMINI")).toBeDefined();
-      expect(getByText("Create new folder in repository")).toBeDefined();
+      expect(getByText("Create a folder in the repository")).toBeDefined();
     });
   });
 

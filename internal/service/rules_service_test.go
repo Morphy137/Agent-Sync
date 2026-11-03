@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"agentsync/internal/apperr"
 	"agentsync/internal/config"
 	"agentsync/internal/rules"
 	"agentsync/internal/rulesync"
@@ -80,6 +81,47 @@ func instructionsRule() rules.Rule {
 			{Location: "claude", Path: "CLAUDE.md", Enabled: true},
 			{Location: "gemini", Path: "GEMINI.md", Enabled: true},
 		},
+	}
+}
+
+func TestRemoveAndRemapHomeLocation(t *testing.T) {
+	f := newRulesFixture(t)
+	rule := instructionsRule()
+	rule.Destinations = []rules.Destination{{Location: "home", Path: "instructions.md", Enabled: true}}
+	if _, err := f.svc.SaveRule(rule, rules.ScopeRepo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.RemoveLocation("home"); err != nil {
+		t.Fatal(err)
+	}
+	f.svc = service.New(nil)
+	locations, err := f.svc.ListLocations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var home service.LocationInfo
+	for _, location := range locations {
+		if location.Alias == "home" {
+			home = location
+		}
+	}
+	if home.Path != "" || home.RuleCount != 1 {
+		t.Fatalf("home should be unmapped after restart: %+v", home)
+	}
+	if _, err := f.svc.SyncRules(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(f.claudeDir), "instructions.md")); !os.IsNotExist(err) {
+		t.Fatalf("unmapped home wrote a file: %v", err)
+	}
+	if _, err := f.svc.SaveLocation("home", f.geminiDir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SyncRules(); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(f.geminiDir, "instructions.md")); got != "# shared instructions\n" {
+		t.Fatalf("remapped home content = %q", got)
 	}
 }
 
@@ -309,8 +351,39 @@ func TestSubscriptionFeedsRuleAndUpdates(t *testing.T) {
 		Source:       rules.Source{Origin: rules.OriginSubscription, Subscription: sub.ID, Path: "skills/my-skill"},
 		Destinations: []rules.Destination{{Location: "claude", Path: "skills/my-skill", Enabled: true}},
 	}
-	if _, err := f.svc.SaveRule(rule, rules.ScopeLocal); err != nil {
+	savedSubscriptionRule, err := f.svc.SaveRule(rule, rules.ScopeLocal)
+	if err != nil {
 		t.Fatalf("SaveRule: %v", err)
+	}
+	subFile, err := f.svc.ReadRuleSourceFile(savedSubscriptionRule.Rule.ID, "SKILL.md")
+	if err != nil || !subFile.ReadOnly {
+		t.Fatalf("subscription file: %+v, %v", subFile, err)
+	}
+	if _, err := f.svc.SaveRuleSourceFile(savedSubscriptionRule.Rule.ID, "SKILL.md", "modified", subFile.Hash); err == nil {
+		t.Fatal("subscription source must be read-only")
+	}
+	browserFile, err := f.svc.ReadBrowserFile(sub.ID, "skills/my-skill/SKILL.md")
+	if err != nil || browserFile.ReadOnly {
+		t.Fatalf("subscription browser file: %+v, %v", browserFile, err)
+	}
+	newHash, err := f.svc.SaveBrowserFile(sub.ID, "skills/my-skill/SKILL.md", "local edits", browserFile.Hash, browserFile.AbsolutePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.UpdateSubscription(sub.ID); !apperr.HasCode(err, apperr.SubscriptionDirty) {
+		t.Fatalf("update dirty subscription: %v", err)
+	}
+	if err := f.svc.RemoveSubscription(sub.ID); !apperr.HasCode(err, apperr.SubscriptionDirty) {
+		t.Fatalf("remove dirty subscription: %v", err)
+	}
+	if cfg, _ := f.svc.GetConfig(); len(cfg.Subscriptions) != 1 {
+		t.Fatal("dirty remove changed configuration")
+	}
+	if report, err := f.svc.GetRulesReport(); err != nil || len(report.Rules) != 1 {
+		t.Fatalf("dirty remove changed rules: %+v %v", report, err)
+	}
+	if _, err := f.svc.SaveBrowserFile(sub.ID, "skills/my-skill/SKILL.md", browserFile.Content, newHash, browserFile.AbsolutePath); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := f.svc.SyncRules(); err != nil {
 		t.Fatal(err)

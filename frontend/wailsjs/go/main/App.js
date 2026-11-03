@@ -170,6 +170,14 @@ export function ListBackups(arg1) {
   return window['go']['main']['App']['ListBackups'](arg1);
 }
 
+export function ListFileDirectory(arg1, arg2) {
+  return window['go']['main']['App']['ListFileDirectory'](arg1, arg2);
+}
+
+export function ListFileRoots() {
+  return window['go']['main']['App']['ListFileRoots']();
+}
+
 export function ListLocations() {
   return window['go']['main']['App']['ListLocations']();
 }
@@ -180,6 +188,10 @@ export function ListProfiles() {
 
 export function ListRepoTree() {
   return window['go']['main']['App']['ListRepoTree']();
+}
+
+export function ListRuleSourceFiles(arg1) {
+  return window['go']['main']['App']['ListRuleSourceFiles'](arg1);
 }
 
 export function ListSubscriptions() {
@@ -202,6 +214,14 @@ export function PlanSync() {
   return window['go']['main']['App']['PlanSync']();
 }
 
+export function ReadBrowserFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadBrowserFile'](arg1, arg2);
+}
+
+export function ReadRuleSourceFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadRuleSourceFile'](arg1, arg2);
+}
+
 export function RemoveLocation(arg1) {
   return window['go']['main']['App']['RemoveLocation'](arg1);
 }
@@ -222,6 +242,10 @@ export function RestoreBackup(arg1, arg2) {
   return window['go']['main']['App']['RestoreBackup'](arg1, arg2);
 }
 
+export function SaveBrowserFile(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SaveBrowserFile'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function SaveGitignore(arg1) {
   return window['go']['main']['App']['SaveGitignore'](arg1);
 }
@@ -232,6 +256,10 @@ export function SaveLocation(arg1, arg2) {
 
 export function SaveRule(arg1, arg2) {
   return window['go']['main']['App']['SaveRule'](arg1, arg2);
+}
+
+export function SaveRuleSourceFile(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveRuleSourceFile'](arg1, arg2, arg3, arg4);
 }
 
 export function SelectFile(arg1, arg2) {

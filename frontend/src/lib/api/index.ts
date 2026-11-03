@@ -91,6 +91,20 @@ export const api = {
   openPath: (path: string): Promise<void> => AppBindings.OpenPath(path),
 
   // Sync rules
+  listFileRoots: () => AppBindings.ListFileRoots(),
+  listFileDirectory: (rootId: string, path: string) => AppBindings.ListFileDirectory(rootId, path),
+  readBrowserFile: (rootId: string, path: string) => AppBindings.ReadBrowserFile(rootId, path),
+  saveBrowserFile: (
+    rootId: string,
+    path: string,
+    content: string,
+    hash: string,
+    absolutePath: string
+  ) => AppBindings.SaveBrowserFile(rootId, path, content, hash, absolutePath),
+  listRuleSourceFiles: (id: string) => AppBindings.ListRuleSourceFiles(id),
+  readRuleSourceFile: (id: string, path: string) => AppBindings.ReadRuleSourceFile(id, path),
+  saveRuleSourceFile: (id: string, path: string, content: string, hash: string) =>
+    AppBindings.SaveRuleSourceFile(id, path, content, hash),
   getRulesReport: (): Promise<rulesync.Report> => AppBindings.GetRulesReport(),
   saveRule: (rule: rules.Rule, scope: RuleScope): Promise<service.SaveRuleResult> =>
     AppBindings.SaveRule(rule, scope),

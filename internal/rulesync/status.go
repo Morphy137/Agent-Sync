@@ -74,6 +74,8 @@ func (e *Engine) plan(all []rules.Rule) ([]*plannedDest, []rules.Collision) {
 				if pd.err == nil && !pd.resolved.Unmapped {
 					resolved = append(resolved, pd.resolved)
 				}
+			} else {
+				pd.resolved.TargetRoot, _ = rules.LocationRoot(e.Env, d.Location)
 			}
 			planned = append(planned, pd)
 		}

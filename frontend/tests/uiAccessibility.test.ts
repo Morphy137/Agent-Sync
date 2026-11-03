@@ -16,7 +16,7 @@ describe("keyboard navigation", () => {
     const first = getByRole("tab", { name: "Sync rules" });
     first.focus();
     await fireEvent.keyDown(first, { key: "ArrowRight" });
-    expect(document.activeElement).toBe(getByRole("tab", { name: "Folder connections" }));
+    expect(document.activeElement).toBe(getByRole("tab", { name: "Files" }));
     await fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
     expect(onchange).toHaveBeenLastCalledWith("subscriptions");
     expect(document.activeElement).toBe(getByRole("tab", { name: "Subscriptions" }));

@@ -295,6 +295,9 @@ func TestBlockedUnmappedDisabledAndMissing(t *testing.T) {
 		repoRule("r4", "missing.md", dest("d1", aliasB, "m.md", rules.ModeTwoWay)),
 	}
 	rep := e.engine.Status(all)
+	if got := rep.Rules[0].Destinations[1].TargetRoot; got != e.locA {
+		t.Fatalf("disabled destination root: got %q, want %q", got, e.locA)
+	}
 	if len(rep.Collisions) != 1 || rep.Collisions[0].Type != rules.CollisionSameTarget {
 		t.Fatalf("expected one same_target collision, got %+v", rep.Collisions)
 	}

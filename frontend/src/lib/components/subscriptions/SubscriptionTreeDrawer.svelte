@@ -237,7 +237,7 @@
         {:else if visibleTree.length === 0}
           <p class="state">{t("subscriptions.tree.no_matches")}</p>
         {:else}
-          <p class="count">{t("subscriptions.tree.count", { count: totalCount })}</p>
+          <p class="count">{t(`subscriptions.tree.count_${totalCount === 1 ? "one" : "other"}`, { count: totalCount })}</p>
           <ul class="tree-level root" aria-label={t("subscriptions.tree.aria_label")}>
             {@render treeLevel(visibleTree, 0)}
           </ul>
