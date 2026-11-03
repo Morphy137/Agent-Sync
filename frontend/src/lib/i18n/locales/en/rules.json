@@ -23,6 +23,7 @@
       "action": "Set locations"
     },
     "collisions": {
+      "review": "Review collisions",
       "banner_title": "{count} collision(s) detected",
       "banner_title_one": "{count} collision detected",
       "banner_title_other": "{count} collisions detected",
@@ -50,6 +51,8 @@
       "local": "Local",
       "repo_short": "Repo",
       "local_short": "Local",
+      "subscription_short": "Subscription",
+      "subscription_hint": "Subscription source; rule saved on this computer.",
       "repo_hint": "Shared with all your computers.",
       "local_hint": "Only on this computer."
     },

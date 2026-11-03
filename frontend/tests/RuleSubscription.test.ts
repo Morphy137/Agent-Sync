@@ -34,6 +34,7 @@ describe("subscription rule source", () => {
     });
 
     expect(getByText("Shared skills").getAttribute("title")).toBe("s_123");
+    expect(getByText("Subscription").getAttribute("title")).toContain("rule saved");
     appState.config = { subscriptions: [] } as any;
     await waitFor(() => expect(getByText("s_123")).toBeDefined());
   });

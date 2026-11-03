@@ -529,7 +529,6 @@ export function uniqueAliasForFolder(folder: string, taken: string[]): string {
 export function aliasError(alias: string): string | null {
   const normalized = normalizeAlias(alias);
   if (!normalized) return "locations.form.validation.alias_required";
-  if (normalized === BUILTIN_HOME_ALIAS) return "locations.form.validation.alias_reserved";
   if (normalized.length > MAX_ALIAS_LENGTH || !ALIAS_PATTERN.test(normalized)) {
     return "locations.form.validation.alias_invalid";
   }

@@ -13,7 +13,6 @@
   import Switch from "../Switch.svelte";
   import SourcePicker from "./SourcePicker.svelte";
   import DestinationEditor from "./DestinationEditor.svelte";
-  import CollisionList from "./CollisionList.svelte";
   import {
     AUTO_KIND,
     KINDS,
@@ -44,8 +43,6 @@
   let detectedKind = $state("");
   let suggestingKeys = $state<string[]>([]);
   let saving = $state(false);
-  let savedCollisions = $state<rules.Collision[]>([]);
-  let knownRules = $state<rules.Rule[]>([]);
 
   const isEdit = $derived(Boolean(appState.ruleEditor.rule?.id));
   const title = $derived(isEdit ? t("rules.editor.title_edit") : t("rules.editor.title_new"));
@@ -98,7 +95,6 @@
       errors = { byDestination: {} };
       showErrors = false;
       detectedKind = "";
-      savedCollisions = [];
       void loadLocations();
       if (form.source) void detectSource(form.source, !editor.rule);
     });
@@ -123,7 +119,10 @@
       detectedKind = SELECTION_KIND;
       form.sourceIsDir = true;
       if (isNewSource && !form.name.trim()) {
-        form.name = t(`rules.editor.selection_name_${source.include.length === 1 ? "one" : "other"}`, { count: source.include.length });
+        form.name = t(
+          `rules.editor.selection_name_${source.include.length === 1 ? "one" : "other"}`,
+          { count: source.include.length }
+        );
       }
       return;
     }
@@ -202,14 +201,8 @@
     if (hasErrors(errors) || saving) return;
     saving = true;
     try {
-      const result = await api.saveRule(buildRulePayload(form), form.scope);
+      await api.saveRule(buildRulePayload(form), form.scope);
       appState.bumpRules();
-      if (result.collisions && result.collisions.length > 0) {
-        const report = await api.getRulesReport();
-        knownRules = report.rules.map((r) => r.rule);
-        savedCollisions = result.collisions;
-        return;
-      }
       appState.addToast("success", t("rules.editor.saved"));
       close();
     } catch (err) {
@@ -218,158 +211,138 @@
       saving = false;
     }
   }
-
-  function acknowledgeCollisions() {
-    savedCollisions = [];
-    close();
-  }
 </script>
 
 <Modal open={appState.ruleEditor.open} size="lg" {title} onclose={close}>
-  {#if savedCollisions.length > 0}
-    <div class="collision-warning" role="alert">
-      <h3 class="section-title">{t("rules.editor.collisions_title")}</h3>
-      <p class="hint">{t("rules.editor.collisions_desc")}</p>
-      <CollisionList collisions={savedCollisions} {knownRules} />
-      <footer class="editor-footer">
-        <Button variant="primary" size="sm" onclick={acknowledgeCollisions}>
-          {t("rules.editor.collisions_ack")}
-        </Button>
-      </footer>
-    </div>
-  {:else}
-    <form
-      class="editor"
-      onsubmit={(e) => {
-        e.preventDefault();
-        void save();
-      }}
-    >
-      <div class="row">
-        <div class="grow">
-          <Input
-            label={t("rules.editor.name_label")}
-            value={form.name}
-            placeholder={t("rules.editor.name_placeholder")}
-            oninput={(name) => (form.name = name)}
-          />
-          {#if errors.name}<p class="error">{t(errors.name)}</p>{/if}
-        </div>
-        <div class="enabled">
-          <Switch
-            checked={form.enabled}
-            label={t("rules.editor.enabled_label")}
-            onchange={(enabled) => (form.enabled = enabled)}
-          />
-        </div>
+  <form
+    class="editor"
+    onsubmit={(e) => {
+      e.preventDefault();
+      void save();
+    }}
+  >
+    <div class="row">
+      <div class="grow">
+        <Input
+          label={t("rules.editor.name_label")}
+          value={form.name}
+          placeholder={t("rules.editor.name_placeholder")}
+          oninput={(name) => (form.name = name)}
+        />
+        {#if errors.name}<p class="error">{t(errors.name)}</p>{/if}
       </div>
-
-      <section class="section">
-        <SegmentedControl
-          label={t("rules.editor.scope_label")}
-          options={scopeOptions}
-          value={form.scope}
-          size="sm"
-          onchange={(scope) => (form.scope = scope as RuleScope)}
+      <div class="enabled">
+        <Switch
+          checked={form.enabled}
+          label={t("rules.editor.enabled_label")}
+          onchange={(enabled) => (form.enabled = enabled)}
         />
-        <p class="hint">
-          {form.scope === "repo" ? t("rules.scope.repo_hint") : t("rules.scope.local_hint")}
-        </p>
-        {#if errors.scope}<p class="error">{t(errors.scope)}</p>{/if}
-      </section>
+      </div>
+    </div>
 
-      <section class="section">
-        <h3 class="section-title">{t("rules.editor.source_title")}</h3>
-        <SourcePicker
-          value={form.source}
-          {hasRoot}
-          sourceIsFolder={form.sourceIsDir}
-          onchange={handleSourceChange}
-        />
-        {#if errors.source}<p class="error">{t(errors.source)}</p>{/if}
-        {#if form.source}
-          {@const detectedLabel = detectedKind
-            ? t("rules.editor.detected_kind", { kind: t(`rules.kind.${detectedKind}`) })
-            : t("rules.editor.not_detected")}
-          <div class="detected">
-            <div class="kind-select">
-              <Select
-                label={t("rules.editor.kind_label")}
-                value={form.kind}
-                options={kindOptions}
-                onchange={(kind) => (form.kind = kind)}
-              />
-            </div>
-            <span
-              class="detect-icon"
-              class:ok={Boolean(detectedKind)}
-              title={detectedLabel}
-              role="img"
-              aria-label={detectedLabel}
-            >
-              {#if detectedKind}
-                <CheckCheck size={18} />
-              {:else}
-                <CircleHelp size={18} />
-              {/if}
-            </span>
-          </div>
-        {/if}
-        {#if form.sourceIsDir || isFolderKind(form.kind)}
-          <label class="field-label" for="rule-exclude">{t("rules.editor.exclude_label")}</label>
-          <textarea
-            id="rule-exclude"
-            class="exclude"
-            rows="3"
-            placeholder={t("rules.editor.exclude_placeholder")}
-            value={form.excludeText}
-            oninput={(e) => (form.excludeText = (e.target as HTMLTextAreaElement).value)}
-          ></textarea>
-          <p class="hint">{t("rules.editor.exclude_hint")}</p>
-        {/if}
-      </section>
+    <section class="section">
+      <SegmentedControl
+        label={t("rules.editor.scope_label")}
+        options={scopeOptions}
+        value={form.scope}
+        size="sm"
+        onchange={(scope) => (form.scope = scope as RuleScope)}
+      />
+      <p class="hint">
+        {form.scope === "repo" ? t("rules.scope.repo_hint") : t("rules.scope.local_hint")}
+      </p>
+      {#if errors.scope}<p class="error">{t(errors.scope)}</p>{/if}
+    </section>
 
-      <section class="section">
-        <div class="section-head">
-          <h3 class="section-title">{t("rules.editor.destinations_title")}</h3>
-          <Button variant="ghost" size="sm" onclick={addDestination}>
-            <Plus size={14} />
-            <span>{t("rules.editor.add_destination")}</span>
-          </Button>
-        </div>
-        <p class="hint">{t("rules.editor.destinations_hint")}</p>
-        {#if errors.destinations}<p class="error">{t(errors.destinations)}</p>{/if}
-        <div class="destinations">
-          {#each form.destinations as draft, index (draft.key)}
-            <DestinationEditor
-              {draft}
-              {index}
-              {locations}
-              errors={errors.byDestination[draft.key]}
-              sourceIsDir={form.sourceIsDir}
-              suggesting={suggestingKeys.includes(draft.key)}
-              onchange={(patch) => handleDraftChange(draft.key, patch)}
-              onlocation={(alias) => handleLocation(draft.key, alias)}
-              onlocationcreated={(alias) => handleLocationCreated(draft.key, alias)}
-              onremove={() => removeDestination(draft.key)}
+    <section class="section">
+      <h3 class="section-title">{t("rules.editor.source_title")}</h3>
+      <SourcePicker
+        value={form.source}
+        {hasRoot}
+        sourceIsFolder={form.sourceIsDir}
+        onchange={handleSourceChange}
+      />
+      {#if errors.source}<p class="error">{t(errors.source)}</p>{/if}
+      {#if form.source}
+        {@const detectedLabel = detectedKind
+          ? t("rules.editor.detected_kind", { kind: t(`rules.kind.${detectedKind}`) })
+          : t("rules.editor.not_detected")}
+        <div class="detected">
+          <div class="kind-select">
+            <Select
+              label={t("rules.editor.kind_label")}
+              value={form.kind}
+              options={kindOptions}
+              onchange={(kind) => (form.kind = kind)}
             />
-          {/each}
+          </div>
+          <span
+            class="detect-icon"
+            class:ok={Boolean(detectedKind)}
+            title={detectedLabel}
+            role="img"
+            aria-label={detectedLabel}
+          >
+            {#if detectedKind}
+              <CheckCheck size={18} />
+            {:else}
+              <CircleHelp size={18} />
+            {/if}
+          </span>
         </div>
-      </section>
+      {/if}
+      {#if form.sourceIsDir || isFolderKind(form.kind)}
+        <label class="field-label" for="rule-exclude">{t("rules.editor.exclude_label")}</label>
+        <textarea
+          id="rule-exclude"
+          class="exclude"
+          rows="3"
+          placeholder={t("rules.editor.exclude_placeholder")}
+          value={form.excludeText}
+          oninput={(e) => (form.excludeText = (e.target as HTMLTextAreaElement).value)}></textarea>
+        <p class="hint">{t("rules.editor.exclude_hint")}</p>
+      {/if}
+    </section>
 
-      <footer class="editor-footer">
-        <Button variant="ghost" size="sm" onclick={close}>{t("common.cancel")}</Button>
-        <Button variant="primary" size="sm" type="submit" loading={saving}>
-          {t("rules.editor.save")}
+    <section class="section">
+      <div class="section-head">
+        <h3 class="section-title">{t("rules.editor.destinations_title")}</h3>
+        <Button variant="ghost" size="sm" onclick={addDestination}>
+          <Plus size={14} />
+          <span>{t("rules.editor.add_destination")}</span>
         </Button>
-      </footer>
-    </form>
-  {/if}
+      </div>
+      <p class="hint">{t("rules.editor.destinations_hint")}</p>
+      {#if errors.destinations}<p class="error">{t(errors.destinations)}</p>{/if}
+      <div class="destinations">
+        {#each form.destinations as draft, index (draft.key)}
+          <DestinationEditor
+            {draft}
+            {index}
+            {locations}
+            errors={errors.byDestination[draft.key]}
+            sourceIsDir={form.sourceIsDir}
+            suggesting={suggestingKeys.includes(draft.key)}
+            onchange={(patch) => handleDraftChange(draft.key, patch)}
+            onlocation={(alias) => handleLocation(draft.key, alias)}
+            onlocationcreated={(alias) => handleLocationCreated(draft.key, alias)}
+            onremove={() => removeDestination(draft.key)}
+          />
+        {/each}
+      </div>
+    </section>
+
+    <footer class="editor-footer">
+      <Button variant="ghost" size="sm" onclick={close}>{t("common.cancel")}</Button>
+      <Button variant="primary" size="sm" type="submit" loading={saving}>
+        {t("rules.editor.save")}
+      </Button>
+    </footer>
+  </form>
 </Modal>
 
 <style>
-  .editor,
-  .collision-warning {
+  .editor {
     display: flex;
     flex-direction: column;
     gap: var(--space-5);

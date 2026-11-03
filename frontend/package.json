@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -34,6 +34,8 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@lucide/svelte": "^1.64.0",
-    "diff": "^8.0.4"
+    "diff": "^8.0.4",
+    "dompurify": "^3.4.17",
+    "marked": "^18.1.2"
   }
 }

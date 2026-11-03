@@ -77,6 +77,10 @@ func (s *Service) rulesEnvLocked() rules.Env {
 	for _, loc := range s.cfg.Locations {
 		locations[loc.Alias] = loc.Path
 	}
+	home := rules.DefaultHomeDir()
+	if s.cfg.HomeLocationDisabled {
+		home = locations[rules.BuiltinHomeAlias]
+	}
 	subRoots := make(map[string]string, len(s.cfg.Subscriptions))
 	for _, sub := range s.cfg.Subscriptions {
 		subRoots[sub.ID] = subscriptionsRoot(sub.ID)
@@ -84,7 +88,7 @@ func (s *Service) rulesEnvLocked() rules.Env {
 	return rules.Env{
 		RepoRoot:          s.cfg.RootPath,
 		Locations:         locations,
-		HomeDir:           rules.DefaultHomeDir(),
+		HomeDir:           home,
 		SubscriptionRoots: subRoots,
 	}
 }
@@ -477,7 +481,7 @@ func (s *Service) emitStatusLocked() {
 
 // ---- Locations ----
 
-// ListLocations returns user aliases plus the builtin "home", with detected folder profiles.
+// ListLocations returns configured aliases and referenced unmapped aliases.
 func (s *Service) ListLocations() ([]LocationInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -504,8 +508,12 @@ func (s *Service) ListLocations() ([]LocationInfo, error) {
 		return info
 	}
 
-	result := []LocationInfo{describe(rules.BuiltinHomeAlias, rules.DefaultHomeDir(), true)}
-	known := map[string]bool{rules.BuiltinHomeAlias: true}
+	result := []LocationInfo{}
+	known := map[string]bool{}
+	if !s.cfg.HomeLocationDisabled {
+		result = append(result, describe(rules.BuiltinHomeAlias, rules.DefaultHomeDir(), true))
+		known[rules.BuiltinHomeAlias] = true
+	}
 	for _, loc := range s.cfg.Locations {
 		result = append(result, describe(loc.Alias, loc.Path, false))
 		known[loc.Alias] = true
@@ -530,7 +538,7 @@ func (s *Service) SaveLocation(alias, path string) (*config.Config, error) {
 	defer s.mu.Unlock()
 
 	alias = strings.ToLower(strings.TrimSpace(alias))
-	if alias == rules.BuiltinHomeAlias || len(alias) > maxAliasLength || !aliasPattern.MatchString(alias) {
+	if (alias == rules.BuiltinHomeAlias && !s.cfg.HomeLocationDisabled) || len(alias) > maxAliasLength || !aliasPattern.MatchString(alias) {
 		return nil, apperr.New(apperr.LocationInvalid).WithParam("reason", "invalid_alias")
 	}
 	abs := filepath.Clean(expandPath(path))
@@ -562,6 +570,9 @@ func (s *Service) SaveLocation(alias, path string) (*config.Config, error) {
 func (s *Service) RemoveLocation(alias string) (*config.Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if alias == rules.BuiltinHomeAlias {
+		s.cfg.HomeLocationDisabled = true
+	}
 
 	kept := make([]config.Location, 0, len(s.cfg.Locations))
 	for _, loc := range s.cfg.Locations {

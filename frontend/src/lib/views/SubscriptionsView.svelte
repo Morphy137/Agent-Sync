@@ -73,11 +73,14 @@
 
   function toastCheckResult(item: service.SubscriptionInfo, info: subscriptions.UpdateInfo) {
     if (info.offline) {
-      appState.addToast("info", t("subscriptions.toasts.offline", { name: item.name }));
+      appState.addWarning(t("subscriptions.toasts.offline", { name: item.name }));
     } else if (info.behind > 0) {
       appState.addToast(
         "info",
-        t(`subscriptions.toasts.updates_available_${info.behind === 1 ? "one" : "other"}`, { name: item.name, count: info.behind })
+        t(`subscriptions.toasts.updates_available_${info.behind === 1 ? "one" : "other"}`, {
+          name: item.name,
+          count: info.behind,
+        })
       );
     } else {
       appState.addToast("info", t("subscriptions.toasts.up_to_date", { name: item.name }));
@@ -90,6 +93,8 @@
       const info = await api.checkSubscription(item.id);
       patchItem(item.id, { update: info });
       if (notify) toastCheckResult(item, info);
+      else if (info.offline)
+        appState.addWarning(t("subscriptions.toasts.offline", { name: item.name }));
     } catch (err) {
       reportError(err);
     } finally {
@@ -137,7 +142,9 @@
       }
       const skipped = result.applied?.skipped ?? 0;
       if (skipped > 0) {
-        appState.addToast("info", t(`subscriptions.toasts.skipped_${skipped === 1 ? "one" : "other"}`, { count: skipped }));
+        appState.addWarning(
+          t(`subscriptions.toasts.skipped_${skipped === 1 ? "one" : "other"}`, { count: skipped })
+        );
       }
       await load();
     } catch (err) {

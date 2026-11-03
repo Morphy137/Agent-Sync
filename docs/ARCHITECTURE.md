@@ -30,7 +30,7 @@ This document is the map. Topic guides:
   claude → ~/.claude/CLAUDE.md   gemini → ~/.gemini/GEMINI.md   obsidian → D:\Vault\IA\Agents.md
   (location aliases are mapped per PC in config.json)
 
-  subscriptions (read-only clones of other people's repos) can also be rule sources
+  subscriptions (local clones of other people's repos) can also be rule sources
 ```
 
 | Concept | Meaning | Stored in | Shared across your PCs |
@@ -38,7 +38,7 @@ This document is the map. Topic guides:
 | **Repository root** | Folder (normally a git repo) holding your source files | `config.json` → `rootPath` | — |
 | **Rule** | One source (file/folder) → N destinations, each with its own path/name, mode and optional transform | Shared: `<repo>/agentsync.rules.json` · This PC only: `<configDir>/rules.local.json` | Shared rules: yes, through git |
 | **Location** | Alias → folder on *this* PC (`claude` → `C:\Users\me\.claude`). Builtin `home` = your user folder | `config.json` → `locations` | No — each PC maps its own paths |
-| **Subscription** | Read-only clone of a remote repo used as a rule source | `config.json` → `subscriptions`, clone in `<configDir>/subscriptions/<id>/repo` | No |
+| **Subscription** | Local clone of a remote repo used as a rule source; local edits are not pushed | `config.json` → `subscriptions`, clone in `<configDir>/subscriptions/<id>/repo` | No |
 | **Recognizers** | Data describing content kinds (skill, MCP, instructions) and known agent folders, used to *suggest* placements | Embedded defaults + `<configDir>/recognizers.json` | No |
 | **Folder connection** (legacy) | Repo profile folder (e.g. `CLAUDE/`) mirrored to one target folder | `config.json` → `connections` | — |
 | **Baselines** | Last synced hash per file, used for 3-way change detection | `<configDir>/state.json` | No |
@@ -54,7 +54,7 @@ overridable with the `AGENTSYNC_CONFIG_DIR` environment variable (used by tests 
 
 | Layer | Package / folder | Responsibility |
 |---|---|---|
-| UI | `frontend/src` (Svelte 5) | Views: Sync rules, Folder connections, Subscriptions, Locations; modals (rule editor, diff, sync preview, connect remote) |
+| UI | `frontend/src` (Svelte 5) | Views: Sync rules, Files, Subscriptions, Locations; modals (rule editor, diff, sync preview, connect remote) |
 | Bindings | `app.go` | Thin Wails wrappers over `internal/service` (generated TS in `frontend/wailsjs`) |
 | Headless | `cmd/agentsync-cli`, `internal/cli`, `internal/mcpserver`, `internal/ops` | CLI and stdio MCP server over the same `internal/service` (see [CLI_AND_MCP.md](CLI_AND_MCP.md)) |
 | Service | `internal/service` | Single owner of config + state, guarded by a mutex plus a cross-process file lock (`internal/filelock`) shared with the CLI/MCP server; orchestrates everything below; emits `status:changed` and `rules:changed` events |
@@ -63,7 +63,7 @@ overridable with the `AGENTSYNC_CONFIG_DIR` environment variable (used by tests 
 | Detection | `internal/recognize` | Content-kind detection, agent-folder detection, placement suggestions (`recognizers.json`) |
 | Transforms | `internal/transform` | `json_merge` / `toml_merge` of managed entries (e.g. MCP servers) |
 | Git | `internal/gitops` | Hardened git CLI wrapper, URL validation, `ConnectRemote` |
-| Subscriptions | `internal/subscriptions` | Clone / check / update / tree / incoming diffs of read-only repos |
+| Subscriptions | `internal/subscriptions` | Clone / check / update / tree / incoming diffs of shared repos |
 | Legacy connections | `internal/syncer`, `internal/profiles` | Folder-mirror connections (profile ↔ target) |
 | Global sync | `internal/orchestrator` | Commit → pull → apply connections → capture → push |
 | Infra | `internal/config`, `internal/state`, `internal/backup`, `internal/fsops`, `internal/apperr`, `internal/scheduler` | Persistence, baselines, snapshots, atomic file ops, typed errors, periodic checks |
@@ -120,7 +120,7 @@ destinations unless a subscription has auto-update on; conflicting files are alw
   the rest of `~/.claude.json`, `settings.json` or `config.toml` untouched.
 - **Secrets are never picked up from folder sources**: `.credentials.json`, `auth.json`, `*.pem`,
   `*.key`, `.env`, `.env.*`, `id_rsa*`, `*.p12` are always excluded.
-- **Subscriptions are read-only**: their files are never written back; local edits show as drift.
+- **Subscription edits stay local**: they are never pushed to the source repository, and updates are blocked while local files have changes.
 - **Git hardening**: `-c protocol.ext.allow=never`, `GIT_TERMINAL_PROMPT=0`, URL validation
   (rejects `ext::`, option injection, control characters), URLs passed after `--`.
 - **Connecting a remote never loses local files**: local history is saved in a backup branch and

@@ -24,6 +24,7 @@
   import GitIdentityModal from "./lib/components/GitIdentityModal.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import Button from "./lib/components/Button.svelte";
+  import Spinner from "./lib/components/Spinner.svelte";
   import IconButton from "./lib/components/IconButton.svelte";
   import Modal from "./lib/components/Modal.svelte";
   import ViewTabs from "./lib/components/ViewTabs.svelte";
@@ -49,6 +50,9 @@
       appState.handleStatusChanged(payload);
     });
     EventsOn("rules:changed", () => appState.bumpRules());
+    EventsOn("subscription:blocked", (name: string) =>
+      appState.addWarning(t("files.subscription_blocked", { name }))
+    );
   });
 
   async function handleSelectRoot() {
@@ -353,7 +357,11 @@
     return items;
   });
 
-  const allNotifications = $derived([...updateNotification, ...repoNotifications]);
+  const allNotifications = $derived([
+    ...updateNotification,
+    ...repoNotifications,
+    ...(appState.ruleNotifications ?? []),
+  ]);
 
   const connectedProfiles = $derived.by(() => {
     if (!appState.config?.connections) return [];
@@ -391,16 +399,20 @@
   </TitleBar>
 
   <main class="content-area">
-    <div class="content-inner">
-      {#if appState.config?.rootPath}
-        <ViewTabs
-          value={appState.activeView}
-          onchange={(view) => {
-            if (appState.fileDirty && !window.confirm(t("files.unsaved_confirm"))) return;
-            appState.fileDirty = false;
-            appState.activeView = view;
-          }}
-        />
+    <div class="content-inner" class:files-layout={appState.activeView === "files"}>
+      {#if !appState.configLoaded}
+        <Spinner size="sm" />
+      {:else if appState.config?.rootPath}
+        <div class="tabs-container">
+          <ViewTabs
+            value={appState.activeView}
+            onchange={(view) => {
+              if (appState.fileDirty && !window.confirm(t("files.unsaved_confirm"))) return;
+              appState.fileDirty = false;
+              appState.activeView = view;
+            }}
+          />
+        </div>
 
         <div class="view-area">
           {#if appState.activeView === "rules"}
@@ -521,7 +533,7 @@
             </section>
           {/if}
         </div>
-      {:else}
+      {:else if appState.config}
         <WelcomeView onsuccess={handleWelcomeSuccess} />
       {/if}
     </div>
@@ -643,6 +655,7 @@
 
   .content-area {
     overflow-y: auto;
+    scrollbar-gutter: stable;
     min-height: 0;
   }
 
@@ -654,6 +667,19 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+  }
+
+  .content-inner.files-layout {
+    height: 100%;
+    max-width: none;
+  }
+
+  .tabs-container {
+    width: 100%;
+    max-width: calc(var(--content-max-width) - 2 * var(--space-8));
+    margin-inline: auto;
+    flex-shrink: 0;
+    display: flex;
   }
 
   .profiles-grid {

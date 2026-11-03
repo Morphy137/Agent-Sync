@@ -540,6 +540,33 @@ func (g *GitRunner) StatusPorcelain() ([]ChangedPath, error) {
 	return results, nil
 }
 
+// HasWorktreeData includes ignored files so local edits are not lost.
+func (g *GitRunner) HasWorktreeData() (bool, error) {
+	out, err := g.runCmdRaw("status", "--porcelain=v1", "-z", "-uall", "--ignored")
+	return out != "", err
+}
+
+// HasLocalData detects worktree files, ignored files, unpushed commits and stashes.
+func (g *GitRunner) HasLocalData() (bool, error) {
+	dirty, err := g.HasWorktreeData()
+	if err != nil || dirty {
+		return dirty, err
+	}
+	for _, args := range [][]string{
+		{"log", "--format=%H", "-1", "HEAD", "--branches", "--not", "--remotes"},
+		{"stash", "list", "-1"},
+	} {
+		out, err := g.runCmdRaw(args...)
+		if err != nil {
+			return false, err
+		}
+		if out != "" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // IncomingChangedFiles returns the list of files modified between HEAD and upstream.
 func (g *GitRunner) IncomingChangedFiles() ([]string, error) {
 	if !g.HasUpstream() {
@@ -834,6 +861,15 @@ func (g *GitRunner) ResetHardToUpstream() error {
 		return apperr.New(apperr.GitNoRemote)
 	}
 	_, err := g.runCmd("reset", "--hard", "@{u}")
+	return err
+}
+
+// FastForwardToUpstream updates without discarding local history or ignored files.
+func (g *GitRunner) FastForwardToUpstream() error {
+	if !g.HasUpstream() {
+		return apperr.New(apperr.GitNoRemote)
+	}
+	_, err := g.runCmd("merge", "--ff-only", "--no-overwrite-ignore", "@{u}")
 	return err
 }
 

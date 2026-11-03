@@ -86,7 +86,7 @@
       "select_prompt": "Selecciona el archivo o la carpeta que quieres sincronizar.",
       "selected": "Seleccionado",
       "picked": "Regla creada",
-      "read_only_hint": "La suscripción es de solo lectura. Tus cambios locales no se envían al repositorio de origen.",
+      "read_only_hint": "Los cambios en la suscripción permanecen locales y no se envían al repositorio de origen.",
       "sync_file": "Sincronizar este archivo...",
       "sync_folder": "Sincronizar esta carpeta...",
       "sync_skill": "Sincronizar esta skill...",

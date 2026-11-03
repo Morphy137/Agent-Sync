@@ -115,6 +115,9 @@ Destructive tools need `confirm: true`, which the model is told to request only 
 | `list_repo_changes` / `repo_file_diff` | Repository changes and per-file diffs | read-only |
 | `discard_repo_file` | Revert a local repository change (backup first) | **`confirm: true`** |
 | `get_gitignore` / `exclude_repo_path` / `add_recommended_gitignore` | Read `.gitignore`, exclude a repo path, add the recommended patterns | |
+
+Subscription updates are blocked by local changes; removal is also blocked when local files,
+commits or stashes would be lost. Save those changes elsewhere before cleaning the clone.
 | `save_gitignore` | Replace the whole `.gitignore` | **`confirm: true`** |
 
 Input and output JSON schemas are generated from the Go types and published through `tools/list`.

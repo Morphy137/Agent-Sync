@@ -40,7 +40,7 @@ The changes panel lists each local change with a diff (left = repository, right 
 ## 2. Subscriptions (repositories shared by others)
 
 Someone publishes a repo (e.g. `skills/`, `agents/`, `AGENTS.md`) and shares the URL. In
-**Subscriptions → Add subscription** you paste the URL; AgentSync makes a **read-only clone** in
+**Subscriptions → Add subscription** you paste the URL; AgentSync makes a local clone in
 `<configDir>/subscriptions/<id>/repo`.
 
 1. **Browse & pick**: the tree shows the repo with detected kinds (skill, MCP, instructions…). Pick
@@ -51,11 +51,16 @@ Someone publishes a repo (e.g. `skills/`, `agents/`, `AGENTS.md`) and shares the
    (backups first; conflicts and local edits are skipped and shown in the Rules view).
 4. **Auto-update**: when enabled, the periodic check updates and applies automatically.
 
+The Files view can edit text files in the local clone. These edits are not sent to the publisher.
+Updates (including automatic updates) are blocked while the clone has local changes, including
+untracked or ignored files. Save those changes elsewhere and clean the clone before updating.
+
 Your local edits to subscribed files are never overwritten silently: they show as **drift** and you
-choose to keep yours (stop syncing that file) or take the publisher's version. Subscription sources
-are never written back.
+choose to keep yours (stop syncing that file) or take the publisher's version. Sync rules never
+write destination edits back into subscription sources.
 
 Removing a subscription deletes the clone and its rules; files already copied to your folders stay.
+Removal is blocked when the clone contains local files, commits or stashes that could be lost.
 
 ### Accepted URLs
 

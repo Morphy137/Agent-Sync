@@ -110,26 +110,97 @@ describe("RulesView.svelte", () => {
     mockApi.getRulesReport.mockResolvedValue(sampleReport());
   });
 
-  afterEach(() => cleanup());
-
-  it("renders rules with collision and unmapped location banners", async () => {
-    const { findAllByText, getByText } = render(RulesView);
-    expect((await findAllByText("Agent instructions")).length).toBeGreaterThan(0);
-    expect(getByText("1 collision detected")).toBeDefined();
-    expect(getByText("1 location not configured on this computer")).toBeDefined();
+  afterEach(() => {
+    cleanup();
+    appState.ruleReport = null;
+    appState.collisionDetailsOpen = false;
+    appState.alertNotifications = [];
+    appState.fileDirty = false;
+    appState.activeView = "rules";
+    vi.restoreAllMocks();
   });
 
-  it("switches between compact list and the existing grid", async () => {
-    localStorage.removeItem("agentsync_rules_layout");
-    const { findByRole, getByRole, queryByRole } = render(RulesView);
+  it("keeps warnings in notifications and opens collision details on demand", async () => {
+    const { findAllByText, queryByText, getByText } = render(RulesView);
+    expect((await findAllByText("Agent instructions")).length).toBeGreaterThan(0);
+    expect(queryByText("1 collision detected")).toBeNull();
+    expect(queryByText("1 location not configured on this computer")).toBeNull();
+    expect(appState.ruleNotifications.some((item) => item.id.startsWith("rule_unmapped:"))).toBe(
+      true
+    );
+    const alert = appState.ruleNotifications.find((item) => item.id.startsWith("rule_collisions:"));
+    expect(alert).toBeDefined();
+    alert?.actions?.[0].onclick();
+    await waitFor(() => expect(getByText("Same destination file")).toBeDefined());
+    expect(getByText("C:/home/.gemini/GEMINI.md")).toBeDefined();
+    await fireEvent.click(getByText("Edit Agent instructions"));
+    expect(appState.ruleEditor.open).toBe(true);
+  });
+
+  it("keeps resolved warnings in the notification history without stale actions", () => {
+    appState.setRuleReport(sampleReport() as any);
+    appState.setRuleReport({ ...sampleReport(), collisions: [], unmapped: [] } as any);
+    const items = appState.ruleNotifications;
+    expect(items.map((item) => item.title)).toContain("1 collision detected · Resolved");
+    expect(items.map((item) => item.title)).toContain(
+      "1 location not configured on this computer · Resolved"
+    );
+    expect(items.every((item) => !item.actions)).toBe(true);
+  });
+
+  it("does not navigate from unsaved files when reviewing a warning is cancelled", () => {
+    appState.setRuleReport(sampleReport() as any);
+    appState.activeView = "files";
+    appState.fileDirty = true;
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    appState.ruleNotifications
+      .find((item) => item.id.startsWith("rule_collisions:"))
+      ?.actions?.[0].onclick();
+    expect(appState.activeView).toBe("files");
+    expect(appState.fileDirty).toBe(true);
+    expect(appState.collisionDetailsOpen).toBe(false);
+  });
+
+  it("records report errors once without retrying recursively", async () => {
+    mockApi.getRulesReport.mockRejectedValue("report failed");
+    await appState.refreshRuleReport();
+    await appState.refreshRuleReport();
+    expect(mockApi.getRulesReport).toHaveBeenCalledTimes(2);
+    expect(appState.alertNotifications).toHaveLength(1);
+  });
+
+  it("records skipped synchronization files as a warning", async () => {
+    mockApi.syncRules.mockResolvedValue({ written: 1, captured: 0, skipped: 2 });
+    const { findByRole, getByRole } = render(RulesView);
     await findByRole("heading", { name: "Agent instructions" });
-    expect(getByRole("button", { name: "Show destinations for Agent instructions" })).toBeDefined();
-    await fireEvent.click(getByRole("button", { name: "List view" }));
+    await fireEvent.click(getByRole("button", { name: "Sync rules" }));
+    await waitFor(() =>
+      expect(
+        appState.alertNotifications.some((item) => item.message.includes("2 need review"))
+      ).toBe(true)
+    );
+  });
+
+  it("uses distinct active notification ids for different repositories", () => {
+    appState.setRuleReport(sampleReport() as any);
+    const first = appState.ruleNotifications.find((item) =>
+      item.id.startsWith("rule_collisions:")
+    )?.id;
+    appState.config = { rootPath: "C:/other" } as any;
+    appState.setRuleReport(sampleReport() as any);
+    const second = appState.ruleNotifications.find((item) =>
+      item.id.startsWith("rule_collisions:")
+    )?.id;
+    expect(first).not.toBe(second);
+    expect(appState.alertNotifications).toHaveLength(0);
+  });
+
+  it("always shows the compact list", async () => {
+    const { findByRole, queryByRole } = render(RulesView);
+    await findByRole("heading", { name: "Agent instructions" });
     expect(queryByRole("button", { name: "Show destinations for Agent instructions" })).toBeNull();
-    expect(localStorage.getItem("agentsync_rules_layout")).toBe("list");
-    await fireEvent.click(getByRole("button", { name: "Grid view" }));
-    expect(getByRole("button", { name: "Show destinations for Agent instructions" })).toBeDefined();
-    localStorage.removeItem("agentsync_rules_layout");
+    expect(queryByRole("button", { name: "List view" })).toBeNull();
+    expect(queryByRole("button", { name: "Grid view" })).toBeNull();
   });
 
   it("toggling a rule saves it with the new enabled flag", async () => {
@@ -154,9 +225,6 @@ describe("RulesView.svelte", () => {
     mockApi.resolveRuleFile.mockResolvedValue(undefined);
     const { findByRole, findByText } = render(RulesView);
 
-    await fireEvent.click(
-      await findByRole("button", { name: "Show destinations for Agent instructions" })
-    );
     await fireEvent.click(await findByRole("button", { name: "Review CLAUDE.md" }));
     expect(mockApi.getRuleDiff).toHaveBeenCalledWith("r_1", "d_1", "CLAUDE.md");
 
@@ -248,11 +316,15 @@ describe("RuleEditorModal.svelte", () => {
       ],
     });
     mockApi.getRulesReport.mockResolvedValue(sampleReport());
-    const { getByText, findByText } = await openWithPreset();
+    const { getByText } = await openWithPreset();
 
     await fireEvent.click(getByText("Save rule"));
-    expect(await findByText("Rule saved with collisions")).toBeDefined();
-    expect(appState.ruleEditor.open).toBe(true);
+    await waitFor(() => expect(appState.ruleEditor.open).toBe(false));
+    await waitFor(() =>
+      expect(
+        appState.ruleNotifications.some((item) => item.id.startsWith("rule_collisions:"))
+      ).toBe(true)
+    );
   });
 
   it("validates required fields before saving", async () => {

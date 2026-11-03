@@ -1,28 +1,57 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Bold, Italic, Heading, FolderOpen } from "@lucide/svelte";
-  import type { rulesync } from "../../../wailsjs/go/models";
+  import {
+    Bold,
+    Italic,
+    Heading,
+    FolderOpen,
+    Folder,
+    FileText,
+    Eye,
+    ArrowLeft,
+    Home,
+    RefreshCw,
+    Braces,
+  } from "@lucide/svelte";
+  import { marked } from "marked";
+  import DOMPurify from "dompurify";
   import { api, parseError } from "../api";
   import { appState } from "../stores/appState.svelte";
   import { t } from "../i18n";
   import Button from "../components/Button.svelte";
   import IconButton from "../components/IconButton.svelte";
   import Spinner from "../components/Spinner.svelte";
+  import ViewHeader from "../components/ViewHeader.svelte";
 
-  type SourceFile = { path: string; name: string; absolutePath: string };
-  let rules = $state<rulesync.RuleStatus[]>([]);
-  let selectedRule = $state("");
-  let files = $state<SourceFile[]>([]);
-  let selected = $state<SourceFile | null>(null);
+  type Root = { id: string; name: string };
+  type Entry = { path: string; name: string; isDir: boolean };
+  type SelectedFile = { rootId: string; path: string; name: string; absolutePath: string };
+  let roots = $state<Root[]>([]);
+  let rootId = $state("");
+  let directory = $state(".");
+  let entries = $state<Entry[]>([]);
+  let selected = $state<SelectedFile | null>(null);
   let content = $state("");
   let original = $state("");
   let hash = $state("");
   let usesCrLf = false;
   let readOnly = $state(false);
+  let preview = $state(false);
   let loading = $state(true);
   let busy = $state(false);
   let editor = $state<HTMLTextAreaElement>();
   let request = 0;
+  const isMarkdown = $derived(/\.(md|markdown)$/i.test(selected?.name ?? ""));
+  const isJson = $derived(/\.json$/i.test(selected?.name ?? ""));
+  const rootName = $derived(roots.find((root) => root.id === rootId)?.name ?? rootId);
+  const previewHtml = $derived(
+    preview
+      ? DOMPurify.sanitize(marked.parse(content, { async: false }), {
+          USE_PROFILES: { html: true },
+          FORBID_ATTR: ["style"],
+        })
+      : ""
+  );
 
   $effect(() => {
     appState.fileDirty = content !== original;
@@ -32,8 +61,15 @@
     return !appState.fileDirty || window.confirm(t("files.unsaved_confirm"));
   }
 
+  function showFileError(err: unknown) {
+    const reason = parseError(err).params?.reason;
+    if (reason === "file_too_large" || reason === "file_not_text") {
+      appState.addToast("error", t(`files.${reason}`));
+    } else appState.showError(err);
+  }
+
   onMount(() => {
-    void loadRules();
+    void initialise();
     const warn = (event: BeforeUnloadEvent) => {
       if (appState.fileDirty) {
         event.preventDefault();
@@ -44,12 +80,35 @@
     return () => window.removeEventListener("beforeunload", warn);
   });
 
-  async function loadRules() {
+  async function initialise() {
     try {
-      const report = await api.getRulesReport();
-      rules = report.rules ?? [];
-      if (appState.fileRuleId && rules.some((item) => item.rule.id === appState.fileRuleId)) {
-        await selectRule(appState.fileRuleId, true);
+      roots = await api.listFileRoots();
+      const id = appState.fileRuleId;
+      appState.fileRuleId = "";
+      if (id) {
+        const report = await api.getRulesReport();
+        const rule = report.rules.find((item) => item.rule.id === id)?.rule;
+        if (!rule) return;
+        const root =
+          rule.source.origin === "repo"
+            ? "repo"
+            : rule.source.origin === "subscription"
+              ? rule.source.subscription
+              : `rule:${id}`;
+        if (!root) return;
+        if (rule.source.origin === "local") roots = [...roots, { id: root, name: rule.name }];
+        const sourceFiles = await api.listRuleSourceFiles(id);
+        const isFile = sourceFiles.length === 1 && sourceFiles[0].path === ".";
+        const path =
+          rule.source.origin === "local" ? "." : (rule.source.path || ".").replaceAll("\\", "/");
+        const parent =
+          isFile && path !== "."
+            ? path.includes("/")
+              ? path.slice(0, path.lastIndexOf("/"))
+              : "."
+            : path;
+        await openDirectory(root, parent);
+        if (isFile) await openFile(root, path, sourceFiles[0].name, true);
       }
     } catch (err) {
       appState.showError(err);
@@ -58,42 +117,38 @@
     }
   }
 
-  async function selectRule(id: string, initial = false) {
-    if (!initial && !allowLeaving()) return;
+  async function openDirectory(root: string, path = ".") {
     const current = ++request;
-    selectedRule = id;
-    appState.fileRuleId = id;
-    selected = null;
-    content = original = "";
-    files = [];
     busy = true;
     try {
-      const result = await api.listRuleSourceFiles(id);
+      const result = await api.listFileDirectory(root, path);
       if (current !== request) return;
-      files = result ?? [];
-      if (files.length === 1 && files[0].path === ".") await selectFile(files[0], true);
+      rootId = root;
+      directory = path;
+      entries = result ?? [];
     } catch (err) {
-      if (current === request) appState.showError(err);
+      if (current === request) showFileError(err);
     } finally {
       if (current === request) busy = false;
     }
   }
 
-  async function selectFile(file: SourceFile, initial = false) {
+  async function openFile(root: string, path: string, name: string, initial = false) {
     if (!initial && !allowLeaving()) return;
     const current = ++request;
     busy = true;
     try {
-      const result = await api.readRuleSourceFile(selectedRule, file.path);
+      const result = await api.readBrowserFile(root, path);
       if (current !== request) return;
-      selected = file;
+      selected = { rootId: root, path, name, absolutePath: result.absolutePath };
+      preview = false;
       usesCrLf =
         result.content.includes("\r\n") && !result.content.replaceAll("\r\n", "").includes("\n");
       content = original = result.content.replaceAll("\r\n", "\n");
       hash = result.hash;
       readOnly = result.readOnly;
     } catch (err) {
-      if (current === request) appState.showError(err);
+      if (current === request) showFileError(err);
     } finally {
       if (current === request) busy = false;
     }
@@ -104,11 +159,12 @@
     busy = true;
     try {
       const saved = content;
-      hash = await api.saveRuleSourceFile(
-        selectedRule,
+      hash = await api.saveBrowserFile(
+        selected.rootId,
         selected.path,
         usesCrLf ? saved.replaceAll("\n", "\r\n") : saved,
-        hash
+        hash,
+        selected.absolutePath
       );
       original = saved;
       appState.addToast("success", t("files.saved"));
@@ -116,9 +172,50 @@
     } catch (err) {
       if (parseError(err).code === "plan_changed")
         appState.addToast("error", t("files.changed_externally"));
-      else appState.showError(err);
+      else showFileError(err);
     } finally {
       busy = false;
+    }
+  }
+
+  function goHome() {
+    request++;
+    rootId = "";
+    directory = ".";
+    entries = [];
+    busy = false;
+    void reloadRoots();
+  }
+
+  async function reloadRoots() {
+    try {
+      roots = await api.listFileRoots();
+    } catch (err) {
+      appState.showError(err);
+    }
+  }
+
+  function goBack() {
+    if (!rootId) return;
+    if (directory === ".") {
+      goHome();
+      return;
+    }
+    const parent = directory.includes("/") ? directory.slice(0, directory.lastIndexOf("/")) : ".";
+    void openDirectory(rootId, parent);
+  }
+
+  function refresh() {
+    if (rootId) void openDirectory(rootId, directory);
+    else void reloadRoots();
+  }
+
+  function formatJson() {
+    try {
+      const newline = content.endsWith("\n") ? "\n" : "";
+      content = JSON.stringify(JSON.parse(content), null, 2) + newline;
+    } catch {
+      appState.addToast("error", t("files.invalid_json"));
     }
   }
 
@@ -142,41 +239,73 @@
       appState.showError(err);
     }
   }
+
+  function handlePreviewClick(event: MouseEvent) {
+    const link = (event.target as Element).closest("a");
+    if (!link) return;
+    event.preventDefault();
+    if (/^https?:\/\//i.test(link.getAttribute("href") ?? "")) api.openURL(link.href);
+  }
+
+  function previewLinks(node: HTMLElement) {
+    node.addEventListener("click", handlePreviewClick);
+    return { destroy: () => node.removeEventListener("click", handlePreviewClick) };
+  }
 </script>
 
 <section class="view">
-  <header>
-    <h2>{t("files.title")}</h2>
-    <p>{t("files.intro")}</p>
-  </header>
+  <div class="files-header">
+    <ViewHeader title={t("files.title")} intro={t("files.intro")} />
+  </div>
   {#if loading}<Spinner size="sm" />{:else}
     <div class="workspace">
-      <nav aria-label={t("files.sources")} class="sources">
-        <h3>{t("files.sources")}</h3>
-        {#each rules as item (item.rule.id)}
-          <button
-            type="button"
-            class:active={selectedRule === item.rule.id}
-            onclick={() => selectRule(item.rule.id)}
-            title={item.rule.source.path}
+      <nav aria-label={t("files.roots")} class="file-browser">
+        <div class="browser-toolbar">
+          <IconButton label={t("files.back")} disabled={!rootId} onclick={goBack}
+            ><ArrowLeft size={16} /></IconButton
           >
-            <span class="source-label">{item.rule.name}</span>
-            <span class="source-path">{item.rule.source.path}</span>
-          </button>
-        {/each}
-        {#if rules.length === 0}<p>{t("files.no_rules")}</p>{/if}
-      </nav>
-      <nav aria-label={t("files.list")} class="file-list">
-        <h3>{t("files.list")}</h3>
-        {#each files as file (file.path)}
-          <button
-            type="button"
-            class:active={selected?.path === file.path}
-            onclick={() => selectFile(file)}
-            title={file.path}>{file.path === "." ? file.name : file.path}</button
+          <IconButton label={t("files.home")} disabled={!rootId} onclick={goHome}
+            ><Home size={16} /></IconButton
           >
-        {/each}
-        {#if selectedRule && files.length === 0 && !busy}<p>{t("files.no_files")}</p>{/if}
+          <IconButton label={t("files.refresh")} onclick={refresh}
+            ><RefreshCw size={16} /></IconButton
+          >
+        </div>
+        <h3 title={rootId ? `${rootName}/${directory}` : t("files.roots")}>
+          {rootId ? `${rootName}${directory === "." ? "" : ` / ${directory}`}` : t("files.roots")}
+        </h3>
+        {#if rootId}
+          {#each entries as entry (entry.path)}
+            <button
+              type="button"
+              class:active={selected?.rootId === rootId &&
+                selected?.path === entry.path &&
+                !entry.isDir}
+              disabled={busy}
+              title={entry.path}
+              onclick={() =>
+                entry.isDir
+                  ? openDirectory(rootId, entry.path)
+                  : openFile(rootId, entry.path, entry.name)}
+            >
+              {#if entry.isDir}<Folder size={16} />{:else}<FileText size={16} />{/if}
+              <span>{entry.name}</span>
+            </button>
+          {/each}
+          {#if entries.length === 0 && !busy}<p>{t("files.empty_folder")}</p>{/if}
+        {:else}
+          {#each roots as root (root.id)}
+            <button
+              type="button"
+              disabled={busy}
+              title={root.name}
+              onclick={() => openDirectory(root.id)}
+            >
+              <Folder size={16} /><span>{root.name}</span>
+            </button>
+          {/each}
+          {#if roots.length === 0 && !busy}<p>{t("files.select_repository")}</p>{/if}
+        {/if}
       </nav>
       <div class="editor-panel">
         {#if selected}
@@ -184,7 +313,7 @@
             <strong title={selected.absolutePath}>{selected.name}</strong>
             {#if readOnly}<span>{t("files.read_only")}</span>{/if}
             <div class="actions">
-              {#if !readOnly && selected.name.toLowerCase().endsWith(".md")}
+              {#if !readOnly && isMarkdown && !preview}
                 <IconButton label={t("files.bold")} disabled={busy} onclick={() => format("**")}
                   ><Bold size={16} /></IconButton
                 >
@@ -197,9 +326,21 @@
                   onclick={() => format("## ", "")}><Heading size={16} /></IconButton
                 >
               {/if}
+              {#if !readOnly && isJson}
+                <IconButton label={t("files.format_json")} disabled={busy} onclick={formatJson}
+                  ><Braces size={16} /></IconButton
+                >
+              {/if}
               <IconButton label={t("files.open_explorer")} onclick={openExplorer}
                 ><FolderOpen size={16} /></IconButton
               >
+              {#if isMarkdown}
+                <IconButton
+                  label={t("files.preview")}
+                  ariaPressed={preview}
+                  onclick={() => (preview = !preview)}><Eye size={16} /></IconButton
+                >
+              {/if}
               {#if !readOnly}<Button
                   size="sm"
                   variant="primary"
@@ -208,14 +349,19 @@
                 >{/if}
             </div>
           </div>
-          <textarea
-            bind:this={editor}
-            bind:value={content}
-            readonly={readOnly || busy}
-            aria-label={t("files.editor_label", { name: selected.name })}
-            spellcheck="true"></textarea>
+          {#if preview}
+            <div class="markdown-preview" role="document" use:previewLinks>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- previewHtml is sanitized with DOMPurify -->
+              {@html previewHtml}
+            </div>
+          {:else}<textarea
+              bind:this={editor}
+              bind:value={content}
+              readonly={readOnly || busy}
+              aria-label={t("files.editor_label", { name: selected.name })}
+              spellcheck="true"></textarea>{/if}
         {:else}<p class="hint">
-            {t(selectedRule ? "files.select_file" : "files.select_source")}
+            {t(rootId ? "files.select_file" : "files.select_repository")}
           </p>{/if}
       </div>
     </div>
@@ -230,19 +376,19 @@
     flex: 1;
     min-width: 0;
   }
-  h2 {
-    margin: 0;
-    color: var(--ink);
-    font-size: var(--text-lg);
+  .files-header {
+    width: 100%;
+    max-width: calc(var(--content-max-width) - 2 * var(--space-8));
+    margin-inline: auto;
   }
-  header p,
   p {
     color: var(--text-muted);
     font-size: var(--text-sm);
   }
   .workspace {
     display: grid;
-    grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(300px, 3fr);
+    flex: 1;
+    grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
     min-height: 480px;
     gap: var(--space-3);
   }
@@ -264,8 +410,15 @@
     color: var(--ink);
     font-size: var(--text-sm);
     margin: 0 0 var(--space-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   nav button {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--space-2);
     text-align: left;
     border: 0;
     border-radius: var(--radius-sm);
@@ -277,23 +430,27 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  nav button :global(svg) {
+    flex-shrink: 0;
+  }
+  nav button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .browser-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .browser-toolbar :global(button) {
+    flex-shrink: 0;
+  }
   nav button:hover,
   nav button.active {
     background: var(--surface-sunken);
   }
   nav button:focus-visible {
     outline: 2px solid var(--ink);
-  }
-  .source-label,
-  .source-path {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .source-path {
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-    font-family: var(--font-mono);
   }
   .editor-panel {
     display: flex;
@@ -324,7 +481,7 @@
     margin-left: auto;
   }
   textarea {
-    flex: 1;
+    flex: 1 0 auto;
     min-height: 360px;
     width: 100%;
     box-sizing: border-box;
@@ -338,16 +495,50 @@
     font-size: var(--text-sm);
     line-height: 1.6;
   }
+  .markdown-preview {
+    flex: 1 0 auto;
+    min-height: 360px;
+    overflow: auto;
+    padding: var(--space-3);
+    background: var(--surface-sunken);
+    border-radius: var(--radius-md);
+    color: var(--ink);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+  .markdown-preview :global(pre) {
+    overflow-x: auto;
+    padding: var(--space-3);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+  }
+  .markdown-preview :global(code) {
+    font-family: var(--font-mono);
+  }
+  .markdown-preview :global(img) {
+    max-width: 100%;
+  }
+  .markdown-preview :global(table) {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+  .markdown-preview :global(th),
+  .markdown-preview :global(td) {
+    padding: var(--space-2);
+    border: 1px solid var(--border-subtle);
+  }
   .hint {
     margin: auto;
     text-align: center;
   }
   @media (max-width: 850px) {
     .workspace {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
     }
-    .editor-panel {
-      grid-column: 1 / -1;
+    .file-browser {
+      max-height: 240px;
     }
   }
 </style>

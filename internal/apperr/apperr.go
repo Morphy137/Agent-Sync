@@ -45,6 +45,7 @@ const (
 	TransformFailed         = "transform_failed"
 	InvalidRemoteURL        = "invalid_remote_url"
 	SubscriptionNotFound    = "subscription_not_found"
+	SubscriptionDirty       = "subscription_dirty"
 	RemoteBranchNotFound    = "remote_branch_not_found"
 	RecognizersInvalid      = "recognizers_invalid"
 	ConfirmationRequired    = "confirmation_required"

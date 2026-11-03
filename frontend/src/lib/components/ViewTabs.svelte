@@ -86,6 +86,7 @@
     box-shadow: var(--sunken);
     border-radius: var(--radius-md);
     align-self: flex-start;
+    flex-shrink: 0;
     max-width: 100%;
     overflow-x: auto;
   }

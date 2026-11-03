@@ -61,11 +61,12 @@ type Config struct {
 	// TutorialCompleted records that the first-run tutorial was finished or skipped.
 	TutorialCompleted bool `json:"tutorialCompleted"`
 	// DisableUpdateCheck turns off the automatic check for new versions.
-	DisableUpdateCheck bool           `json:"disableUpdateCheck"`
-	ConfirmBeforeSync  bool           `json:"confirmBeforeSync"`
-	Connections        []Connection   `json:"connections"`
-	Locations          []Location     `json:"locations"`
-	Subscriptions      []Subscription `json:"subscriptions"`
+	DisableUpdateCheck   bool           `json:"disableUpdateCheck"`
+	ConfirmBeforeSync    bool           `json:"confirmBeforeSync"`
+	Connections          []Connection   `json:"connections"`
+	Locations            []Location     `json:"locations"`
+	HomeLocationDisabled bool           `json:"homeLocationDisabled,omitempty"`
+	Subscriptions        []Subscription `json:"subscriptions"`
 }
 
 // GetConfigDir returns the active configuration directory: AGENTSYNC_CONFIG_DIR, then the

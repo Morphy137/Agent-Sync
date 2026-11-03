@@ -171,9 +171,12 @@
       {/if}
       <h3 class="rule-name" title={rule.name}>{rule.name}</h3>
       <div class="badges">
-        <Badge tone={scope === "repo" ? "success" : "neutral"} title={t(`rules.scope.${scope}`)}>
+        <Badge
+          tone={scope === "repo" ? "success" : "neutral"}
+          title={t(rule.source.origin === "subscription" ? "rules.scope.subscription_hint" : `rules.scope.${scope}`)}
+        >
           {#if scope === "repo"}<GitBranch size={12} aria-hidden="true" />{/if}
-          {t(`rules.scope.${scope}_short`)}
+          {t(rule.source.origin === "subscription" ? "rules.scope.subscription_short" : `rules.scope.${scope}_short`)}
         </Badge>
         {#if !compact && commonMode}
           <Badge>{t(`rules.mode.${commonMode}`)}</Badge>
@@ -456,6 +459,7 @@
 
   .compact .badges {
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   .compact .dest-section {

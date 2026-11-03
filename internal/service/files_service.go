@@ -13,8 +13,9 @@ import (
 	"agentsync/internal/apperr"
 	"agentsync/internal/config"
 	"agentsync/internal/rules"
-	"agentsync/internal/rulesync"
 )
+
+const maxEditorFileBytes = 10 << 20
 
 type RuleSourceFile struct {
 	Path         string `json:"path"`
@@ -137,11 +138,11 @@ func readEditorFile(path string) ([]byte, os.FileMode, error) {
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, 0, apperr.New(apperr.SourceNotFound).WithParam("path", path)
 	}
-	data, err := io.ReadAll(io.LimitReader(f, rulesync.MaxDiffBytes+1))
+	data, err := io.ReadAll(io.LimitReader(f, maxEditorFileBytes+1))
 	if err != nil {
 		return nil, 0, apperr.Wrap(apperr.SourceNotFound, err).WithParam("path", path)
 	}
-	if len(data) > rulesync.MaxDiffBytes {
+	if len(data) > maxEditorFileBytes {
 		return nil, 0, apperr.New(apperr.InvalidArgument).WithParam("reason", "file_too_large")
 	}
 	if bytes.IndexByte(data, 0) >= 0 || !utf8.Valid(data) {
@@ -176,14 +177,18 @@ func (s *Service) SaveRuleSourceFile(ruleID, path, content, expectedHash string)
 	if rule.Source.Origin == rules.OriginSubscription {
 		return "", apperr.New(apperr.SourceReadOnly)
 	}
+	return s.saveEditorFileLocked(file.AbsolutePath, content, expectedHash)
+}
+
+func (s *Service) saveEditorFileLocked(path, content, expectedHash string) (string, error) {
 	data := []byte(content)
-	if len(data) > rulesync.MaxDiffBytes {
+	if len(data) > maxEditorFileBytes {
 		return "", apperr.New(apperr.InvalidArgument).WithParam("reason", "file_too_large")
 	}
 	if bytes.IndexByte(data, 0) >= 0 || !utf8.Valid(data) {
 		return "", apperr.New(apperr.InvalidArgument).WithParam("reason", "file_not_text")
 	}
-	resolved, err := filepath.EvalSymlinks(file.AbsolutePath)
+	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return "", apperr.Wrap(apperr.SourceNotFound, err)
 	}

@@ -170,9 +170,31 @@ func cloneSubscription(id, remoteURL, name string) (config.Subscription, error) 
 	}, nil
 }
 
+// EnsureCanRemove refuses to discard local files or commits in a subscription clone.
+func EnsureCanRemove(id string) error {
+	if err := validateID(id); err != nil {
+		return err
+	}
+	if _, err := os.Stat(subscriptionDir(id)); os.IsNotExist(err) {
+		return nil
+	}
+	runner, err := existingRunner(id)
+	if err != nil {
+		return err
+	}
+	dirty, err := runner.HasLocalData()
+	if err != nil {
+		return err
+	}
+	if dirty {
+		return apperr.New(apperr.SubscriptionDirty).WithParam("id", id)
+	}
+	return nil
+}
+
 // Remove deletes the subscription clone directory. Removing a missing subscription is a no-op.
 func Remove(id string) error {
-	if err := validateID(id); err != nil {
+	if err := EnsureCanRemove(id); err != nil {
 		return err
 	}
 	dir := subscriptionDir(id)
@@ -251,11 +273,18 @@ func isNetworkError(err error) bool {
 	return errors.As(err, &appErr) && appErr.Code == apperr.GitNetwork
 }
 
-// Update fetches and hard-resets the clone to its upstream, returning the files that changed.
+// Update fetches and fast-forwards the clone, returning the files that changed.
 func Update(sub config.Subscription) ([]string, error) {
 	runner, err := existingRunner(sub.ID)
 	if err != nil {
 		return nil, err
+	}
+	local, err := runner.HasWorktreeData()
+	if err != nil {
+		return nil, err
+	}
+	if local {
+		return nil, apperr.New(apperr.SubscriptionDirty).WithParam("name", sub.Name)
 	}
 	if err := runner.Fetch(); err != nil {
 		return nil, err
@@ -278,7 +307,7 @@ func Update(sub config.Subscription) ([]string, error) {
 		}
 	}
 
-	if err := runner.ResetHardToUpstream(); err != nil {
+	if err := runner.FastForwardToUpstream(); err != nil {
 		return nil, err
 	}
 	return changed, nil
