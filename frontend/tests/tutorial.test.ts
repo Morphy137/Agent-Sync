@@ -9,7 +9,7 @@ const TOTAL_STEPS = 6;
 describe("TutorialModal.svelte", () => {
   beforeEach(() => {
     setLocale("en");
-    appState.activeView = "connections";
+    appState.activeView = "locations";
   });
 
   afterEach(() => cleanup());

@@ -10,7 +10,6 @@ import (
 
 	"agentsync/internal/apperr"
 	"agentsync/internal/backup"
-	"agentsync/internal/config"
 	"agentsync/internal/fsops"
 	"agentsync/internal/rules"
 )
@@ -19,15 +18,21 @@ import (
 // writable sources) run first; the rules are then re-evaluated so that sibling destinations of
 // a captured source show up as source_changed and are written in the same pass.
 func (e *Engine) Sync(all []rules.Rule) (ApplyResult, error) {
+	return e.SyncMatching(all, nil)
+}
+
+// SyncMatching is Sync limited to the rules accepted by include (nil accepts every rule). All rules
+// are still evaluated, so collisions with rules left out keep blocking the ones applied.
+func (e *Engine) SyncMatching(all []rules.Rule, include func(rules.Rule) bool) (ApplyResult, error) {
 	result := ApplyResult{Backups: []string{}, CapturedRepoPaths: []string{}}
 
-	ev := e.evaluate(all)
+	ev := e.evaluate(all).restrictedTo(include)
 	captured, err := e.captureAll(ev, &result)
 	if err != nil {
 		return e.finish(result, err)
 	}
 	if captured > 0 {
-		ev = e.evaluate(all)
+		ev = e.evaluate(all).restrictedTo(include)
 	}
 
 	for _, de := range ev.dests {
@@ -41,6 +46,20 @@ func (e *Engine) Sync(all []rules.Rule) (ApplyResult, error) {
 		}
 	}
 	return e.finish(result, nil)
+}
+
+// restrictedTo keeps only the destinations of rules accepted by include (nil keeps all).
+func (ev *evaluation) restrictedTo(include func(rules.Rule) bool) *evaluation {
+	if include == nil {
+		return ev
+	}
+	kept := make([]*destEval, 0, len(ev.dests))
+	for _, de := range ev.dests {
+		if include(de.rule) {
+			kept = append(kept, de)
+		}
+	}
+	return &evaluation{report: ev.report, dests: kept}
 }
 
 // finish saves state and normalizes the result; the first error wins.
@@ -387,15 +406,15 @@ func (e *Engine) backupSource(r rules.Rule, sourceRoot, fileAbs string, result *
 	return e.snapshot(BackupRootFor(e.BackupRoot, r.ID, SourceBackupID), BaselineKey(r.ID, SourceBackupID), r.Name, root, []string{filepath.ToSlash(rel)}, result)
 }
 
-func (e *Engine) snapshot(backupRoot, connID, profile, root string, rels []string, result *ApplyResult) error {
+func (e *Engine) snapshot(backupRoot, ownerID, name, root string, rels []string, result *ApplyResult) error {
 	if !anyFileExists(root, rels) {
 		return nil
 	}
 	if e.BackupRoot == "" {
 		return apperr.New(apperr.BackupFailed).WithParam(reasonParam, "backup_root_missing")
 	}
-	conn := config.Connection{ID: connID, Profile: profile, TargetPath: root}
-	info, err := backup.CreateBackup(backupRoot, conn, nil, rels, backup.ReasonSync, e.Retention)
+	owner := backup.Owner{ID: ownerID, Name: name, Dir: root}
+	info, err := backup.CreateSnapshot(backupRoot, owner, rels, backup.ReasonSync, e.Retention)
 	if err != nil {
 		return err
 	}

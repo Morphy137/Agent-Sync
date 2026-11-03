@@ -6,11 +6,10 @@ import {main} from '../models';
 import {orchestrator} from '../models';
 import {subscriptions} from '../models';
 import {gitops} from '../models';
-import {profiles} from '../models';
 import {rules} from '../models';
 import {recognize} from '../models';
 import {rulesync} from '../models';
-import {backup} from '../models';
+import {autostart} from '../models';
 
 export function AddRecommendedGitignore():Promise<service.GitignorePayload>;
 
@@ -18,15 +17,7 @@ export function AddRemote(arg1:string):Promise<void>;
 
 export function AddSubscription(arg1:string,arg2:string):Promise<config.Subscription>;
 
-export function ApplyConnection(arg1:string):Promise<void>;
-
-export function BeginConnection(arg1:service.ConnectionDraftRequest):Promise<service.ConnectionDraft>;
-
-export function CancelConnection(arg1:string):Promise<void>;
-
-export function CancelPendingLink(arg1:string):Promise<void>;
-
-export function ChangeTarget(arg1:string,arg2:string):Promise<service.InitialLinkResult>;
+export function ApplySubscriptionSuggestions(arg1:string,arg2:Array<string>,arg3:Record<string, string>):Promise<service.SuggestionsApplyOutcome>;
 
 export function CheckForUpdate():Promise<main.UpdateStatus>;
 
@@ -36,27 +27,17 @@ export function CheckSubscription(arg1:string):Promise<subscriptions.UpdateInfo>
 
 export function CloneRepository(arg1:string,arg2:string,arg3:string):Promise<config.Config>;
 
-export function CommitConnection(arg1:string,arg2:Array<orchestrator.ConflictResolution>):Promise<void>;
-
-export function ConnectProfile(arg1:string,arg2:string):Promise<service.InitialLinkResult>;
-
 export function ConnectRemote(arg1:string):Promise<gitops.ConnectRemoteResult>;
 
 export function CreateFolder(arg1:string):Promise<string>;
-
-export function CreateProfile(arg1:string):Promise<profiles.Profile>;
 
 export function CreateRoot(arg1:string,arg2:string):Promise<config.Config>;
 
 export function DeleteRule(arg1:string):Promise<void>;
 
-export function DetectAgentFolders():Promise<Array<service.AgentFolderSuggestion>>;
-
 export function DetectSource(arg1:rules.Source):Promise<recognize.SourceInfo>;
 
 export function DiscardRepoFile(arg1:string):Promise<void>;
-
-export function DisconnectProfile(arg1:string):Promise<config.Config>;
 
 export function ExcludeRepoPath(arg1:string):Promise<service.GitignorePayload>;
 
@@ -80,6 +61,8 @@ export function GetRuleDiff(arg1:string,arg2:string,arg3:string):Promise<rulesyn
 
 export function GetRulesReport():Promise<rulesync.Report>;
 
+export function GetStartupStatus():Promise<autostart.Status>;
+
 export function GetStatus():Promise<orchestrator.SyncPlan>;
 
 export function GetSubscriptionIncomingDiff(arg1:string,arg2:string):Promise<rulesync.Diff>;
@@ -94,7 +77,7 @@ export function InspectPath(arg1:string):Promise<service.PathInfo>;
 
 export function InstallUpdate():Promise<void>;
 
-export function ListBackups(arg1:string):Promise<Array<backup.BackupInfo>>;
+export function ListBackups():Promise<Array<service.BackupEntry>>;
 
 export function ListFileDirectory(arg1:string,arg2:string):Promise<Array<service.FileDirectoryEntry>>;
 
@@ -102,15 +85,13 @@ export function ListFileRoots():Promise<Array<service.FileRoot>>;
 
 export function ListLocations():Promise<Array<service.LocationInfo>>;
 
-export function ListProfiles():Promise<Array<profiles.Profile>>;
-
 export function ListRepoTree():Promise<Array<service.SourceTreeEntry>>;
 
 export function ListRuleSourceFiles(arg1:string):Promise<Array<service.RuleSourceFile>>;
 
-export function ListSubscriptions():Promise<Array<service.SubscriptionInfo>>;
+export function ListSubscriptionSuggestions(arg1:string):Promise<Array<service.SuggestionInfo>>;
 
-export function ListTargetEntries(arg1:string,arg2:number):Promise<Array<service.TargetEntry>>;
+export function ListSubscriptions():Promise<Array<service.SubscriptionInfo>>;
 
 export function OpenInExplorer(arg1:string):Promise<void>;
 
@@ -126,11 +107,9 @@ export function RemoveLocation(arg1:string):Promise<config.Config>;
 
 export function RemoveSubscription(arg1:string):Promise<void>;
 
-export function ResolveInitialLink(arg1:string,arg2:string):Promise<void>;
-
 export function ResolveRuleFile(arg1:rulesync.Resolution):Promise<void>;
 
-export function RestoreBackup(arg1:string,arg2:string):Promise<void>;
+export function RestoreBackup(arg1:string,arg2:Array<string>):Promise<service.RestoreBackupResult>;
 
 export function SaveBrowserFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
 
@@ -149,8 +128,6 @@ export function SelectFiles(arg1:string,arg2:string):Promise<Array<string>>;
 export function SelectFolder(arg1:string,arg2:string):Promise<string>;
 
 export function SelectRootFolder(arg1:string):Promise<string>;
-
-export function SelectTargetFolder(arg1:string):Promise<string>;
 
 export function SetGitIdentity(arg1:string,arg2:string):Promise<void>;
 

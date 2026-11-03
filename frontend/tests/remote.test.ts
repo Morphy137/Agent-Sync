@@ -8,7 +8,6 @@ const mockApi = vi.hoisted(() => ({
   getRepoFileDiff: vi.fn(),
   discardRepoFile: vi.fn(),
   getConfig: vi.fn(),
-  listProfiles: vi.fn(),
   getGitInfo: vi.fn(),
   getStatus: vi.fn(),
 }));
@@ -23,7 +22,6 @@ import RepoChangesModal from "../src/lib/components/remote/RepoChangesModal.svel
 
 function stubRefresh() {
   mockApi.getConfig.mockResolvedValue({ rootPath: "C:/repo" });
-  mockApi.listProfiles.mockResolvedValue([]);
   mockApi.getGitInfo.mockResolvedValue({ isRepo: true, hasUpstream: true });
   mockApi.getStatus.mockResolvedValue(appState.statusPlan);
 }
@@ -74,8 +72,6 @@ describe("RepoChangesModal.svelte", () => {
     appState.statusPlan = {
       fingerprint: "f",
       direction: "up",
-      downloads: [],
-      uploads: [],
       conflicts: [],
       commitPreview: ["shared/AGENTS.md"],
       ahead: 0,
@@ -84,7 +80,6 @@ describe("RepoChangesModal.svelte", () => {
       isOffline: false,
       dirtyOutside: [],
       dirtyOverlapExists: false,
-      connections: [],
       rulesPending: 0,
       rulesConflicts: 0,
     } as any;

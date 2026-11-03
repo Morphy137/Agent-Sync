@@ -15,6 +15,8 @@
   import DiffModal from "../components/DiffModal.svelte";
   import SubscriptionCard from "../components/subscriptions/SubscriptionCard.svelte";
   import AddSubscriptionModal from "../components/subscriptions/AddSubscriptionModal.svelte";
+  import SuggestionsModal from "../components/subscriptions/SuggestionsModal.svelte";
+  import { isSelectable } from "../components/subscriptions/suggestions";
   import SubscriptionTreeDrawer from "../components/subscriptions/SubscriptionTreeDrawer.svelte";
   import { reportError } from "../components/remote/reportError";
 
@@ -30,6 +32,8 @@
   let loaded = $state(false);
   let addOpen = $state(false);
   let browseId = $state<string | null>(null);
+  let suggestionsTarget = $state<{ id: string; name: string } | null>(null);
+  let browseAfterSuggestions = $state<string | null>(null);
   let removeTarget = $state<service.SubscriptionInfo | null>(null);
   let removing = $state(false);
   let checkingAll = $state(false);
@@ -207,10 +211,27 @@
     incomingDiff = { ...incomingDiff, open: false, loading: false, diff: null };
   }
 
-  function handleAdded(subscription: { id: string }) {
+  /** A new subscription opens its suggested rules first (when it has any), then the content browser. */
+  async function handleAdded(subscription: { id: string; name: string }) {
     addOpen = false;
     void load();
+    try {
+      const suggestions = (await api.listSubscriptionSuggestions(subscription.id)) ?? [];
+      if (suggestions.some(isSelectable)) {
+        suggestionsTarget = { id: subscription.id, name: subscription.name };
+        browseAfterSuggestions = subscription.id;
+        return;
+      }
+    } catch {
+      // a broken suggestions file must not get in the way of browsing the new subscription
+    }
     browseId = subscription.id;
+  }
+
+  function closeSuggestions() {
+    suggestionsTarget = null;
+    if (browseAfterSuggestions) browseId = browseAfterSuggestions;
+    browseAfterSuggestions = null;
   }
 </script>
 
@@ -294,6 +315,7 @@
           onupdate={() => handleUpdate(item)}
           onautoupdate={(enabled) => handleAutoUpdate(item, enabled)}
           onbrowse={() => (browseId = item.id)}
+          onsuggestions={() => (suggestionsTarget = { id: item.id, name: item.name })}
           onremove={() => (removeTarget = item)}
           onviewdiff={(path) => openIncomingDiff(item, path)}
         />
@@ -303,6 +325,12 @@
 </section>
 
 <AddSubscriptionModal open={addOpen} onclose={() => (addOpen = false)} onadded={handleAdded} />
+
+<SuggestionsModal
+  open={suggestionsTarget !== null}
+  subscription={suggestionsTarget}
+  onclose={closeSuggestions}
+/>
 
 <SubscriptionTreeDrawer
   open={browseSubscription !== null}

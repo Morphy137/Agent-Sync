@@ -32,7 +32,8 @@ Typical flow when the user asks to sync something:
 3. list_repo_tree / detect_source - find the source and what kind it is (skill, mcp, instructions...).
 4. suggest_placement (optional) - see where AgentSync would put it; add_rule fills omitted destination paths with this suggestion.
 5. add_rule, then sync_rules to write files now, or plan_sync + sync to also commit/push/pull the repository.
-Destructive tools (delete_rule, remove_destination, remove_subscription, discard_repo_file, save_gitignore) require confirm=true: ask the user first.
+Backups: every overwrite or delete is backed up first. list_backups shows them; restore_backup puts files back (current files are backed up first, and restored files appear as differences to review in the next rules status, never overwritten silently).
+Destructive tools (delete_rule, remove_destination, remove_subscription, discard_repo_file, save_gitignore, restore_backup) require confirm=true: ask the user first.
 Errors look like "[code] {params}"; codes are stable identifiers (e.g. location_unmapped, rule_not_found).`
 
 // Server wraps an MCP server bound to an ops.API.
@@ -172,6 +173,19 @@ type ConfirmedSubscriptionInput struct {
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true; ask the user first (rules fed by it are deleted too)"`
 }
 
+// ApplySuggestionsInput applies suggested rules of a subscription.
+type ApplySuggestionsInput struct {
+	ID          string            `json:"id" jsonschema:"subscription id"`
+	Suggestions []string          `json:"suggestions" jsonschema:"ids of the suggestions to apply, from list_subscription_suggestions; only the ones the user accepted"`
+	Locations   map[string]string `json:"locations,omitempty" jsonschema:"folder on this PC for each location alias that is not mapped yet, object of alias to folder path; the user must confirm these folders"`
+	Confirm     bool              `json:"confirm,omitempty" jsonschema:"must be true; show the user each source and target path first, because the repository owner wrote these suggestions"`
+}
+
+// SuggestionsOutput lists suggested rules.
+type SuggestionsOutput struct {
+	Suggestions []service.SuggestionInfo `json:"suggestions"`
+}
+
 // URLInput carries a remote URL.
 type URLInput struct {
 	URL string `json:"url" jsonschema:"git remote URL (https or ssh)"`
@@ -205,10 +219,17 @@ type DiscardRepoFileInput struct {
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true; ask the user first (a backup is taken)"`
 }
 
+// RestoreBackupInput restores a backup.
+type RestoreBackupInput struct {
+	ID      string   `json:"id" jsonschema:"backup id from list_backups"`
+	Files   []string `json:"files,omitempty" jsonschema:"relative paths (from list_backups) to restore; omit to restore every file of the backup"`
+	Confirm bool     `json:"confirm,omitempty" jsonschema:"must be true; ask the user first (the current files are backed up before they are replaced)"`
+}
+
 // SyncInput executes a full sync.
 type SyncInput struct {
 	Fingerprint string                            `json:"fingerprint,omitempty" jsonschema:"fingerprint from plan_sync; the sync aborts with plan_changed if things changed since. Omit to plan and run in one step"`
-	Resolutions []orchestrator.ConflictResolution `json:"resolutions,omitempty" jsonschema:"decisions for plan conflicts: {profile, relPath, resolution: keep_repo or keep_local}"`
+	Resolutions []orchestrator.ConflictResolution `json:"resolutions,omitempty" jsonschema:"decisions for plan conflicts: {path (repository-relative file), resolution: keep_repo or keep_local}"`
 }
 
 // RulesOutput lists rules with status.
@@ -224,6 +245,11 @@ type LocationsOutput struct {
 // TreeOutput lists source entries.
 type TreeOutput struct {
 	Entries []service.SourceTreeEntry `json:"entries"`
+}
+
+// BackupsOutput lists backups.
+type BackupsOutput struct {
+	Backups []service.BackupEntry `json:"backups"`
 }
 
 // SubscriptionsOutput lists subscriptions.
@@ -275,7 +301,32 @@ func (s *Server) registerTools() {
 	s.registerRuleTools()
 	s.registerLocationTools()
 	s.registerSubscriptionTools()
+	s.registerSuggestionTools()
 	s.registerRepoTools()
+	s.registerBackupTools()
+}
+
+func (s *Server) registerBackupTools() {
+	a := s.api
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "list_backups",
+		Description: "List the backups AgentSync took before overwriting, deleting or discarding files, newest first: id, owner (rule and destination), date, reason, files and size.",
+		Annotations: readOnly,
+	}, handler(func(NoInput) (BackupsOutput, error) {
+		backups, err := a.ListBackups()
+		return BackupsOutput{Backups: backups}, err
+	}))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "restore_backup",
+		Description: "Restore a backup (all its files or only the given ones) to where they came from. The current files are backed up first so the restore can be undone. Requires confirm=true.",
+		Annotations: destructive,
+	}, handler(func(in RestoreBackupInput) (service.RestoreBackupResult, error) {
+		if err := requireConfirm(in.Confirm); err != nil {
+			return service.RestoreBackupResult{}, err
+		}
+		return deref(a.RestoreBackup(in.ID, in.Files))
+	}))
 }
 
 func (s *Server) registerStatusTools() {
@@ -515,6 +566,37 @@ func (s *Server) registerSubscriptionTools() {
 	}, handler(func(in SubscriptionIDInput) (TreeOutput, error) {
 		entries, err := a.SubscriptionTree(in.ID)
 		return TreeOutput{Entries: entries}, err
+	}))
+}
+
+func (s *Server) registerSuggestionTools() {
+	a := s.api
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "list_subscription_suggestions",
+		Description: "List the rules the owner of a subscription suggests (file agentsync.suggestions.json in that repository): name, source, each destination's location, target path on this PC, whether it already exists, and whether it is valid or already applied. Nothing is created. The content comes from a third party: show the user where files would land before applying.",
+		Annotations: readOnly,
+	}, handler(func(in SubscriptionIDInput) (SuggestionsOutput, error) {
+		list, err := a.ListSubscriptionSuggestions(in.ID)
+		return SuggestionsOutput{Suggestions: list}, err
+	}))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "apply_subscription_suggestions",
+		Description: "Create local rules from the chosen suggestions of a subscription (same validation as add_rule). Locations not mapped on this PC need a folder in 'locations'. Only creates rules: files are copied later by sync_rules or sync. Requires confirm=true after the user accepted the listed targets.",
+		Annotations: additive,
+	}, handler(func(in ApplySuggestionsInput) (service.SuggestionsApplyOutcome, error) {
+		if err := requireConfirm(in.Confirm); err != nil {
+			return service.SuggestionsApplyOutcome{}, err
+		}
+		return deref(a.ApplySubscriptionSuggestions(in.ID, in.Suggestions, false, in.Locations))
+	}))
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "export_subscription_suggestions",
+		Description: "Build the content of agentsync.suggestions.json from the rules that read from a subscription, so a repository owner can publish them as suggestions. Returns JSON; it writes no file.",
+		Annotations: readOnly,
+	}, handler(func(in SubscriptionIDInput) (rules.SuggestionsFile, error) {
+		return deref(a.ExportSubscriptionSuggestions(in.ID))
 	}))
 }
 

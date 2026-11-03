@@ -1,12 +1,11 @@
 import * as AppBindings from "../../../wailsjs/go/main/App";
 import { BrowserOpenURL } from "../../../wailsjs/runtime/runtime";
 import type {
+  autostart,
   main,
   config,
   service,
   orchestrator,
-  backup,
-  profiles,
   rules,
   rulesync,
   recognize,
@@ -53,35 +52,20 @@ export const api = {
     AppBindings.UpdateSettings(payload),
   selectRootFolder: (title: string): Promise<string> => AppBindings.SelectRootFolder(title),
   setRootPath: (rootPath: string): Promise<config.Config> => AppBindings.SetRootPath(rootPath),
-  listProfiles: (): Promise<profiles.Profile[]> => AppBindings.ListProfiles(),
-  selectTargetFolder: (title: string): Promise<string> => AppBindings.SelectTargetFolder(title),
-  connectProfile: (profile: string, targetPath: string): Promise<service.InitialLinkResult> =>
-    AppBindings.ConnectProfile(profile, targetPath),
-  changeTarget: (connectionId: string, targetPath: string): Promise<service.InitialLinkResult> =>
-    AppBindings.ChangeTarget(connectionId, targetPath),
-  resolveInitialLink: (pendingId: string, choice: string): Promise<void> =>
-    AppBindings.ResolveInitialLink(pendingId, choice),
-  disconnectProfile: (connectionId: string): Promise<config.Config> =>
-    AppBindings.DisconnectProfile(connectionId),
   getStatus: (): Promise<orchestrator.SyncPlan> => AppBindings.GetStatus(),
   checkRemote: (): Promise<orchestrator.SyncPlan> => AppBindings.CheckRemote(),
-  applyConnection: (connectionId: string): Promise<void> =>
-    AppBindings.ApplyConnection(connectionId),
   planSync: (): Promise<orchestrator.SyncPlan> => AppBindings.PlanSync(),
   executeSync: (
     fingerprint: string,
     resolutions: orchestrator.ConflictResolution[]
   ): Promise<orchestrator.SyncResult> => AppBindings.ExecuteSync(fingerprint, resolutions),
-  listBackups: (connectionId: string): Promise<backup.BackupInfo[]> =>
-    AppBindings.ListBackups(connectionId),
-  restoreBackup: (connectionId: string, backupId: string): Promise<void> =>
-    AppBindings.RestoreBackup(connectionId, backupId),
   openInExplorer: (path: string): Promise<void> => AppBindings.OpenInExplorer(path),
   initRepository: (): Promise<void> => AppBindings.InitRepository(),
   addRemote: (url: string): Promise<void> => AppBindings.AddRemote(url),
   setGitIdentity: (name: string, email: string): Promise<void> =>
     AppBindings.SetGitIdentity(name, email),
   getGitInfo: (): Promise<service.GitInfoPayload> => AppBindings.GetGitInfo(),
+  getStartupStatus: (): Promise<autostart.Status> => AppBindings.GetStartupStatus(),
   selectFolder: (title: string, defaultDir = ""): Promise<string> =>
     AppBindings.SelectFolder(title, defaultDir),
   selectFiles: (title: string, defaultDir = ""): Promise<string[]> =>
@@ -89,6 +73,11 @@ export const api = {
   selectFile: (title: string, defaultDir = ""): Promise<string> =>
     AppBindings.SelectFile(title, defaultDir),
   openPath: (path: string): Promise<void> => AppBindings.OpenPath(path),
+
+  // Backups
+  listBackups: (): Promise<service.BackupEntry[]> => AppBindings.ListBackups(),
+  restoreBackup: (id: string, files: string[]): Promise<service.RestoreBackupResult> =>
+    AppBindings.RestoreBackup(id, files),
 
   // Sync rules
   listFileRoots: () => AppBindings.ListFileRoots(),
@@ -158,6 +147,14 @@ export const api = {
     AppBindings.GetSubscriptionTree(id),
   getSubscriptionIncomingDiff: (id: string, relPath: string): Promise<rulesync.Diff> =>
     AppBindings.GetSubscriptionIncomingDiff(id, relPath),
+  listSubscriptionSuggestions: (id: string): Promise<service.SuggestionInfo[]> =>
+    AppBindings.ListSubscriptionSuggestions(id),
+  applySubscriptionSuggestions: (
+    id: string,
+    suggestionIds: string[],
+    locationMappings: Record<string, string>
+  ): Promise<service.SuggestionsApplyOutcome> =>
+    AppBindings.ApplySubscriptionSuggestions(id, suggestionIds, locationMappings),
 
   // Repository remote
   connectRemote: (url: string): Promise<gitops.ConnectRemoteResult> =>

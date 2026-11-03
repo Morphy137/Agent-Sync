@@ -8,11 +8,10 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"agentsync/internal/backup"
+	"agentsync/internal/autostart"
 	"agentsync/internal/config"
 	"agentsync/internal/gitops"
 	"agentsync/internal/orchestrator"
-	"agentsync/internal/profiles"
 	"agentsync/internal/recognize"
 	"agentsync/internal/rules"
 	"agentsync/internal/rulesync"
@@ -24,17 +23,19 @@ import (
 // SettingsPayload is an alias for service.SettingsPayload for Wails bindings.
 type SettingsPayload = service.SettingsPayload
 
-// InitialLinkResult is an alias for service.InitialLinkResult for Wails bindings.
-type InitialLinkResult = service.InitialLinkResult
-
 // GitInfoPayload is an alias for service.GitInfoPayload for Wails bindings.
 type GitInfoPayload = service.GitInfoPayload
 
 // App struct manages application lifecycle and delegates all business logic to Service.
 type App struct {
-	ctx       context.Context
-	svc       *service.Service
-	scheduler *scheduler.Scheduler
+	ctx          context.Context
+	svc          *service.Service
+	scheduler    *scheduler.Scheduler
+	tray         *trayIcon
+	startupEntry *autostart.Manager
+	closing      closePolicy
+	// startedHidden is true when the window was not shown at launch (minimized start with the tray on).
+	startedHidden bool
 }
 
 // NewApp creates a new App application struct.
@@ -49,6 +50,9 @@ func NewApp() *App {
 		_, ok := app.svc.TryBackgroundCheck()
 		return ok
 	})
+	app.tray = newTrayIcon(trayHandlers{Open: app.showWindow, SyncNow: app.traySyncNow, Quit: app.quit})
+	app.closing.trayActive = app.tray.Active
+	app.startupEntry = autostart.NewManager(autostart.NewRegistryStore(), executablePath(), !devBuild)
 	return app
 }
 
@@ -78,6 +82,8 @@ func (a *App) startup(ctx context.Context) {
 	go a.svc.WatchExternalChanges(ctx, service.DefaultExternalWatchInterval)
 	cfg, err := a.svc.GetConfig()
 	if err == nil && cfg != nil {
+		a.reconcileStartup(cfg)
+		a.startTrayAtLaunch(cfg)
 		a.scheduler.Start(cfg.CheckIntervalMinutes)
 		go a.scheduler.TriggerNow(true)
 	}
@@ -88,15 +94,24 @@ func (a *App) GetConfig() (*config.Config, error) {
 	return a.svc.GetConfig()
 }
 
-// UpdateSettings updates user settings and reconfigures the scheduler if needed.
+// UpdateSettings updates user settings and applies the ones that act on the desktop: the
+// scheduler, the tray icon and the Windows startup entry.
 func (a *App) UpdateSettings(payload SettingsPayload) (*config.Config, error) {
+	startupChanged, err := a.applyStartupSetting(payload.StartWithWindows)
+	if err != nil {
+		return nil, err
+	}
 	cfg, intervalChanged, err := a.svc.UpdateSettings(payload)
 	if err != nil {
+		if startupChanged {
+			_ = a.startupEntry.Apply(!payload.StartWithWindows)
+		}
 		return nil, err
 	}
 	if intervalChanged {
 		a.scheduler.Start(cfg.CheckIntervalMinutes)
 	}
+	a.applyTray(cfg)
 	return cfg, nil
 }
 
@@ -115,16 +130,6 @@ func (a *App) SetRootPath(rootPath string) (*config.Config, error) {
 	return a.svc.SetRootPath(rootPath)
 }
 
-// ListProfiles discovers profiles in the configured root directory.
-func (a *App) ListProfiles() ([]profiles.Profile, error) {
-	return a.svc.ListProfiles()
-}
-
-// SelectTargetFolder opens a native folder selection dialog with the translated title passed from the frontend (M3).
-func (a *App) SelectTargetFolder(title string) (string, error) {
-	return a.SelectFolder(title, "")
-}
-
 // InspectPath inspects path properties without side-effects (B.2).
 func (a *App) InspectPath(path string) service.PathInfo {
 	return a.svc.InspectPath(path)
@@ -133,41 +138,6 @@ func (a *App) InspectPath(path string) service.PathInfo {
 // CreateFolder creates a directory on disk after validation (B.2).
 func (a *App) CreateFolder(path string) (string, error) {
 	return a.svc.CreateFolder(path)
-}
-
-// CreateProfile creates a profile directory with a .gitkeep file inside the configured root (B.2).
-func (a *App) CreateProfile(name string) (profiles.Profile, error) {
-	return a.svc.CreateProfile(name)
-}
-
-// DetectAgentFolders returns detected agent configurations on this system (B.2).
-func (a *App) DetectAgentFolders() []service.AgentFolderSuggestion {
-	return a.svc.DetectAgentFolders()
-}
-
-// ConnectProfile connects a profile to a target directory.
-func (a *App) ConnectProfile(profile string, targetPath string) (*InitialLinkResult, error) {
-	return a.svc.ConnectProfile(profile, targetPath)
-}
-
-// ChangeTarget changes the target directory of an existing connection.
-func (a *App) ChangeTarget(connectionID string, targetPath string) (*InitialLinkResult, error) {
-	return a.svc.ChangeTarget(connectionID, targetPath)
-}
-
-// ResolveInitialLink applies the user's choice for a pending initial link by pendingID (M2).
-func (a *App) ResolveInitialLink(pendingID string, choice string) error {
-	return a.svc.ResolveInitialLink(pendingID, choice)
-}
-
-// CancelPendingLink cancels and cleans up a pending link (R3).
-func (a *App) CancelPendingLink(pendingID string) error {
-	return a.svc.CancelPendingLink(pendingID)
-}
-
-// DisconnectProfile removes a connection and cleans up its baseline state.
-func (a *App) DisconnectProfile(connectionID string) (*config.Config, error) {
-	return a.svc.DisconnectProfile(connectionID)
 }
 
 // GetStatus computes and returns the current local sync plan (without network fetch, H6).
@@ -180,11 +150,6 @@ func (a *App) CheckRemote() (*orchestrator.SyncPlan, error) {
 	return a.svc.CheckRemote()
 }
 
-// ApplyConnection performs a local download for a specific connection.
-func (a *App) ApplyConnection(connectionID string) error {
-	return a.svc.ApplyConnection(connectionID)
-}
-
 // PlanSync calculates the actions needed for the main sync button (with fetch).
 func (a *App) PlanSync() (*orchestrator.SyncPlan, error) {
 	return a.svc.PlanSync()
@@ -193,16 +158,6 @@ func (a *App) PlanSync() (*orchestrator.SyncPlan, error) {
 // ExecuteSync performs the full synchronization operation, validating the plan fingerprint (H1).
 func (a *App) ExecuteSync(fingerprint string, resolutions []orchestrator.ConflictResolution) (*orchestrator.SyncResult, error) {
 	return a.svc.ExecuteSync(fingerprint, resolutions)
-}
-
-// ListBackups lists available snapshots for a given connection.
-func (a *App) ListBackups(connectionID string) ([]backup.BackupInfo, error) {
-	return a.svc.ListBackups(connectionID)
-}
-
-// RestoreBackup restores files from a snapshot back to the target directory.
-func (a *App) RestoreBackup(connectionID string, backupID string) error {
-	return a.svc.RestoreBackup(connectionID, backupID)
 }
 
 // SelectFile opens a native file selection dialog.
@@ -408,26 +363,6 @@ func (a *App) SetGitIdentity(name string, email string) error {
 // GetGitInfo returns branch, remote URL, ahead/behind counts, and identity for the root repo.
 func (a *App) GetGitInfo() (*GitInfoPayload, error) {
 	return a.svc.GetGitInfo()
-}
-
-// ListTargetEntries lists files and folders inside a destination folder (B.2).
-func (a *App) ListTargetEntries(path string, maxDepth int) []service.TargetEntry {
-	return a.svc.ListTargetEntries(path, maxDepth)
-}
-
-// BeginConnection prepares and returns a connection draft (B.2).
-func (a *App) BeginConnection(req service.ConnectionDraftRequest) (*service.ConnectionDraft, error) {
-	return a.svc.BeginConnection(req)
-}
-
-// CommitConnection executes and saves a connection draft (B.2).
-func (a *App) CommitConnection(draftID string, resolutions []orchestrator.ConflictResolution) error {
-	return a.svc.CommitConnection(draftID, resolutions)
-}
-
-// CancelConnection discards a connection draft (B.2).
-func (a *App) CancelConnection(draftID string) error {
-	return a.svc.CancelConnection(draftID)
 }
 
 // CreateRoot creates a directory and sets it as the repository root (B.2).

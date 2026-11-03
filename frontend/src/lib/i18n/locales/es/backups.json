@@ -1,0 +1,34 @@
+{
+  "backups": {
+    "open_button": "Ver y restaurar",
+    "section_hint": "Consulta qué se respaldó antes de sobrescribir o borrar archivos y recupéralos.",
+    "title": "Copias de seguridad",
+    "list_label": "Copias de seguridad",
+    "search_placeholder": "Buscar por regla o archivo",
+    "no_match": "Ninguna copia coincide con tu búsqueda.",
+    "select_hint": "Elige una copia para ver sus archivos.",
+    "empty_title": "Aún no hay copias",
+    "empty_hint": "AgentSync respalda los archivos antes de sobrescribirlos o borrarlos. Aparecerán aquí.",
+    "owner_repo": "Ediciones del repositorio",
+    "owner_unknown": "Regla desconocida",
+    "destination_source": "Origen de la regla",
+    "destination_legacy": "Versión anterior",
+    "reason": {
+      "sync": "Antes de sincronizar",
+      "discard_repo_edit": "Antes de descartar una edición",
+      "restore": "Antes de restaurar"
+    },
+    "file_count": "{count} archivos",
+    "file_count_one": "{count} archivo",
+    "not_restorable": "Esta copia no se puede restaurar desde aquí porque su regla o destino ya no existe, o la hizo una versión anterior. Aún puedes abrir su carpeta y copiar archivos a mano.",
+    "select_all": "Todos los archivos",
+    "open_folder": "Abrir carpeta",
+    "restore_all": "Restaurar todo",
+    "restore_selected": "Restaurar selección ({count})",
+    "confirm_message": "¿Restaurar {count} archivos en {target}? Primero se respaldan las versiones actuales, así que podrás deshacerlo desde esta misma lista.",
+    "confirm_message_one": "¿Restaurar {count} archivo en {target}? Primero se respalda la versión actual, así que podrás deshacerlo desde esta misma lista.",
+    "confirm_button": "Restaurar",
+    "restored_toast": "Se restauraron {count} archivos en {target}. Revisa las diferencias en Reglas.",
+    "restored_toast_one": "Se restauró {count} archivo en {target}. Revisa las diferencias en Reglas."
+  }
+}

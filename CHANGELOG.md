@@ -4,6 +4,24 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-11-03
+
+### Added
+- Search your sync rules by name, source, subscription or destination; press Esc to clear.
+- Shared repositories can suggest rules: after you subscribe, pick the ones you want and apply them in one step. You see where each file will go before accepting, and nothing is copied until you sync.
+- Settings → Backups now has "View and restore": see every backup, pick all or some files and put them back. Your current files are backed up first, and restored files show up as differences to review instead of being overwritten by the next sync.
+- Optional setting to apply subscription updates automatically when they have no conflicts or local edits. A backup is made first, nothing is committed or pushed, and the bell tells you how many files changed.
+- Optional setting to keep AgentSync in the system tray when you close the window, with Open, Sync now and Quit.
+- Optional setting to start AgentSync with Windows.
+
+### Changed
+- When a file changed both here and in the repository, you can now keep your version during a sync.
+- Opening AgentSync a second time shows the window that is already running instead of starting another copy.
+- Rule rows no longer repeat the origin badge: hover the source icon to see where a rule comes from, and file names get more room.
+
+### Removed
+- Folder connections are gone; existing ones become sync rules automatically.
+
 ## [0.0.7] - 2026-11-03
 
 ### Changed

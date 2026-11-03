@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { ShieldCheck } from "@lucide/svelte";
   import type { orchestrator } from "../../../wailsjs/go/models";
   import { t } from "../i18n";
@@ -18,22 +19,24 @@
 
   let resolutions = $state<Record<string, "keep_repo" | "keep_local">>({});
 
+  /** Keeps a decision per conflicting file, defaulting new ones to the repository version. */
   $effect(() => {
-    if (plan?.conflicts) {
+    const conflicts = plan?.conflicts;
+    if (!conflicts) return;
+    untrack(() => {
       const initial: Record<string, "keep_repo" | "keep_local"> = {};
-      for (const c of plan.conflicts) {
-        const key = `${c.profile}:${c.relPath}`;
-        initial[key] = resolutions[key] || "keep_repo";
+      for (const c of conflicts) {
+        initial[c.path] = resolutions[c.path] || "keep_repo";
       }
       resolutions = initial;
-    }
+    });
   });
 
   function setAllResolutions(choice: "keep_repo" | "keep_local") {
     if (!plan?.conflicts) return;
     const updated: Record<string, "keep_repo" | "keep_local"> = {};
     for (const c of plan.conflicts) {
-      updated[`${c.profile}:${c.relPath}`] = choice;
+      updated[c.path] = choice;
     }
     resolutions = updated;
   }
@@ -43,12 +46,7 @@
     const list: orchestrator.ConflictResolution[] = [];
     if (plan?.conflicts) {
       for (const c of plan.conflicts) {
-        const key = `${c.profile}:${c.relPath}`;
-        list.push({
-          profile: c.profile,
-          relPath: c.relPath,
-          resolution: resolutions[key] || "keep_repo",
-        });
+        list.push({ path: c.path, resolution: resolutions[c.path] || "keep_repo" });
       }
     }
     onconfirm(list);
@@ -75,58 +73,21 @@
         </div>
 
         <div class="sunken-panel conflicts-list">
-          {#each plan.conflicts as conflict (`${conflict.profile}:${conflict.relPath}`)}
-            {@const key = `${conflict.profile}:${conflict.relPath}`}
+          {#each plan.conflicts as conflict (conflict.path)}
             <div class="conflict-row">
-              <span class="file-path">{conflict.profile}/{conflict.relPath}</span>
+              <span class="file-path">{conflict.path}</span>
               <div class="conflict-control">
                 <SegmentedControl
                   size="sm"
-                  ariaLabel={`${conflict.profile}/${conflict.relPath}`}
-                  value={resolutions[key] || "keep_repo"}
+                  ariaLabel={conflict.path}
+                  value={resolutions[conflict.path] || "keep_repo"}
                   options={[
                     { value: "keep_repo", label: t("conflicts.keep_repo") },
                     { value: "keep_local", label: t("conflicts.keep_local") },
                   ]}
-                  onchange={(val) => (resolutions[key] = val as "keep_repo" | "keep_local")}
+                  onchange={(val) => (resolutions[conflict.path] = val as "keep_repo" | "keep_local")}
                 />
               </div>
-            </div>
-          {/each}
-        </div>
-      </section>
-    {/if}
-
-    {#if plan?.downloads && plan.downloads.length > 0}
-      <section class="group-section">
-        <div class="section-header">
-          <div class="section-title">
-            <span class="status-dot dot-down"></span>
-            <span>{t("preview.downloads_section", { count: plan.downloads.length })}</span>
-          </div>
-        </div>
-        <div class="sunken-panel file-list">
-          {#each plan.downloads as dl (dl.fullPath)}
-            <div class="file-item">
-              <span class="file-path">{dl.fullPath}</span>
-            </div>
-          {/each}
-        </div>
-      </section>
-    {/if}
-
-    {#if plan?.uploads && plan.uploads.length > 0}
-      <section class="group-section">
-        <div class="section-header">
-          <div class="section-title">
-            <span class="status-dot dot-up"></span>
-            <span>{t("preview.uploads_section", { count: plan.uploads.length })}</span>
-          </div>
-        </div>
-        <div class="sunken-panel file-list">
-          {#each plan.uploads as up (up.fullPath)}
-            <div class="file-item">
-              <span class="file-path">{up.fullPath}</span>
             </div>
           {/each}
         </div>
@@ -185,14 +146,6 @@
     flex-shrink: 0;
   }
 
-  .dot-down {
-    background-color: var(--dot-down);
-  }
-
-  .dot-up {
-    background-color: var(--dot-up);
-  }
-
   .dot-conflict {
     background-color: var(--dot-conflict);
   }
@@ -227,19 +180,6 @@
   .conflict-control {
     width: 210px;
     flex-shrink: 0;
-  }
-
-  .file-list {
-    display: flex;
-    flex-direction: column;
-    max-height: 140px;
-    overflow-y: auto;
-  }
-
-  .file-item {
-    height: 28px;
-    display: flex;
-    align-items: center;
   }
 
   .file-path {

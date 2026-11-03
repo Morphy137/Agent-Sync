@@ -274,8 +274,8 @@ func TestGitignoreCommands(t *testing.T) {
 }
 
 func TestParseHelpers(t *testing.T) {
-	res, err := parseResolutions([]string{"CLAUDE:sub/a.md=keep_local"})
-	if err != nil || len(res) != 1 || res[0].Profile != "CLAUDE" || res[0].RelPath != "sub/a.md" || res[0].Resolution != "keep_local" {
+	res, err := parseResolutions([]string{"shared/sub/a.md=keep_local"})
+	if err != nil || len(res) != 1 || res[0].Path != "shared/sub/a.md" || res[0].Resolution != "keep_local" {
 		t.Fatalf("parseResolutions: %+v %v", res, err)
 	}
 	if _, err := parseResolutions([]string{"nonsense"}); err == nil {
@@ -364,5 +364,44 @@ func TestRulesAddWithFileSelection(t *testing.T) {
 		if (err == nil) != want {
 			t.Fatalf("%s present=%v, want %v", name, err == nil, want)
 		}
+	}
+}
+
+func TestBackupsListAndRestore(t *testing.T) {
+	f := newFixture(t)
+	mustJSON(t, nil, "root", "set", f.root)
+	mustJSON(t, nil, "locations", "set", "claude", filepath.Join(f.home, ".claude"))
+	mustJSON(t, nil, "rules", "add", "--source", "AGENTS.md", "--to", "claude:CLAUDE.md", "--name", "Shared")
+	mustJSON(t, nil, "sync", "--rules-only")
+	mustWrite(t, filepath.Join(f.root, "AGENTS.md"), "# changed\n")
+	mustJSON(t, nil, "sync", "--rules-only")
+	target := filepath.Join(f.home, ".claude", "CLAUDE.md")
+
+	var list []service.BackupEntry
+	mustJSON(t, &list, "backups", "list")
+	if len(list) != 1 || list[0].Owner != "Shared" || list[0].FileCount != 1 || !list[0].Restorable {
+		t.Fatalf("backups list: %+v", list)
+	}
+	if res := run("backups", "list"); res.code != ExitOK || !strings.Contains(res.stdout, list[0].ID) {
+		t.Fatalf("human backups list: %q", res.stdout)
+	}
+
+	code, env := runJSON(t, nil, "backups", "restore", list[0].ID)
+	if code != ExitError || env.Error.Code != "confirmation_required" {
+		t.Fatalf("restore without --yes: %d %+v", code, env.Error)
+	}
+	if data, _ := os.ReadFile(target); string(data) != "# changed\n" {
+		t.Fatalf("restore without --yes changed the file: %q", data)
+	}
+
+	var restored service.RestoreBackupResult
+	mustJSON(t, &restored, "backups", "restore", list[0].ID, "--file", "CLAUDE.md", "--yes")
+	if data, _ := os.ReadFile(target); string(data) != "# shared\n" || restored.UndoBackupID == "" {
+		t.Fatalf("restore: %q %+v", data, restored)
+	}
+
+	code, env = runJSON(t, nil, "backups", "restore", list[0].ID, "--file", "nope.md", "--yes")
+	if code != ExitError || env.Error.Code != "backup_not_found" {
+		t.Fatalf("unknown file: %d %+v", code, env.Error)
 	}
 }

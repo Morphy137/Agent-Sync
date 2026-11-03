@@ -130,11 +130,10 @@ const (
 	CollisionCaseConflict  = "case_conflict"
 )
 
-// DestRef points at a rule destination or a legacy folder connection.
+// DestRef points at a rule destination.
 type DestRef struct {
-	RuleID       string `json:"ruleId,omitempty"`
-	DestID       string `json:"destId,omitempty"`
-	ConnectionID string `json:"connectionId,omitempty"`
+	RuleID string `json:"ruleId"`
+	DestID string `json:"destId"`
 }
 
 // Collision reports destinations that would write to the same or overlapping places.

@@ -7,11 +7,11 @@ The repository root (Settings → Agent Configurations Root) is normally a git r
 
 - **Download changes**: the periodic check (or the refresh button) fetches the remote. When the remote
   is ahead, a banner appears; **Review changes** lists the incoming files with diffs, and **Sync** pulls
-  them and distributes them through your connections and rules.
-- **Upload changes**: edits inside managed paths (rule sources, profile folders, `agentsync.rules.json`)
+  them and distributes them through your rules.
+- **Upload changes**: edits inside managed paths (repo-origin rule sources, `agentsync.rules.json`)
   and edits captured from two-way destinations are committed (`chore(sync): …`) and pushed by **Sync**.
-- **Sync preview** (enabled with "Confirm before syncing") lists downloads, uploads and conflicts, each
-  with a diff.
+- **Sync preview** (enabled with "Confirm before syncing") lists conflicts (a file changed both locally
+  and on the remote), where you pick the repository or this PC version for each.
 
 ### Connecting a folder that is not connected yet
 
@@ -61,6 +61,64 @@ write destination edits back into subscription sources.
 
 Removing a subscription deletes the clone and its rules; files already copied to your folders stay.
 Removal is blocked when the clone contains local files, commits or stashes that could be lost.
+
+### Suggested rules
+
+A repository can list rules for its subscribers in a file at its root, `agentsync.suggestions.json`.
+Right after you add a subscription that has suggestions, a dialog lists them; a small counter on the
+subscription card reopens it while some are not applied. The file never appears in the subscription's
+file list, like `agentsync.rules.json`.
+
+```json
+{ "version": 1, "suggestions": [
+  { "name": "Claude instructions", "description": "optional",
+    "source": "AGENTS/Claude/CLAUDE-AGENTS.md", "include": [], "kind": "auto",
+    "destinations": [ { "location": "claude", "path": "CLAUDE.md", "mode": "one_way" } ] }
+] }
+```
+
+| Field | Meaning |
+|---|---|
+| `source` | Path inside the repository (a file or folder). `.` is allowed only together with `include` |
+| `include` | Optional list of files of the source folder to sync (same meaning as in a rule) |
+| `kind` | `auto` (default), `file`, `folder`, `skill`, `mcp` or `instructions` |
+| `destinations[].location` | Location alias (`claude`, `codex`, `home`…), lowercase letters, numbers, `-` or `_` |
+| `destinations[].path` | Relative path inside that location, including the final name |
+| `destinations[].mode` | `one_way` (default: the repository wins) or `create_only` (written once, never updated) |
+
+For each suggestion the dialog shows the source and, for every destination, the location, the
+relative path and the absolute path it resolves to on this PC, whether a file is already there, and
+whether the suggestion is already applied (a rule of the same subscription with the same source,
+location and path exists). Valid, not yet applied suggestions are ticked; invalid or applied ones
+cannot be ticked. A location that is not mapped on this PC needs a folder: if a known agent folder is
+found (for example `~/.claude` for `claude`) it is offered, and you confirm or change it; the folder
+is saved as that location like any other. **Apply** creates **local** rules (origin `subscription`)
+through the same validation and collision checks as any rule. It only creates rules: files are
+copied when you sync, so the pending state and the Sync button appear as for any new rule. Applying
+again skips what exists, and a suggestion where only some destinations exist adds a rule for the
+missing ones.
+
+Authors can generate the file from rules they set up by hand on a subscription with
+`agentsync-cli suggestions export --subscription ID --output agentsync.suggestions.json` (the MCP
+tool `export_subscription_suggestions` returns the same JSON). Two-way destinations are exported as
+one-way and destinations with a transform are left out, because the format has neither.
+
+**Security.** The repository is untrusted, so the file is treated as data and nothing is applied
+automatically:
+
+- The file is read only if it is a regular file of at most 256 KiB, with at most 100 suggestions and
+  20 destinations each. A malformed file gives the `invalid_suggestions` error; a bad entry is shown
+  as not valid while the others stay usable.
+- `source` and `include` must be relative, free of `..`, drive letters (`C:`), a leading `/` or `\`
+  and `.git` segments, and the source must exist inside the clone (a symlink leading out of the clone
+  is refused).
+- `destinations[].path` follows the same rules, so it cannot leave its location folder. The `mode`
+  is limited to `one_way` and `create_only`: `two_way` is refused because subscription sources are
+  read-only. Transforms, scripts and absolute paths do not exist in the format.
+- Suggestions are identified by their content, so a selection made before the file changed cannot
+  apply a different suggestion.
+- The dialog shows the exact resolved target before you accept; `one_way` replaces an existing file
+  on sync (a backup is taken first) and `create_only` keeps it.
 
 ### Accepted URLs
 

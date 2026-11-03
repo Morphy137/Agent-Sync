@@ -37,6 +37,9 @@ server** (tools such as `status`, `add_rule`, `sync`) when it is connected; othe
    result: colliding destinations are paused until the user changes a path or disables one.
 5. **Apply** — `sync_rules` writes rule destinations only (backups first). For a full sync with git
    (pull, commit, push) call `plan_sync`, show the user the plan, then `sync` with its `fingerprint`.
+   If the plan lists `conflicts` (a repository file edited here and on the remote), ask which version
+   to keep and pass `resolutions` `{path, resolution: keep_repo | keep_local}` (CLI:
+   `--resolve PATH=keep_repo|keep_local`); the discarded or set-aside local version is backed up.
 6. **Review** — `list_rules` / `get_rule` show per-file status; use `rule_diff` and
    `resolve_rule_file` for conflicts after asking the user which version to keep.
 
@@ -48,6 +51,8 @@ server** (tools such as `status`, `add_rule`, `sync`) when it is connected; othe
 | "Share the review skill with Claude and Codex" | `add_rule` source `skills/review`, destinations `claude`, `codex` (no path → suggested); `sync_rules` |
 | "Copy only these 3 notes to my Obsidian vault" | `set_location obsidian <vault>`; `add_rule` source `notes` + `include: [a.md, b.md, c.md]`, origin as needed |
 | "Subscribe to github.com/acme/skills and take its pdf skill" | `add_subscription`; `list_subscription_tree`; `add_rule` origin `subscription`, source `skills/pdf` |
+| "What does this subscription suggest?" | `list_subscription_suggestions`; show each source and target path; after the user accepts, `apply_subscription_suggestions` (`confirm: true`, `locations` for unmapped aliases), then `sync_rules` |
+| "Publish my subscription rules as suggestions" | `export_subscription_suggestions` (CLI: `suggestions export --subscription ID --output agentsync.suggestions.json`) |
 | "What is pending?" | `status`, then `list_repo_changes` / `repo_file_diff` |
 
 CLI equivalents:
@@ -57,15 +62,29 @@ agentsync-cli locations set claude "$USERPROFILE/.claude" --json
 agentsync-cli rules add --source skills/review --to claude --to codex --json
 agentsync-cli rules add --source notes --include a.md --include b.md --to obsidian:inbox --json
 agentsync-cli sync --rules-only --json
+agentsync-cli suggestions list --subscription s_abc --json
+agentsync-cli suggestions apply --subscription s_abc --id 3f9a1c2b7d10 --map codex="$USERPROFILE/.codex" --json
 ```
+
+## Backups
+
+Every overwrite or delete is backed up first. To recover a file, `list_backups` (CLI `backups list`)
+shows them newest first with the rule, destination, date, reason and files; `restore_backup` (CLI
+`backups restore <id> [--file F]... --yes`) puts all or some files back after the user agrees. The
+current files are backed up first (`undoBackupId`), so a restore can itself be undone. A restored
+destination file differs from its source, so it appears in `status` / `list_rules` as a difference to
+review (`untracked_diff`): `sync_rules` skips it until the user resolves it with `resolve_rule_file`.
 
 ## Safety
 
 - Subscription updates are blocked by local changes; removal is blocked by local files, commits or
   stashes. Preserve those changes outside the clone before cleaning it.
 
+- Suggested rules come from the repository owner (a third party). Never apply them unasked: list
+  them, show the user each source and the resolved target path, apply only the ones they accept, and
+  confirm folders for unmapped locations with them. Applying creates rules only; a sync copies files.
 - Destructive tools (`delete_rule`, `remove_destination`, `remove_subscription`,
-  `discard_repo_file`, `save_gitignore`) require `confirm: true` (CLI: `--yes`). Ask the user first,
+  `discard_repo_file`, `save_gitignore`, `restore_backup`) require `confirm: true` (CLI: `--yes`). Ask the user first,
   in plain words, and only then confirm.
 - Never put secrets in a synced source. Secret files (`.env`, `*.pem`, `auth.json`, ...) are always
   excluded; use `exclude_repo_path` to keep other files out of the repository.

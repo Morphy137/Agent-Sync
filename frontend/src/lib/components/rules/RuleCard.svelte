@@ -176,6 +176,19 @@
   const OriginIcon = $derived(
     ORIGIN_ICONS[rule.source.origin as keyof typeof ORIGIN_ICONS] ?? GitBranch
   );
+  const originLabel = $derived(t(`rules.origin.${rule.source.origin}`));
+  /** The icon carries what the removed badge used to say: where the source is and where the rule lives. */
+  const originTitle = $derived(
+    [
+      originLabel,
+      ...(rule.source.origin === "subscription" ? [subscriptionName] : []),
+      t(
+        rule.source.origin === "subscription"
+          ? "rules.scope.subscription_hint"
+          : `rules.scope.${scope}_hint`
+      ),
+    ].join("\n")
+  );
   const sourceName = $derived(
     rule.source.include?.length
       ? t(`rules.editor.selection_name_${rule.source.include.length === 1 ? "one" : "other"}`, {
@@ -185,7 +198,7 @@
   );
   const sourceTitle = $derived(
     [
-      t(`rules.origin.${rule.source.origin}`),
+      originLabel,
       ...(rule.source.origin === "subscription" ? [subscriptionName] : []),
       sourcePath || rule.source.path,
       ...(rule.source.include ?? []),
@@ -247,26 +260,8 @@
       <h3 class="rule-name" title={rule.name}>{rule.name}</h3>
     </div>
 
-    <div class="zone zone-origin">
-      <Badge
-        tone={scope === "repo" ? "success" : "neutral"}
-        title={t(
-          rule.source.origin === "subscription"
-            ? "rules.scope.subscription_hint"
-            : `rules.scope.${scope}`
-        )}
-      >
-        {#if scope === "repo"}<GitBranch size={12} aria-hidden="true" />{/if}
-        {t(
-          rule.source.origin === "subscription"
-            ? "rules.scope.subscription_short"
-            : `rules.scope.${scope}_short`
-        )}
-      </Badge>
-    </div>
-
     <div class="zone zone-source">
-      <span class="origin-icon" aria-label={t(`rules.origin.${rule.source.origin}`)} role="img">
+      <span class="origin-icon" aria-label={originLabel} title={originTitle} role="img">
         <OriginIcon size={14} />
       </span>
       <button type="button" class="source-name" title={sourceTitle} onclick={onsource}
@@ -476,7 +471,6 @@
     min-height: var(--card-zone-icon);
     grid-template-columns:
       var(--card-track-name)
-      var(--card-zone-origin)
       var(--card-track-source)
       var(--card-zone-expand)
       var(--card-zone-chip)
@@ -488,7 +482,7 @@
       var(--card-zone-icon)
       var(--card-zone-toggle)
       var(--card-zone-icon);
-    grid-template-areas: "name origin source expand chip arrow destchip destfile mode view open toggle menu";
+    grid-template-areas: "name source expand chip arrow destchip destfile mode view open toggle menu";
   }
 
   .zone {
@@ -500,9 +494,6 @@
 
   .zone-name {
     grid-area: name;
-  }
-  .zone-origin {
-    grid-area: origin;
   }
   .zone-source {
     grid-area: source;
@@ -558,7 +549,6 @@
     .rule-row {
       grid-template-columns:
         var(--card-track-name)
-        var(--card-zone-origin)
         var(--card-track-source)
         var(--card-zone-expand)
         var(--card-zone-arrow)
@@ -569,7 +559,7 @@
         var(--card-zone-icon)
         var(--card-zone-toggle)
         var(--card-zone-icon);
-      grid-template-areas: "name origin source expand arrow destchip destfile mode view open toggle menu";
+      grid-template-areas: "name source expand arrow destchip destfile mode view open toggle menu";
     }
 
     .zone-chip,
@@ -579,21 +569,20 @@
   }
 
   /* Narrow cards (grid view, small windows) stack the same zones on three fixed rows. */
-  @container (max-width: 719px) {
+  @container (max-width: 759px) {
     .rule-row {
       row-gap: var(--space-2);
       grid-template-columns:
         minmax(0, 1fr)
-        var(--card-zone-origin)
         var(--card-zone-expand)
         var(--card-zone-icon)
         var(--card-zone-icon)
         var(--card-zone-toggle)
         var(--card-zone-icon);
       grid-template-areas:
-        "name origin expand view open toggle menu"
-        "source source source source source source arrow"
-        "destchip destfile destfile destfile destfile mode mode";
+        "name expand view open toggle menu"
+        "source source source source source arrow"
+        "destchip destfile destfile destfile mode mode";
     }
 
     .zone-arrow :global(svg) {

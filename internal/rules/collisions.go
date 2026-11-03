@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"agentsync/internal/config"
 )
 
 // destTargets is a resolved destination reduced to the absolute paths it writes.
@@ -61,10 +59,7 @@ func refLess(a, b DestRef) bool {
 	if a.RuleID != b.RuleID {
 		return a.RuleID < b.RuleID
 	}
-	if a.DestID != b.DestID {
-		return a.DestID < b.DestID
-	}
-	return a.ConnectionID < b.ConnectionID
+	return a.DestID < b.DestID
 }
 
 func dedupeRefs(refs []DestRef) []DestRef {
@@ -84,7 +79,7 @@ func dedupeRefs(refs []DestRef) []DestRef {
 func refsKey(refs []DestRef) string {
 	parts := make([]string, 0, len(refs))
 	for _, r := range refs {
-		parts = append(parts, r.RuleID+"/"+r.DestID+"/"+r.ConnectionID)
+		parts = append(parts, r.RuleID+"/"+r.DestID)
 	}
 	return strings.Join(parts, "|")
 }
@@ -110,16 +105,15 @@ func isWithin(child, parent string) bool {
 	return strings.HasPrefix(c, p)
 }
 
-// DetectCollisions checks all resolved enabled destinations plus legacy connection target folders.
+// DetectCollisions checks all resolved enabled destinations.
 // Every DestRef involved in any collision must be treated as blocked by callers.
 // Unmapped destinations are ignored. Output is sorted by type, path and refs.
-func DetectCollisions(env Env, resolved []ResolvedDestination, sources []string, legacy []config.Connection) []Collision {
+func DetectCollisions(env Env, resolved []ResolvedDestination, sources []string) []Collision {
 	set := &collisionSet{byKey: make(map[string]Collision)}
 	dests := buildDestTargets(resolved)
 
 	detectSameTargets(set, dests)
 	detectFolderOverlaps(set, dests)
-	detectLegacyOverlaps(set, dests, legacy)
 	detectCycles(set, dests, sources)
 	detectInsideRepo(set, dests, env.RepoRoot)
 
@@ -211,33 +205,6 @@ func detectFolderOverlaps(set *collisionSet, dests []destTargets) {
 					set.add(CollisionFolderOverlap, c, folder.ref, other.ref)
 					break
 				}
-			}
-		}
-	}
-}
-
-// detectLegacyOverlaps reports rule targets inside a legacy connection target folder and
-// rule folders that contain a legacy target folder.
-func detectLegacyOverlaps(set *collisionSet, dests []destTargets, legacy []config.Connection) {
-	conns := append([]config.Connection(nil), legacy...)
-	sort.Slice(conns, func(i, j int) bool { return conns[i].ID < conns[j].ID })
-	for _, conn := range conns {
-		if conn.TargetPath == "" {
-			continue
-		}
-		target := filepath.Clean(conn.TargetPath)
-		connRef := DestRef{ConnectionID: conn.ID}
-		for _, d := range dests {
-			reported := false
-			for _, p := range d.points() {
-				if isWithin(p, target) {
-					set.add(CollisionFolderOverlap, p, connRef, d.ref)
-					reported = true
-					break
-				}
-			}
-			if !reported && d.isDir && isWithin(target, d.root) {
-				set.add(CollisionFolderOverlap, target, connRef, d.ref)
 			}
 		}
 	}

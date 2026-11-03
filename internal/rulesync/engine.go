@@ -9,10 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"agentsync/internal/config"
 	"agentsync/internal/rules"
 	"agentsync/internal/state"
-	"agentsync/internal/syncer"
 )
 
 // BaselinePrefix is the state key prefix: "rule:<ruleID>:<destID>". Managed transform entries are
@@ -36,16 +34,16 @@ const (
 	backupSeparator  = "__"
 )
 
-// File statuses (identical values to the syncer constants where they overlap).
+// File statuses.
 const (
-	StatusInSync        = syncer.FileInSync
-	StatusNewInSource   = syncer.FileNewInSource
-	StatusSourceChanged = syncer.FileSourceChanged
-	StatusTargetChanged = syncer.FileTargetChanged
-	StatusTargetMissing = syncer.FileTargetMissing
-	StatusConflict      = syncer.FileConflict
-	StatusUntrackedDiff = syncer.FileUntrackedDiff
-	StatusUnreadable    = syncer.FileUnreadable
+	StatusInSync        = "in_sync"
+	StatusNewInSource   = "new_in_source"
+	StatusSourceChanged = "source_changed"
+	StatusTargetChanged = "target_changed"
+	StatusTargetMissing = "target_missing"
+	StatusConflict      = "conflict"
+	StatusUntrackedDiff = "untracked_diff"
+	StatusUnreadable    = "unreadable"
 	StatusSourceDeleted = "source_deleted"
 	StatusDrift         = "drift"
 	StatusIgnored       = "ignored"
@@ -148,7 +146,6 @@ type Engine struct {
 	BackupRoot  string
 	Retention   int
 	Transformer Transformer
-	Legacy      []config.Connection
 	DetectKind  func(absPath string) string
 }
 
@@ -165,8 +162,8 @@ func ManagedKey(ruleID, destID string) string {
 var unsafeFileNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 
 // BackupRootFor returns the backup root used for one rule destination (or SourceBackupID).
-// Rule backups live under <backupRoot>/rules/<ruleID>__<destID> so they never mix with
-// legacy connection snapshots, and IDs are sanitized to be valid folder names.
+// Rule backups live under <backupRoot>/rules/<ruleID>__<destID>, and IDs are sanitized to be
+// valid folder names.
 func BackupRootFor(backupRoot, ruleID, destID string) string {
 	name := unsafeFileNameChars.ReplaceAllString(ruleID, "_") + backupSeparator +
 		unsafeFileNameChars.ReplaceAllString(destID, "_")
@@ -201,7 +198,7 @@ func (e *Engine) baselines(key string) map[string]string {
 	if e.State == nil {
 		return map[string]string{}
 	}
-	return e.State.GetConnectionBaselines(key)
+	return e.State.GetBaselines(key)
 }
 
 func (e *Engine) saveState() error {

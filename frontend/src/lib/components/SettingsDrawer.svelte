@@ -13,6 +13,7 @@
   import PathField from "./PathField.svelte";
   import Modal from "./Modal.svelte";
   import GitignoreModal from "./GitignoreModal.svelte";
+  import BackupsModal from "./backups/BackupsModal.svelte";
   import ThemePicker from "./ThemePicker.svelte";
   import ChangelogModal from "./ChangelogModal.svelte";
   import { Star, Sparkles, GraduationCap } from "@lucide/svelte";
@@ -33,6 +34,7 @@
   let language = $state<string>("system");
   let theme = $state<string>("system");
   let exclusionsOpen = $state(false);
+  let backupsOpen = $state(false);
   let changelogOpen = $state(false);
   let restoreModalOpen = $state(false);
 
@@ -57,6 +59,13 @@
   let backupRetention = $state<number>(SETTINGS_DEFAULTS.backupRetention);
   let checkInterval = $state<number>(SETTINGS_DEFAULTS.checkIntervalMinutes);
   let confirmBeforeSync = $state<boolean>(SETTINGS_DEFAULTS.confirmBeforeSync);
+  let autoApplyUpdates = $state<boolean>(SETTINGS_DEFAULTS.autoApplyUpdates);
+  let closeToTray = $state<boolean>(SETTINGS_DEFAULTS.closeToTray);
+  let startWithWindows = $state<boolean>(SETTINGS_DEFAULTS.startWithWindows);
+  /** False in development builds, where the executable path is temporary. */
+  let startupSupported = $state(true);
+  /** Real state of the Windows startup entry: read from the registry, then updated on each save. */
+  let savedStartup = false;
   let gitUserName = $state<string>("");
   let gitUserEmail = $state<string>("");
 
@@ -91,11 +100,26 @@
       checkInterval = cfg.checkIntervalMinutes ?? SETTINGS_DEFAULTS.checkIntervalMinutes;
       confirmBeforeSync = cfg.confirmBeforeSync ?? SETTINGS_DEFAULTS.confirmBeforeSync;
       checkUpdates = !cfg.disableUpdateCheck;
+      autoApplyUpdates = cfg.autoApplyUpdates ?? SETTINGS_DEFAULTS.autoApplyUpdates;
+      closeToTray = cfg.closeToTray ?? SETTINGS_DEFAULTS.closeToTray;
+      startWithWindows = savedStartup = cfg.startWithWindows ?? SETTINGS_DEFAULTS.startWithWindows;
       rootPath = cfg.rootPath || "";
     }
+    void loadStartupStatus();
     if (appState.gitInfo) {
       gitUserName = appState.gitInfo.userName || "";
       gitUserEmail = appState.gitInfo.userEmail || "";
+    }
+  }
+
+  /** The startup entry may have been removed or moved outside the app, so ask the system. */
+  async function loadStartupStatus() {
+    try {
+      const status = await api.getStartupStatus();
+      startupSupported = status.supported;
+      startWithWindows = savedStartup = status.enabled;
+    } catch {
+      // keep the stored value outside the Wails runtime
     }
   }
 
@@ -112,6 +136,9 @@
       checkIntervalMinutes: checkInterval,
       confirmBeforeSync,
       disableUpdateCheck: !checkUpdates,
+      autoApplyUpdates,
+      closeToTray,
+      startWithWindows,
     };
   }
 
@@ -125,7 +152,10 @@
       payload.backupRetention === saved.backupRetention &&
       payload.checkIntervalMinutes === saved.checkIntervalMinutes &&
       payload.confirmBeforeSync === saved.confirmBeforeSync &&
-      payload.disableUpdateCheck === Boolean(saved.disableUpdateCheck)
+      payload.disableUpdateCheck === Boolean(saved.disableUpdateCheck) &&
+      payload.autoApplyUpdates === Boolean(saved.autoApplyUpdates) &&
+      payload.closeToTray === Boolean(saved.closeToTray) &&
+      payload.startWithWindows === savedStartup
     );
   }
 
@@ -141,6 +171,7 @@
     if (!isSameAsSaved(payload)) {
       try {
         appState.config = await api.updateSettings(payload);
+        savedStartup = payload.startWithWindows;
       } catch (err) {
         appState.showError(err);
         restoreSavedSettings();
@@ -198,6 +229,21 @@
 
   function handleConfirmBeforeSyncChange(checked: boolean) {
     confirmBeforeSync = checked;
+    void saveNow();
+  }
+
+  function handleAutoApplyChange(checked: boolean) {
+    autoApplyUpdates = checked;
+    void saveNow();
+  }
+
+  function handleCloseToTrayChange(checked: boolean) {
+    closeToTray = checked;
+    void saveNow();
+  }
+
+  function handleStartWithWindowsChange(checked: boolean) {
+    startWithWindows = checked;
     void saveNow();
   }
 
@@ -264,6 +310,9 @@
     checkInterval = SETTINGS_DEFAULTS.checkIntervalMinutes;
     confirmBeforeSync = SETTINGS_DEFAULTS.confirmBeforeSync;
     checkUpdates = !SETTINGS_DEFAULTS.disableUpdateCheck;
+    autoApplyUpdates = SETTINGS_DEFAULTS.autoApplyUpdates;
+    closeToTray = SETTINGS_DEFAULTS.closeToTray;
+    startWithWindows = SETTINGS_DEFAULTS.startWithWindows;
     setLocale(language as any);
     applyTheme(theme);
     await saveNow();
@@ -328,6 +377,43 @@
       </div>
     </Card>
 
+    <!-- Background -->
+    <Card padding="md">
+      <div class="section-block">
+        <h3 class="section-heading">{t("settings.section_background")}</h3>
+
+        <Switch
+          label={t("settings.auto_apply_label")}
+          checked={autoApplyUpdates}
+          onchange={handleAutoApplyChange}
+        />
+        <p class="field-hint">{t("settings.auto_apply_hint")}</p>
+
+        <Switch
+          label={t("settings.close_to_tray_label")}
+          checked={closeToTray}
+          onchange={handleCloseToTrayChange}
+        />
+        <p class="field-hint">{t("settings.close_to_tray_hint")}</p>
+
+        <Switch
+          label={t("settings.start_with_windows_label")}
+          checked={startWithWindows}
+          disabled={!startupSupported}
+          onchange={handleStartWithWindowsChange}
+        />
+        <p class="field-hint">
+          {startupSupported
+            ? t(
+                closeToTray
+                  ? "settings.start_with_windows_hint_tray"
+                  : "settings.start_with_windows_hint_window"
+              )
+            : t("settings.start_with_windows_unavailable")}
+        </p>
+      </div>
+    </Card>
+
     <!-- 3. Backups -->
     <Card padding="md">
       <div class="section-block">
@@ -350,6 +436,11 @@
         {#if retentionInvalid}
           <p class="field-error" role="alert">{t("settings.retention_invalid")}</p>
         {/if}
+
+        <p class="field-hint">{t("backups.section_hint")}</p>
+        <Button variant="secondary" size="sm" onclick={() => (backupsOpen = true)}>
+          {t("backups.open_button")}
+        </Button>
       </div>
     </Card>
 
@@ -489,6 +580,7 @@
   </div>
 </Drawer>
 
+<BackupsModal open={backupsOpen} onclose={() => (backupsOpen = false)} />
 <GitignoreModal open={exclusionsOpen} onclose={() => (exclusionsOpen = false)} />
 <ChangelogModal open={changelogOpen} onclose={() => (changelogOpen = false)} />
 

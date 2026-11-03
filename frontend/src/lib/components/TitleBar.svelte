@@ -80,11 +80,8 @@
 
   const direction = $derived(appState.statusPlan?.direction || "idle");
   const hasRuleWork = $derived((appState.statusPlan?.rulesPending ?? 0) > 0);
-  const pendingCount = $derived.by(() => {
-    if (!appState.statusPlan) return 0;
-    const { downloads, uploads, conflicts } = appState.statusPlan;
-    return (downloads?.length || 0) + (uploads?.length || 0) + (conflicts?.length || 0);
-  });
+  /** Repository files with local edits that Sync will commit (conflicts are among them). */
+  const pendingCount = $derived(appState.statusPlan?.commitPreview?.length ?? 0);
 
   // Middle truncation for root path chip
   const rootTruncated = $derived.by(() => {

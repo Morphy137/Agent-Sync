@@ -1,29 +1,17 @@
-export namespace backup {
+export namespace autostart {
 	
-	export class BackupInfo {
-	    id: string;
-	    connectionId: string;
-	    profile: string;
-	    targetPath: string;
-	    createdAt: string;
-	    reason: string;
-	    files: string[];
-	    path: string;
+	export class Status {
+	    supported: boolean;
+	    enabled: boolean;
 	
 	    static createFrom(source: any = {}) {
-	        return new BackupInfo(source);
+	        return new Status(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.connectionId = source["connectionId"];
-	        this.profile = source["profile"];
-	        this.targetPath = source["targetPath"];
-	        this.createdAt = source["createdAt"];
-	        this.reason = source["reason"];
-	        this.files = source["files"];
-	        this.path = source["path"];
+	        this.supported = source["supported"];
+	        this.enabled = source["enabled"];
 	    }
 	}
 
@@ -71,24 +59,6 @@ export namespace config {
 	        this.path = source["path"];
 	    }
 	}
-	export class Connection {
-	    id: string;
-	    profile: string;
-	    targetPath: string;
-	    createdAt: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Connection(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.profile = source["profile"];
-	        this.targetPath = source["targetPath"];
-	        this.createdAt = source["createdAt"];
-	    }
-	}
 	export class Config {
 	    version: number;
 	    rootPath: string;
@@ -99,8 +69,10 @@ export namespace config {
 	    theme: string;
 	    tutorialCompleted: boolean;
 	    disableUpdateCheck: boolean;
+	    autoApplyUpdates: boolean;
+	    closeToTray: boolean;
+	    startWithWindows: boolean;
 	    confirmBeforeSync: boolean;
-	    connections: Connection[];
 	    locations: Location[];
 	    homeLocationDisabled?: boolean;
 	    subscriptions: Subscription[];
@@ -120,8 +92,10 @@ export namespace config {
 	        this.theme = source["theme"];
 	        this.tutorialCompleted = source["tutorialCompleted"];
 	        this.disableUpdateCheck = source["disableUpdateCheck"];
+	        this.autoApplyUpdates = source["autoApplyUpdates"];
+	        this.closeToTray = source["closeToTray"];
+	        this.startWithWindows = source["startWithWindows"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
-	        this.connections = this.convertValues(source["connections"], Connection);
 	        this.locations = this.convertValues(source["locations"], Location);
 	        this.homeLocationDisabled = source["homeLocationDisabled"];
 	        this.subscriptions = this.convertValues(source["subscriptions"], Subscription);
@@ -145,7 +119,6 @@ export namespace config {
 		    return a;
 		}
 	}
-	
 	
 
 }
@@ -265,8 +238,7 @@ export namespace main {
 export namespace orchestrator {
 	
 	export class ConflictItem {
-	    profile: string;
-	    relPath: string;
+	    path: string;
 	    reason: string;
 	
 	    static createFrom(source: any = {}) {
@@ -275,14 +247,12 @@ export namespace orchestrator {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.profile = source["profile"];
-	        this.relPath = source["relPath"];
+	        this.path = source["path"];
 	        this.reason = source["reason"];
 	    }
 	}
 	export class ConflictResolution {
-	    profile: string;
-	    relPath: string;
+	    path: string;
 	    resolution: string;
 	
 	    static createFrom(source: any = {}) {
@@ -291,32 +261,13 @@ export namespace orchestrator {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.profile = source["profile"];
-	        this.relPath = source["relPath"];
+	        this.path = source["path"];
 	        this.resolution = source["resolution"];
-	    }
-	}
-	export class SyncItem {
-	    profile: string;
-	    relPath: string;
-	    fullPath: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new SyncItem(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.profile = source["profile"];
-	        this.relPath = source["relPath"];
-	        this.fullPath = source["fullPath"];
 	    }
 	}
 	export class SyncPlan {
 	    fingerprint: string;
 	    direction: string;
-	    downloads: SyncItem[];
-	    uploads: SyncItem[];
 	    conflicts: ConflictItem[];
 	    commitPreview: string[];
 	    ahead: number;
@@ -325,7 +276,6 @@ export namespace orchestrator {
 	    isOffline: boolean;
 	    dirtyOutside: string[];
 	    dirtyOverlapExists: boolean;
-	    connections: syncer.ConnectionStatus[];
 	    lastCheckAt?: string;
 	    rulesPending: number;
 	    rulesConflicts: number;
@@ -338,8 +288,6 @@ export namespace orchestrator {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.fingerprint = source["fingerprint"];
 	        this.direction = source["direction"];
-	        this.downloads = this.convertValues(source["downloads"], SyncItem);
-	        this.uploads = this.convertValues(source["uploads"], SyncItem);
 	        this.conflicts = this.convertValues(source["conflicts"], ConflictItem);
 	        this.commitPreview = source["commitPreview"];
 	        this.ahead = source["ahead"];
@@ -348,7 +296,6 @@ export namespace orchestrator {
 	        this.isOffline = source["isOffline"];
 	        this.dirtyOutside = source["dirtyOutside"];
 	        this.dirtyOverlapExists = source["dirtyOverlapExists"];
-	        this.connections = this.convertValues(source["connections"], syncer.ConnectionStatus);
 	        this.lastCheckAt = source["lastCheckAt"];
 	        this.rulesPending = source["rulesPending"];
 	        this.rulesConflicts = source["rulesConflicts"];
@@ -373,8 +320,6 @@ export namespace orchestrator {
 		}
 	}
 	export class SyncResult {
-	    applied: number;
-	    captured: number;
 	    pulled: number;
 	    pushed: number;
 	    backupSessions: string[];
@@ -388,35 +333,12 @@ export namespace orchestrator {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.applied = source["applied"];
-	        this.captured = source["captured"];
 	        this.pulled = source["pulled"];
 	        this.pushed = source["pushed"];
 	        this.backupSessions = source["backupSessions"];
 	        this.rulesWritten = source["rulesWritten"];
 	        this.rulesCaptured = source["rulesCaptured"];
 	        this.rulesSkipped = source["rulesSkipped"];
-	    }
-	}
-
-}
-
-export namespace profiles {
-	
-	export class Profile {
-	    name: string;
-	    path: string;
-	    fileCount: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new Profile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.path = source["path"];
-	        this.fileCount = source["fileCount"];
 	    }
 	}
 
@@ -492,9 +414,8 @@ export namespace recognize {
 export namespace rules {
 	
 	export class DestRef {
-	    ruleId?: string;
-	    destId?: string;
-	    connectionId?: string;
+	    ruleId: string;
+	    destId: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DestRef(source);
@@ -504,7 +425,6 @@ export namespace rules {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ruleId = source["ruleId"];
 	        this.destId = source["destId"];
-	        this.connectionId = source["connectionId"];
 	    }
 	}
 	export class Collision {
@@ -866,141 +786,44 @@ export namespace rulesync {
 
 export namespace service {
 	
-	export class AgentFolderSuggestion {
-	    path: string;
-	    label: string;
-	    suggestedProfile: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new AgentFolderSuggestion(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.path = source["path"];
-	        this.label = source["label"];
-	        this.suggestedProfile = source["suggestedProfile"];
-	    }
-	}
-	export class DraftDifference {
-	    relPath: string;
-	    repoHash: string;
-	    targetHash: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DraftDifference(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.relPath = source["relPath"];
-	        this.repoHash = source["repoHash"];
-	        this.targetHash = source["targetHash"];
-	    }
-	}
-	export class ConnectionDraftPreview {
-	    toImport: string[];
-	    toCreateInTarget: string[];
-	    toOverwrite: string[];
-	    differences: DraftDifference[];
-	
-	    static createFrom(source: any = {}) {
-	        return new ConnectionDraftPreview(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.toImport = source["toImport"];
-	        this.toCreateInTarget = source["toCreateInTarget"];
-	        this.toOverwrite = source["toOverwrite"];
-	        this.differences = this.convertValues(source["differences"], DraftDifference);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class ConnectionDraft {
+	export class BackupEntry {
 	    id: string;
-	    profile: string;
+	    kind: string;
+	    owner: string;
+	    destination: string;
+	    ruleId: string;
+	    destId: string;
 	    targetPath: string;
-	    createProfile: boolean;
-	    importPaths: string[];
-	    replacesConnectionId?: string;
-	    // Go type: time
-	    createdAt: any;
-	    preview: ConnectionDraftPreview;
+	    createdAt: string;
+	    reason: string;
+	    fileCount: number;
+	    totalSize: number;
+	    files: string[];
+	    path: string;
+	    restorable: boolean;
 	
 	    static createFrom(source: any = {}) {
-	        return new ConnectionDraft(source);
+	        return new BackupEntry(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
-	        this.profile = source["profile"];
+	        this.kind = source["kind"];
+	        this.owner = source["owner"];
+	        this.destination = source["destination"];
+	        this.ruleId = source["ruleId"];
+	        this.destId = source["destId"];
 	        this.targetPath = source["targetPath"];
-	        this.createProfile = source["createProfile"];
-	        this.importPaths = source["importPaths"];
-	        this.replacesConnectionId = source["replacesConnectionId"];
-	        this.createdAt = this.convertValues(source["createdAt"], null);
-	        this.preview = this.convertValues(source["preview"], ConnectionDraftPreview);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	
-	export class ConnectionDraftRequest {
-	    profile: string;
-	    targetPath: string;
-	    createProfile: boolean;
-	    importPaths: string[];
-	    replacesConnectionId?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ConnectionDraftRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.profile = source["profile"];
-	        this.targetPath = source["targetPath"];
-	        this.createProfile = source["createProfile"];
-	        this.importPaths = source["importPaths"];
-	        this.replacesConnectionId = source["replacesConnectionId"];
+	        this.createdAt = source["createdAt"];
+	        this.reason = source["reason"];
+	        this.fileCount = source["fileCount"];
+	        this.totalSize = source["totalSize"];
+	        this.files = source["files"];
+	        this.path = source["path"];
+	        this.restorable = source["restorable"];
 	    }
 	}
-	
 	export class FileDirectoryEntry {
 	    path: string;
 	    name: string;
@@ -1077,42 +900,6 @@ export namespace service {
 	        this.missingRecommended = source["missingRecommended"];
 	    }
 	}
-	export class InitialLinkResult {
-	    pendingId: string;
-	    connection: config.Connection;
-	    needsDecision: boolean;
-	    untrackedFiles: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new InitialLinkResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.pendingId = source["pendingId"];
-	        this.connection = this.convertValues(source["connection"], config.Connection);
-	        this.needsDecision = source["needsDecision"];
-	        this.untrackedFiles = source["untrackedFiles"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	export class LocationInfo {
 	    alias: string;
 	    path: string;
@@ -1143,7 +930,6 @@ export namespace service {
 	    isDir: boolean;
 	    writable: boolean;
 	    isInsideRoot: boolean;
-	    alreadyConnected: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new PathInfo(source);
@@ -1156,7 +942,22 @@ export namespace service {
 	        this.isDir = source["isDir"];
 	        this.writable = source["writable"];
 	        this.isInsideRoot = source["isInsideRoot"];
-	        this.alreadyConnected = source["alreadyConnected"];
+	    }
+	}
+	export class RestoreBackupResult {
+	    restored: string[];
+	    target: string;
+	    undoBackupId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RestoreBackupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.restored = source["restored"];
+	        this.target = source["target"];
+	        this.undoBackupId = source["undoBackupId"];
 	    }
 	}
 	export class RuleSourceContent {
@@ -1233,6 +1034,9 @@ export namespace service {
 	    checkIntervalMinutes: number;
 	    confirmBeforeSync: boolean;
 	    disableUpdateCheck: boolean;
+	    autoApplyUpdates: boolean;
+	    closeToTray: boolean;
+	    startWithWindows: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsPayload(source);
@@ -1247,6 +1051,9 @@ export namespace service {
 	        this.checkIntervalMinutes = source["checkIntervalMinutes"];
 	        this.confirmBeforeSync = source["confirmBeforeSync"];
 	        this.disableUpdateCheck = source["disableUpdateCheck"];
+	        this.autoApplyUpdates = source["autoApplyUpdates"];
+	        this.closeToTray = source["closeToTray"];
+	        this.startWithWindows = source["startWithWindows"];
 	    }
 	}
 	export class SourceTreeEntry {
@@ -1278,6 +1085,7 @@ export namespace service {
 	    lastUpdatedAt?: string;
 	    update?: subscriptions.UpdateInfo;
 	    ruleCount: number;
+	    suggestionsPending: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SubscriptionInfo(source);
@@ -1295,6 +1103,7 @@ export namespace service {
 	        this.lastUpdatedAt = source["lastUpdatedAt"];
 	        this.update = this.convertValues(source["update"], subscriptions.UpdateInfo);
 	        this.ruleCount = source["ruleCount"];
+	        this.suggestionsPending = source["suggestionsPending"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1347,27 +1156,137 @@ export namespace service {
 		    return a;
 		}
 	}
-	export class TargetEntry {
-	    relPath: string;
-	    isDir: boolean;
-	    size: number;
-	    fileCount: number;
-	    tooLarge: boolean;
-	    reason?: string;
+	export class SuggestionApplyResult {
+	    id: string;
+	    status: string;
+	    ruleId: string;
+	    errorCode: string;
+	    errorReason: string;
+	    errorAlias: string;
+	    collisions: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new TargetEntry(source);
+	        return new SuggestionApplyResult(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.relPath = source["relPath"];
-	        this.isDir = source["isDir"];
-	        this.size = source["size"];
-	        this.fileCount = source["fileCount"];
-	        this.tooLarge = source["tooLarge"];
-	        this.reason = source["reason"];
+	        this.id = source["id"];
+	        this.status = source["status"];
+	        this.ruleId = source["ruleId"];
+	        this.errorCode = source["errorCode"];
+	        this.errorReason = source["errorReason"];
+	        this.errorAlias = source["errorAlias"];
+	        this.collisions = source["collisions"];
 	    }
+	}
+	export class SuggestionDestinationInfo {
+	    location: string;
+	    path: string;
+	    mode: string;
+	    mapped: boolean;
+	    targetPath: string;
+	    targetExists: boolean;
+	    detectedPath: string;
+	    applied: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SuggestionDestinationInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.location = source["location"];
+	        this.path = source["path"];
+	        this.mode = source["mode"];
+	        this.mapped = source["mapped"];
+	        this.targetPath = source["targetPath"];
+	        this.targetExists = source["targetExists"];
+	        this.detectedPath = source["detectedPath"];
+	        this.applied = source["applied"];
+	    }
+	}
+	export class SuggestionInfo {
+	    id: string;
+	    name: string;
+	    description: string;
+	    source: string;
+	    include: string[];
+	    kind: string;
+	    sourceExists: boolean;
+	    destinations: SuggestionDestinationInfo[];
+	    applied: boolean;
+	    valid: boolean;
+	    invalidReason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SuggestionInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.source = source["source"];
+	        this.include = source["include"];
+	        this.kind = source["kind"];
+	        this.sourceExists = source["sourceExists"];
+	        this.destinations = this.convertValues(source["destinations"], SuggestionDestinationInfo);
+	        this.applied = source["applied"];
+	        this.valid = source["valid"];
+	        this.invalidReason = source["invalidReason"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SuggestionsApplyOutcome {
+	    results: SuggestionApplyResult[];
+	    applied: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SuggestionsApplyOutcome(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.results = this.convertValues(source["results"], SuggestionApplyResult);
+	        this.applied = source["applied"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }
@@ -1395,69 +1314,6 @@ export namespace subscriptions {
 	        this.remoteCommit = source["remoteCommit"];
 	        this.offline = source["offline"];
 	    }
-	}
-
-}
-
-export namespace syncer {
-	
-	export class FileStatus {
-	    relPath: string;
-	    status: string;
-	    sourceHash: string;
-	    targetHash: string;
-	    baselineHash: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new FileStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.relPath = source["relPath"];
-	        this.status = source["status"];
-	        this.sourceHash = source["sourceHash"];
-	        this.targetHash = source["targetHash"];
-	        this.baselineHash = source["baselineHash"];
-	    }
-	}
-	export class ConnectionStatus {
-	    connectionId: string;
-	    profile: string;
-	    targetPath: string;
-	    status: string;
-	    files: FileStatus[];
-	
-	    static createFrom(source: any = {}) {
-	        return new ConnectionStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.connectionId = source["connectionId"];
-	        this.profile = source["profile"];
-	        this.targetPath = source["targetPath"];
-	        this.status = source["status"];
-	        this.files = this.convertValues(source["files"], FileStatus);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }

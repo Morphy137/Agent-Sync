@@ -41,29 +41,29 @@ func ShouldIgnore(name string) bool {
 	return false
 }
 
-// WalkManaged walks the profile directory recursively and returns a map of relPath (normalized to '/') -> absPath.
-func WalkManaged(profilePath string) (map[string]string, error) {
-	absProfile, err := filepath.Abs(profilePath)
+// WalkManaged walks a folder recursively and returns a map of relPath (normalized to '/') -> absPath.
+func WalkManaged(dirPath string) (map[string]string, error) {
+	absDir, err := filepath.Abs(dirPath)
 	if err != nil {
 		return nil, apperr.Wrap(apperr.RootNotFound, err)
 	}
 
-	info, err := os.Stat(absProfile)
+	info, err := os.Stat(absDir)
 	if err != nil {
 		return nil, apperr.Wrap(apperr.RootNotFound, err)
 	}
 	if !info.IsDir() {
-		return nil, apperr.Wrap(apperr.RootNotFound, fmt.Errorf("%s is not a directory", absProfile))
+		return nil, apperr.Wrap(apperr.RootNotFound, fmt.Errorf("%s is not a directory", absDir))
 	}
 
 	managed := make(map[string]string)
 
-	err = filepath.Walk(absProfile, func(path string, fi os.FileInfo, walkErr error) error {
+	err = filepath.Walk(absDir, func(path string, fi os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 
-		if path == absProfile {
+		if path == absDir {
 			return nil
 		}
 
@@ -75,7 +75,7 @@ func WalkManaged(profilePath string) (map[string]string, error) {
 			return nil
 		}
 
-		// Handle symlinks safely: verify target is within profilePath
+		// Handle symlinks safely: verify target is within dirPath
 		if fi.Mode()&os.ModeSymlink != 0 {
 			resolved, evalErr := filepath.EvalSymlinks(path)
 			if evalErr != nil {
@@ -85,9 +85,9 @@ func WalkManaged(profilePath string) (map[string]string, error) {
 			if err != nil {
 				return nil
 			}
-			relToProfile, err := filepath.Rel(absProfile, absResolved)
-			if err != nil || strings.HasPrefix(relToProfile, "..") {
-				// Symlink escapes profile: ignore for safety
+			relToDir, err := filepath.Rel(absDir, absResolved)
+			if err != nil || strings.HasPrefix(relToDir, "..") {
+				// Symlink escapes the folder: ignore for safety
 				return nil
 			}
 			resInfo, err := os.Stat(absResolved)
@@ -104,7 +104,7 @@ func WalkManaged(profilePath string) (map[string]string, error) {
 			return nil
 		}
 
-		rel, err := filepath.Rel(absProfile, path)
+		rel, err := filepath.Rel(absDir, path)
 		if err != nil {
 			return err
 		}

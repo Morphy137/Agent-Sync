@@ -152,7 +152,7 @@ func (s *Service) ListFileDirectory(id, rel string) ([]FileDirectoryEntry, error
 		if strings.EqualFold(entry.Name(), ".git") {
 			continue
 		}
-		if isSubscription && isBrowserRoot(rel) && entry.Name() == rules.RulesFileName {
+		if isSubscription && isBrowserRoot(rel) && (entry.Name() == rules.RulesFileName || entry.Name() == rules.SuggestionsFileName) {
 			continue
 		}
 		child := filepath.ToSlash(filepath.Join(rel, entry.Name()))

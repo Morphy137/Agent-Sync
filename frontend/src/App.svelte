@@ -1,19 +1,14 @@
 <script lang="ts">
-  import ViewHeader from "./lib/components/ViewHeader.svelte";
   import { onMount } from "svelte";
   import { EventsOn } from "../wailsjs/runtime/runtime";
-  import type { config, orchestrator, backup } from "../wailsjs/go/models";
+  import type { orchestrator } from "../wailsjs/go/models";
   import { api, parseError } from "./lib/api";
   import { appState } from "./lib/stores/appState.svelte";
   import { t } from "./lib/i18n";
-  import { Plus, RefreshCw, FolderSync, ChevronDown, ChevronRight } from "@lucide/svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import StatusBar from "./lib/components/StatusBar.svelte";
-  import ProfileCard from "./lib/components/ProfileCard.svelte";
   import WelcomeView from "./lib/components/WelcomeView.svelte";
   import SyncPreviewModal from "./lib/components/SyncPreviewModal.svelte";
-  import ConnectionWizardModal from "./lib/components/ConnectionWizardModal.svelte";
-  import BackupsDrawer from "./lib/components/BackupsDrawer.svelte";
   import SettingsDrawer from "./lib/components/SettingsDrawer.svelte";
   import TutorialModal from "./lib/components/TutorialModal.svelte";
   import { updateState } from "./lib/stores/updates.svelte";
@@ -23,10 +18,7 @@
   import AddRemoteModal from "./lib/components/AddRemoteModal.svelte";
   import GitIdentityModal from "./lib/components/GitIdentityModal.svelte";
   import Toast from "./lib/components/Toast.svelte";
-  import Button from "./lib/components/Button.svelte";
   import Spinner from "./lib/components/Spinner.svelte";
-  import IconButton from "./lib/components/IconButton.svelte";
-  import Modal from "./lib/components/Modal.svelte";
   import ViewTabs from "./lib/components/ViewTabs.svelte";
   import RulesView from "./lib/views/RulesView.svelte";
   import FilesView from "./lib/views/FilesView.svelte";
@@ -36,10 +28,12 @@
   import ConnectRemoteModal from "./lib/components/remote/ConnectRemoteModal.svelte";
   import RepoChangesModal from "./lib/components/remote/RepoChangesModal.svelte";
 
-  let backupsList = $state<backup.BackupInfo[]>([]);
-  let unconnectedOpen = $state(true);
-  let disconnectModalConnection = $state<config.Connection | null>(null);
-  let isDisconnecting = $state(false);
+  /** Payload of the "rules:auto_applied" event (service.AutoAppliedPayload). */
+  interface AutoAppliedPayload {
+    count: number;
+    sources: string[];
+  }
+
   let connectRemoteOpen = $state(false);
   let repoChangesOpen = $state(false);
 
@@ -52,6 +46,16 @@
     EventsOn("rules:changed", () => appState.bumpRules());
     EventsOn("subscription:blocked", (name: string) =>
       appState.addWarning(t("files.subscription_blocked", { name }))
+    );
+    EventsOn("rules:auto_applied", (payload: AutoAppliedPayload) =>
+      appState.addNotice(
+        "auto_applied",
+        t("notifications.auto_applied_title"),
+        t(`notifications.auto_applied_message_${payload.count === 1 ? "one" : "other"}`, {
+          count: payload.count,
+          sources: payload.sources.join(", "),
+        })
+      )
     );
   });
 
@@ -68,89 +72,9 @@
     }
   }
 
-  function handleConnectProfile(profileName: string) {
-    appState.connectionWizardProfile = profileName;
-    appState.connectionWizardReplacesId = "";
-    appState.connectionWizardOpen = true;
-  }
-
-  function handleChangeTarget(connectionId: string, profileName: string) {
-    appState.connectionWizardProfile = profileName;
-    appState.connectionWizardReplacesId = connectionId;
-    appState.connectionWizardOpen = true;
-  }
-
-  async function handleUpdateConnection(connectionId: string) {
-    try {
-      await api.applyConnection(connectionId);
-      await appState.refreshAll();
-      appState.addToast("success", t("toasts.sync_success"));
-    } catch (err) {
-      appState.showError(err);
-    }
-  }
-
-  async function handleOpenBackups(connectionId: string, profileName: string) {
-    try {
-      appState.activeBackupConnectionId = connectionId;
-      appState.activeBackupProfileName = profileName;
-      backupsList = await api.listBackups(connectionId);
-      appState.backupsDrawerOpen = true;
-    } catch (err) {
-      appState.showError(err);
-    }
-  }
-
-  async function handleRestoreBackup(backupId: string) {
-    if (!appState.activeBackupConnectionId) return;
-    try {
-      await api.restoreBackup(appState.activeBackupConnectionId, backupId);
-      backupsList = await api.listBackups(appState.activeBackupConnectionId);
-      await appState.refreshAll();
-      appState.addToast("success", t("toasts.restore_success"));
-    } catch (err) {
-      appState.showError(err);
-    }
-  }
-
-  function openConnectionWizard() {
-    appState.connectionWizardProfile = "";
-    appState.connectionWizardReplacesId = "";
-    appState.connectionWizardOpen = true;
-  }
-
   async function handleWelcomeSuccess() {
     await appState.refreshAll();
     if (!appState.config?.tutorialCompleted) appState.tutorialOpen = true;
-  }
-
-  function handleDisconnect(connectionId: string) {
-    disconnectModalConnection =
-      appState.config?.connections?.find((c) => c.id === connectionId) || null;
-  }
-
-  async function handleConfirmDisconnect() {
-    if (!disconnectModalConnection || isDisconnecting) return;
-    isDisconnecting = true;
-    try {
-      const updated = await api.disconnectProfile(disconnectModalConnection.id);
-      appState.config = updated;
-      disconnectModalConnection = null;
-      await appState.refreshAll();
-      appState.addToast("success", t("toasts.disconnect_success"));
-    } catch (err) {
-      appState.showError(err);
-    } finally {
-      isDisconnecting = false;
-    }
-  }
-
-  async function handleOpenExplorer(path: string) {
-    try {
-      await api.openInExplorer(path);
-    } catch (err) {
-      appState.showError(err);
-    }
   }
 
   async function handleSyncClick() {
@@ -223,11 +147,6 @@
     } catch (err) {
       appState.showError(err);
     }
-  }
-
-  function getStatusForConnection(connId?: string) {
-    if (!connId || !appState.statusPlan?.connections) return undefined;
-    return appState.statusPlan.connections.find((c) => c.connectionId === connId);
   }
 
   /** Repository state shown as notifications (bell + closable popup) instead of page banners. */
@@ -326,28 +245,6 @@
     ...repoNotifications,
     ...(appState.ruleNotifications ?? []),
   ]);
-
-  const connectedProfiles = $derived.by(() => {
-    if (!appState.config?.connections) return [];
-    return appState.config.connections.map((conn) => {
-      const prof = (appState.profiles ?? []).find(
-        (p) => p.name.toLowerCase() === conn.profile.toLowerCase()
-      ) || {
-        name: conn.profile,
-        path: `${appState.config?.rootPath || ""}/${conn.profile}`,
-        fileCount: 0,
-      };
-      return { conn, prof };
-    });
-  });
-
-  const unconnectedProfiles = $derived.by(() => {
-    if (!appState.profiles) return [];
-    const connectedNames = new Set(
-      (appState.config?.connections || []).map((c) => c.profile.toLowerCase())
-    );
-    return appState.profiles.filter((p) => !connectedNames.has(p.name.toLowerCase()));
-  });
 </script>
 
 <div class="app-layout">
@@ -387,114 +284,6 @@
             <SubscriptionsView />
           {:else if appState.activeView === "locations"}
             <LocationsView />
-          {:else}
-            <section class="connections-view">
-              <ViewHeader
-                title={t("connections.title")}
-                summary={t(
-                  `connections.connected_count_${connectedProfiles.length === 1 ? "one" : "other"}`,
-                  {
-                    connected: connectedProfiles.length,
-                    unconnected: unconnectedProfiles.length,
-                  }
-                )}
-                primaryLabel={t("connections.add_connection")}
-                onprimary={openConnectionWizard}
-              >
-                {#snippet actions()}
-                  <IconButton
-                    label={t("titlebar.check_remote")}
-                    disabled={appState.isChecking}
-                    onclick={() => appState.checkRemote()}
-                  >
-                    <RefreshCw size={16} class={appState.isChecking ? "spin" : ""} />
-                  </IconButton>
-                {/snippet}
-              </ViewHeader>
-
-              {#if connectedProfiles.length > 0}
-                <div class="profiles-grid">
-                  {#each connectedProfiles as item (item.conn.id)}
-                    {@const status = getStatusForConnection(item.conn.id)}
-                    <ProfileCard
-                      profile={item.prof}
-                      connection={item.conn}
-                      {status}
-                      onconnect={handleConnectProfile}
-                      onupdate={handleUpdateConnection}
-                      onbackups={handleOpenBackups}
-                      onchangeTarget={handleChangeTarget}
-                      onopenExplorer={handleOpenExplorer}
-                      ondisconnect={handleDisconnect}
-                    />
-                  {/each}
-                </div>
-              {:else}
-                <div class="empty-connections-card">
-                  <div class="empty-icon-box">
-                    <FolderSync size={32} />
-                  </div>
-                  <h3 class="empty-title">{t("connections.empty_title")}</h3>
-                  <p class="empty-desc">{t("connections.empty_desc")}</p>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onclick={() => {
-                      appState.connectionWizardProfile = "";
-                      appState.connectionWizardReplacesId = "";
-                      appState.connectionWizardOpen = true;
-                    }}
-                  >
-                    <Plus size={16} />
-                    <span>{t("connections.add_connection")}</span>
-                  </Button>
-                </div>
-              {/if}
-
-              {#if unconnectedProfiles.length > 0}
-                <div class="unconnected-section">
-                  <button
-                    type="button"
-                    class="unconnected-toggle"
-                    onclick={() => (unconnectedOpen = !unconnectedOpen)}
-                    aria-expanded={unconnectedOpen}
-                  >
-                    {#if unconnectedOpen}
-                      <ChevronDown size={16} />
-                    {:else}
-                      <ChevronRight size={16} />
-                    {/if}
-                    <span class="unconnected-title">
-                      {t("connections.unconnected_folders")} ({unconnectedProfiles.length})
-                    </span>
-                  </button>
-
-                  {#if unconnectedOpen}
-                    <div class="unconnected-list">
-                      {#each unconnectedProfiles as prof (prof.name)}
-                        <div class="unconnected-row">
-                          <div class="unconnected-info">
-                            <span class="unconnected-name">{prof.name}</span>
-                            <span class="unconnected-count">
-                              · {t(`wizard.files_count_${prof.fileCount === 1 ? "one" : "other"}`, {
-                                count: prof.fileCount,
-                              })}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onclick={() => handleConnectProfile(prof.name)}
-                          >
-                            <span>{t("connections.connect")}</span>
-                          </Button>
-                        </div>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            </section>
           {/if}
         </div>
       {:else if appState.config}
@@ -511,55 +300,6 @@
     syncing={appState.isSyncing}
     onclose={() => (appState.previewModalOpen = false)}
     onconfirm={executeSyncNow}
-  />
-
-  <ConnectionWizardModal
-    open={appState.connectionWizardOpen}
-    initialProfile={appState.connectionWizardProfile}
-    replacesConnectionId={appState.connectionWizardReplacesId}
-    onclose={() => {
-      appState.connectionWizardOpen = false;
-      appState.connectionWizardProfile = "";
-      appState.connectionWizardReplacesId = "";
-    }}
-    onsuccess={async () => {
-      await appState.refreshAll();
-      appState.addToast("success", t("toasts.sync_success"));
-    }}
-  />
-
-  <Modal
-    open={Boolean(disconnectModalConnection)}
-    title={t("connections.disconnect_confirm_title", {
-      profile: disconnectModalConnection?.profile || "",
-    })}
-    onclose={() => (disconnectModalConnection = null)}
-  >
-    <div class="disconnect-modal-content">
-      <p class="disconnect-msg">{t("connections.disconnect_confirm_msg")}</p>
-      <div class="disconnect-modal-actions">
-        <Button variant="secondary" onclick={() => (disconnectModalConnection = null)}>
-          {t("common.cancel")}
-        </Button>
-        <Button
-          variant="primary"
-          disabled={isDisconnecting}
-          loading={isDisconnecting}
-          onclick={handleConfirmDisconnect}
-        >
-          {t("connections.disconnect")}
-        </Button>
-      </div>
-    </div>
-  </Modal>
-
-  <BackupsDrawer
-    open={appState.backupsDrawerOpen}
-    profileName={appState.activeBackupProfileName}
-    backups={backupsList}
-    onclose={() => (appState.backupsDrawerOpen = false)}
-    onrestore={handleRestoreBackup}
-    onopenFolder={handleOpenExplorer}
   />
 
   <TutorialModal open={appState.tutorialOpen} onfinish={() => appState.finishTutorial()} />
@@ -649,141 +389,11 @@
     display: flex;
   }
 
-  .profiles-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: var(--space-4);
-  }
-
-  .empty-connections-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: var(--space-8);
-    background-color: var(--surface);
-    box-shadow: var(--elev-1);
-    border-radius: var(--radius-lg);
-    gap: var(--space-3);
-    width: 100%;
-    max-width: 540px;
-    margin: auto;
-  }
-
-  .view-area,
-  .connections-view {
+  .view-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-  }
-
-  .empty-icon-box {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-lg);
-    background-color: var(--surface-sunken);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-  }
-
-  .empty-title {
-    font-size: var(--text-md);
-    font-weight: var(--weight-semibold);
-    color: var(--ink);
-    margin: 0;
-  }
-
-  .empty-desc {
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    max-width: 360px;
-    margin: 0;
-  }
-
-  .unconnected-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
-    border-top: 1px solid var(--border-subtle);
-    padding-top: var(--space-3);
-  }
-
-  .unconnected-toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    color: var(--ink);
-  }
-
-  .unconnected-title {
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-  }
-
-  .unconnected-list {
-    display: flex;
-    flex-direction: column;
-    border-radius: var(--radius-lg);
-    background-color: var(--surface);
-    border: 1px solid var(--border-subtle);
-    overflow: hidden;
-  }
-
-  .unconnected-row {
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--space-4);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .unconnected-row:last-child {
-    border-bottom: none;
-  }
-
-  .unconnected-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .unconnected-name {
-    font-weight: var(--weight-medium);
-    font-size: var(--text-sm);
-    color: var(--ink);
-  }
-
-  .unconnected-count {
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-  }
-
-  .disconnect-modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .disconnect-msg {
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    margin: 0;
-  }
-
-  .disconnect-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--space-2);
   }
 
   :global(.spin) {
