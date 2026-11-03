@@ -202,3 +202,66 @@ func TestStatusPorcelainRawWithSpacesAndRename(t *testing.T) {
 		t.Errorf("expected status starting with 'R', got '%s'", changes[0].Status)
 	}
 }
+
+func gitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func TestCommitPathsSkipsIgnoredPaths(t *testing.T) {
+	if !gitops.IsInstalled() {
+		t.Skip("git is not installed on system")
+	}
+
+	repo := t.TempDir()
+	if err := gitops.Init(repo); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	runner := gitops.NewRunner(repo)
+	if err := runner.SetLocalIdentity("Tester", "tester@test.local"); err != nil {
+		t.Fatal(err)
+	}
+	write := func(rel, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(repo, rel), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write("kept.md", "v1")
+	write(".gitignore", "agentsync.rules.json\n")
+	if err := runner.CommitPaths([]string{".gitignore", "kept.md"}, "chore: init"); err != nil {
+		t.Fatalf("initial commit: %v", err)
+	}
+
+	// An ignored path next to a real change must not make git add fail, and must not be committed.
+	write("agentsync.rules.json", "{}")
+	write("shared.md", "shared")
+	if err := runner.CommitPaths([]string{"agentsync.rules.json", "shared.md"}, "chore: shared"); err != nil {
+		t.Fatalf("commit with ignored path: %v", err)
+	}
+	tracked := gitOutput(t, repo, "ls-files")
+	if strings.Contains(tracked, "agentsync.rules.json") || !strings.Contains(tracked, "shared.md") {
+		t.Fatalf("unexpected tracked files:\n%s", tracked)
+	}
+
+	// Only ignored paths: nothing to do, no error.
+	if err := runner.CommitPaths([]string{"agentsync.rules.json"}, "chore: nothing"); err != nil {
+		t.Fatalf("commit of only ignored paths: %v", err)
+	}
+
+	// A tracked file that matches an ignore pattern keeps being committed.
+	write(".gitignore", "agentsync.rules.json\nkept.md\n")
+	write("kept.md", "v2")
+	if err := runner.CommitPaths([]string{"kept.md"}, "chore: update kept"); err != nil {
+		t.Fatalf("commit of tracked ignored file: %v", err)
+	}
+	if got := gitOutput(t, repo, "show", "HEAD:kept.md"); got != "v2" {
+		t.Fatalf("tracked file not committed, HEAD has %q", got)
+	}
+}

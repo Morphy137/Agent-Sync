@@ -160,15 +160,19 @@ func (s *Service) RemoveSubscription(id string) error {
 }
 
 func (s *Service) checkSubscriptionLocked(idx int) (subscriptions.UpdateInfo, error) {
-	sub := s.cfg.Subscriptions[idx]
-	info, err := subscriptions.Check(sub)
+	info, err := subscriptions.Check(s.cfg.Subscriptions[idx])
 	if err != nil {
 		return info, err
 	}
-	s.subUpdates[sub.ID] = info
+	s.recordSubscriptionCheckLocked(idx, info)
+	return info, nil
+}
+
+// recordSubscriptionCheckLocked stores the latest update status of a subscription and its check time.
+func (s *Service) recordSubscriptionCheckLocked(idx int, info subscriptions.UpdateInfo) {
+	s.subUpdates[s.cfg.Subscriptions[idx].ID] = info
 	s.cfg.Subscriptions[idx].LastCheckedAt = config.FormatRFC3339(time.Now())
 	_ = config.Save(s.cfg)
-	return info, nil
 }
 
 // CheckSubscription fetches the remote and reports incoming changes without touching any file.
@@ -189,8 +193,13 @@ func (s *Service) CheckSubscription(id string) (*subscriptions.UpdateInfo, error
 
 // updateSubscriptionLocked pulls the subscription and applies its rules (conflicts are left for the user).
 func (s *Service) updateSubscriptionLocked(idx int) (*SubscriptionUpdateResult, error) {
+	return s.applySubscriptionUpdateLocked(idx, subscriptions.Update)
+}
+
+// applySubscriptionUpdateLocked advances the clone with pull and applies the subscription's rules.
+func (s *Service) applySubscriptionUpdateLocked(idx int, pull func(config.Subscription) ([]string, error)) (*SubscriptionUpdateResult, error) {
 	sub := s.cfg.Subscriptions[idx]
-	changed, err := subscriptions.Update(sub)
+	changed, err := pull(sub)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +273,23 @@ func (s *Service) GetSubscriptionTree(id string) ([]SourceTreeEntry, error) {
 	if !s.hasSubscriptionLocked(id) {
 		return nil, apperr.New(apperr.SubscriptionNotFound).WithParam("subscription", id)
 	}
-	return listSourceTree(subscriptionsRoot(id), subscriptionTreeMaxDepth, s.recognizersLocked())
+	entries, err := listSourceTree(subscriptionsRoot(id), subscriptionTreeMaxDepth, s.recognizersLocked())
+	if err != nil {
+		return nil, err
+	}
+	return withoutOwnerRulesFile(entries), nil
+}
+
+// withoutOwnerRulesFile drops the repository owner's rules file from a subscription root listing:
+// it holds the rules of the owner's machine and subscribers never read it.
+func withoutOwnerRulesFile(entries []SourceTreeEntry) []SourceTreeEntry {
+	kept := make([]SourceTreeEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Path != rules.RulesFileName {
+			kept = append(kept, entry)
+		}
+	}
+	return kept
 }
 
 // GetSubscriptionIncomingDiff compares a file between the local clone and the fetched remote.
@@ -282,18 +307,44 @@ func (s *Service) GetSubscriptionIncomingDiff(id, relPath string) (*rulesync.Dif
 	return buildDiff(diffLabelLocal, diffLabelRemote, before, after), nil
 }
 
-// checkSubscriptionsLocked runs during periodic checks: fetches each subscription and auto-updates opted-in ones.
-func (s *Service) checkSubscriptionsLocked() {
+// subscriptionFetch is the outcome of fetching one subscription clone.
+type subscriptionFetch struct {
+	offline bool
+	err     error
+}
+
+// fetchSubscriptions fetches every subscription clone. It reads no Service state, so periodic
+// checks run it without the service lock and keep the app responsive while the network is slow.
+func fetchSubscriptions(subs []config.Subscription) map[string]subscriptionFetch {
+	fetched := make(map[string]subscriptionFetch, len(subs))
+	for _, sub := range subs {
+		offline, err := subscriptions.FetchRemote(sub)
+		fetched[sub.ID] = subscriptionFetch{offline: offline, err: err}
+	}
+	return fetched
+}
+
+// checkFetchedSubscriptionsLocked runs after a periodic check fetched the clones: it records the
+// status of every subscription still configured and auto-updates opted-in ones from the fetched refs.
+// Subscriptions removed or added while fetching are ignored.
+func (s *Service) checkFetchedSubscriptionsLocked(fetched map[string]subscriptionFetch) {
 	for idx := range s.cfg.Subscriptions {
-		info, err := s.checkSubscriptionLocked(idx)
-		if err != nil || info.Offline || info.Behind == 0 {
+		sub := s.cfg.Subscriptions[idx]
+		outcome, ok := fetched[sub.ID]
+		if !ok || outcome.err != nil {
 			continue
 		}
-		if s.cfg.Subscriptions[idx].AutoUpdate {
-			_, err := s.updateSubscriptionLocked(idx)
-			if apperr.HasCode(err, apperr.SubscriptionDirty) && s.emitFunc != nil {
-				s.emitFunc("subscription:blocked", s.cfg.Subscriptions[idx].Name)
-			}
+		info, err := subscriptions.Inspect(sub, outcome.offline)
+		if err != nil {
+			continue
+		}
+		s.recordSubscriptionCheckLocked(idx, info)
+		if info.Offline || info.Behind == 0 || !sub.AutoUpdate {
+			continue
+		}
+		_, err = s.applySubscriptionUpdateLocked(idx, subscriptions.UpdateFromFetched)
+		if apperr.HasCode(err, apperr.SubscriptionDirty) && s.emitFunc != nil {
+			s.emitFunc("subscription:blocked", sub.Name)
 		}
 	}
 }
