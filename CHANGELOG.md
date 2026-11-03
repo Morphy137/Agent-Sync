@@ -4,6 +4,9 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+### Added
+- Published the project under the MIT license.
+
 ## [0.0.6] - 2026-11-03
 
 ### Added
