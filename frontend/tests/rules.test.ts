@@ -7,6 +7,7 @@ const mockApi = vi.hoisted(() => ({
   getRulesReport: vi.fn(),
   saveRule: vi.fn(),
   deleteRule: vi.fn(),
+  getStatus: vi.fn(),
   syncRules: vi.fn(),
   resolveRuleFile: vi.fn(),
   getRuleDiff: vi.fn(),
@@ -108,10 +109,12 @@ describe("RulesView.svelte", () => {
     setLocale("en");
     appState.config = { rootPath: "C:/repo" } as any;
     mockApi.getRulesReport.mockResolvedValue(sampleReport());
+    mockApi.getStatus.mockResolvedValue({ rulesPending: 1 });
   });
 
   afterEach(() => {
     cleanup();
+    appState.statusPlan = null;
     appState.ruleReport = null;
     appState.collisionDetailsOpen = false;
     appState.alertNotifications = [];
@@ -211,6 +214,20 @@ describe("RulesView.svelte", () => {
     const [payload, scope] = mockApi.saveRule.mock.calls[0];
     expect(payload.enabled).toBe(false);
     expect(scope).toBe("repo");
+    await waitFor(() => expect(mockApi.getStatus).toHaveBeenCalled());
+  });
+
+  it("deleting a rule refreshes the pending state", async () => {
+    mockApi.deleteRule.mockResolvedValue(undefined);
+    const { findByRole } = render(RulesView);
+    await fireEvent.click(
+      await findByRole("button", { name: "More options for Agent instructions" })
+    );
+    await fireEvent.click(await findByRole("menuitem", { name: "Delete" }));
+    await fireEvent.click(await findByRole("button", { name: "Delete rule" }));
+    await waitFor(() => expect(mockApi.deleteRule).toHaveBeenCalledWith("r_1"));
+    await waitFor(() => expect(mockApi.getStatus).toHaveBeenCalled());
+    await waitFor(() => expect(appState.statusPlan?.rulesPending).toBe(1));
   });
 
   it("reviews a conflicting file and resolves it with the source version", async () => {
@@ -244,6 +261,7 @@ describe("RuleEditorModal.svelte", () => {
     vi.clearAllMocks();
     setLocale("en");
     appState.config = { rootPath: "C:/repo" } as any;
+    mockApi.getStatus.mockResolvedValue({ rulesPending: 1 });
     mockApi.listLocations.mockResolvedValue(locations);
     mockApi.listRepoTree.mockResolvedValue([
       { path: "shared/AGENTS.md", isDir: false, size: 10, kind: "instructions" },
@@ -302,6 +320,8 @@ describe("RuleEditorModal.svelte", () => {
       mode: "two_way",
     });
     await waitFor(() => expect(appState.ruleEditor.open).toBe(false));
+    await waitFor(() => expect(mockApi.getStatus).toHaveBeenCalled());
+    await waitFor(() => expect(appState.statusPlan?.rulesPending).toBe(1));
   });
 
   it("warns about collisions after saving", async () => {

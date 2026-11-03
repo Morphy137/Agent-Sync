@@ -34,7 +34,8 @@
 
   --titlebar-height: 44px;
   --statusbar-height: 28px;
-  --content-max-width: 1080px;
+  /* Page content grows with the window up to this width, so a maximized window uses its room. */
+  --content-max-width: 1560px;
 
   --duration-fast: 140ms;
   --duration-normal: 200ms;

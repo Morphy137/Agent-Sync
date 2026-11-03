@@ -19,6 +19,7 @@ import (
 	"agentsync/internal/config"
 	"agentsync/internal/fsops"
 	"agentsync/internal/gitops"
+	"agentsync/internal/rules"
 )
 
 const (
@@ -224,18 +225,39 @@ func removeAll(dir string) error {
 // Check fetches the remote and compares HEAD with upstream without touching the working tree.
 // Network failures are reported as Offline=true (with the last known state) instead of an error.
 func Check(sub config.Subscription) (UpdateInfo, error) {
+	offline, err := FetchRemote(sub)
+	if err != nil {
+		return UpdateInfo{}, err
+	}
+	return Inspect(sub, offline)
+}
+
+// FetchRemote fetches the remote of a subscription clone. An unreachable remote is reported as
+// offline=true; any other failure is returned. It only runs git fetch, so callers can run it
+// without holding the service lock and pass the outcome to Inspect.
+func FetchRemote(sub config.Subscription) (offline bool, err error) {
+	runner, err := existingRunner(sub.ID)
+	if err != nil {
+		return false, err
+	}
+	if err := runner.Fetch(); err != nil {
+		if !isNetworkError(err) {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// Inspect compares HEAD with upstream using the refs already fetched, without any network access.
+// offline is copied into the result (see FetchRemote).
+func Inspect(sub config.Subscription, offline bool) (UpdateInfo, error) {
 	runner, err := existingRunner(sub.ID)
 	if err != nil {
 		return UpdateInfo{}, err
 	}
 
-	info := UpdateInfo{SubscriptionID: sub.ID, IncomingFiles: []string{}}
-	if err := runner.Fetch(); err != nil {
-		if !isNetworkError(err) {
-			return UpdateInfo{}, err
-		}
-		info.Offline = true
-	}
+	info := UpdateInfo{SubscriptionID: sub.ID, IncomingFiles: []string{}, Offline: offline}
 
 	head, err := runner.HeadCommit()
 	if err != nil {
@@ -275,6 +297,16 @@ func isNetworkError(err error) bool {
 
 // Update fetches and fast-forwards the clone, returning the files that changed.
 func Update(sub config.Subscription) ([]string, error) {
+	return update(sub, true)
+}
+
+// UpdateFromFetched fast-forwards the clone to the refs already fetched (see FetchRemote),
+// without any network access, returning the files that changed.
+func UpdateFromFetched(sub config.Subscription) ([]string, error) {
+	return update(sub, false)
+}
+
+func update(sub config.Subscription, fetch bool) ([]string, error) {
 	runner, err := existingRunner(sub.ID)
 	if err != nil {
 		return nil, err
@@ -286,8 +318,10 @@ func Update(sub config.Subscription) ([]string, error) {
 	if local {
 		return nil, apperr.New(apperr.SubscriptionDirty).WithParam("name", sub.Name)
 	}
-	if err := runner.Fetch(); err != nil {
-		return nil, err
+	if fetch {
+		if err := runner.Fetch(); err != nil {
+			return nil, err
+		}
 	}
 
 	head, err := runner.HeadCommit()
@@ -313,8 +347,9 @@ func Update(sub config.Subscription) ([]string, error) {
 	return changed, nil
 }
 
-// Tree lists entries of the clone (skipping .git, fsops.ShouldIgnore names and symlinks)
-// up to maxDepth levels, sorted by path. maxDepth <= 0 means MaxTreeDepth.
+// Tree lists entries of the clone (skipping .git, fsops.ShouldIgnore names, symlinks and the
+// owner's rules file at the clone root, which subscribers never read) up to maxDepth levels,
+// sorted by path. maxDepth <= 0 means MaxTreeDepth.
 func Tree(id string, maxDepth int) ([]TreeEntry, error) {
 	if _, err := existingRunner(id); err != nil {
 		return nil, err
@@ -332,7 +367,7 @@ func Tree(id string, maxDepth int) ([]TreeEntry, error) {
 		if p == root {
 			return nil
 		}
-		if fsops.ShouldIgnore(d.Name()) || d.Type()&fs.ModeSymlink != 0 {
+		if fsops.ShouldIgnore(d.Name()) || d.Type()&fs.ModeSymlink != 0 || isOwnerRulesFile(root, p) {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -367,6 +402,12 @@ func Tree(id string, maxDepth int) ([]TreeEntry, error) {
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
 	return entries, nil
+}
+
+// isOwnerRulesFile reports whether p is the rules file at the clone root. It describes the
+// rules of the repository owner's machine and is not part of what a subscription offers.
+func isOwnerRulesFile(root, p string) bool {
+	return filepath.Base(p) == rules.RulesFileName && filepath.Dir(p) == root
 }
 
 // cleanRelPath normalizes relPath to a forward-slash path inside the clone, rejecting

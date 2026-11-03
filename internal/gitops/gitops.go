@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -50,6 +51,8 @@ const (
 	pathspecBatchSize = 100
 	// maxBackupBranchAttempts bounds the search for a free backup branch name.
 	maxBackupBranchAttempts = 100
+	// checkIgnoreNoMatchExitCode is the exit status of git check-ignore when no path is ignored.
+	checkIgnoreNoMatchExitCode = 1
 )
 
 // hardeningArgs are global git options prepended to every invocation.
@@ -95,6 +98,11 @@ func newGitCommand(ctx context.Context, dir string, args ...string) *exec.Cmd {
 
 // execGit runs a hardened git command and returns raw stdout and trimmed stderr.
 func execGit(timeout time.Duration, dir string, args ...string) (stdout string, stderr string, err error) {
+	return execGitWithInput(timeout, dir, "", args...)
+}
+
+// execGitWithInput is execGit with data piped to the command's standard input.
+func execGitWithInput(timeout time.Duration, dir, stdin string, args ...string) (stdout string, stderr string, err error) {
 	if !IsInstalled() {
 		return "", "", apperr.New(apperr.GitNotInstalled)
 	}
@@ -103,6 +111,9 @@ func execGit(timeout time.Duration, dir string, args ...string) (stdout string, 
 	defer cancel()
 
 	cmd := newGitCommand(ctx, dir, args...)
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
@@ -111,10 +122,29 @@ func execGit(timeout time.Duration, dir string, args ...string) (stdout string, 
 	return outBuf.String(), strings.TrimSpace(errBuf.String()), runErr
 }
 
+// repoNetworkLocks holds one mutex per repository root so that network commands never overlap.
+var repoNetworkLocks sync.Map
+
+// networkSubcommands are the git subcommands that talk to a remote and rewrite refs.
+var networkSubcommands = map[string]bool{"fetch": true, "pull": true, "push": true}
+
+// execInRepo runs a hardened git command in the repository root. Network commands of the same
+// repository run one at a time, so a background fetch and a user-triggered sync cannot collide
+// on git's ref locks. The lock is a leaf: nothing else is acquired while it is held.
+func (g *GitRunner) execInRepo(timeout time.Duration, args ...string) (stdout string, stderr string, err error) {
+	if len(args) > 0 && networkSubcommands[args[0]] {
+		lock, _ := repoNetworkLocks.LoadOrStore(filepath.Clean(g.Root), &sync.Mutex{})
+		mu := lock.(*sync.Mutex)
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	return execGit(timeout, g.Root, args...)
+}
+
 // runCmdTimeout executes a git command in the repository root with the given timeout,
 // returning trimmed stdout.
 func (g *GitRunner) runCmdTimeout(timeout time.Duration, args ...string) (string, error) {
-	out, errStr, err := execGit(timeout, g.Root, args...)
+	out, errStr, err := g.execInRepo(timeout, args...)
 	outStr := strings.TrimSpace(out)
 	if err == nil {
 		return outStr, nil
@@ -136,7 +166,7 @@ func (g *GitRunner) runCmd(args ...string) (string, error) {
 
 // runCmdRaw executes a git command returning raw unmodified stdout without trimming whitespace (R4).
 func (g *GitRunner) runCmdRaw(args ...string) (string, error) {
-	out, errStr, err := execGit(GitCommandTimeout, g.Root, args...)
+	out, errStr, err := g.execInRepo(GitCommandTimeout, args...)
 	if err == nil {
 		return out, nil
 	}
@@ -613,11 +643,41 @@ func (g *GitRunner) PullRebase() error {
 	return nil
 }
 
-// CommitPaths stages the specified paths and creates a commit.
-// If there is nothing to commit, it returns nil without error.
+// ignoredPaths returns the subset of paths that .gitignore rules exclude and that are not tracked.
+// A failing check-ignore reports nothing as ignored, leaving git add to surface any real problem.
+func (g *GitRunner) ignoredPaths(paths []string) map[string]bool {
+	ignored := make(map[string]bool)
+	stdin := strings.Join(paths, "\x00") + "\x00"
+	out, _, err := execGitWithInput(GitCommandTimeout, g.Root, stdin, "check-ignore", "-z", "--stdin")
+	var exitErr *exec.ExitError
+	if err != nil && !(errors.As(err, &exitErr) && exitErr.ExitCode() == checkIgnoreNoMatchExitCode) {
+		return ignored
+	}
+	for _, p := range splitNul(out) {
+		ignored[p] = true
+	}
+	return ignored
+}
+
+// CommitPaths stages the specified paths and creates a commit. Paths excluded by .gitignore are
+// skipped, because git add refuses them. If there is nothing to commit, it returns nil without error.
 func (g *GitRunner) CommitPaths(paths []string, message string) error {
 	if len(paths) == 0 {
 		return nil
+	}
+
+	ignored := g.ignoredPaths(paths)
+	if len(ignored) > 0 {
+		kept := make([]string, 0, len(paths))
+		for _, p := range paths {
+			if !ignored[filepath.ToSlash(p)] {
+				kept = append(kept, p)
+			}
+		}
+		paths = kept
+		if len(paths) == 0 {
+			return nil
+		}
 	}
 
 	args := append([]string{"add", "--"}, paths...)

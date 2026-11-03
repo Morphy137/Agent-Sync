@@ -76,6 +76,12 @@ func (s *Service) browserPathLocked(id, rel string) (string, bool, error) {
 	return resolved, subscription, err
 }
 
+// isBrowserRoot reports whether rel designates the root of a browsed folder.
+func isBrowserRoot(rel string) bool {
+	trimmed := strings.Trim(strings.ReplaceAll(rel, "\\", "/"), "/")
+	return trimmed == "" || trimmed == "."
+}
+
 func containsGitPath(path string) bool {
 	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
 		if strings.EqualFold(part, ".git") {
@@ -119,7 +125,7 @@ func resolveBrowserPath(root, rel string) (string, error) {
 func (s *Service) ListFileDirectory(id, rel string) ([]FileDirectoryEntry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	path, _, err := s.browserPathLocked(id, rel)
+	path, isSubscription, err := s.browserPathLocked(id, rel)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +150,9 @@ func (s *Service) ListFileDirectory(id, rel string) ([]FileDirectoryEntry, error
 	result := make([]FileDirectoryEntry, 0, len(entries))
 	for _, entry := range entries {
 		if strings.EqualFold(entry.Name(), ".git") {
+			continue
+		}
+		if isSubscription && isBrowserRoot(rel) && entry.Name() == rules.RulesFileName {
 			continue
 		}
 		child := filepath.ToSlash(filepath.Join(rel, entry.Name()))

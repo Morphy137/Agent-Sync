@@ -1,0 +1,35 @@
+/*
+ * Shared zone sizes for repeated cards (rules, subscriptions, connections, locations).
+ * Cards place their content in grid tracks built from these values, so a given indicator
+ * sits at the same position on every card of a tab regardless of how long its text is.
+ */
+:root {
+  --card-zone-gap: 6px;
+  --card-zone-dot: 10px;
+  --card-zone-icon: 32px;
+  --card-zone-toggle: 40px;
+  --card-zone-expand: 40px;
+  --card-zone-origin: 84px;
+  --card-zone-chip: 96px;
+  --card-zone-dest-chip: 80px;
+  --card-zone-arrow: 12px;
+  /* Mode badge, or the Review button on rows that need review. */
+  --card-zone-mode: 100px;
+  /* The mode zone in compact tiers, where it only holds the Review button. */
+  --card-zone-review: 56px;
+  --card-zone-status: 150px;
+  --card-zone-tags: 260px;
+  --card-zone-tags-compact: 130px;
+  --card-zone-alias-compact: 96px;
+  --card-zone-usage-compact: 136px;
+  --card-zone-alias: 120px;
+  --card-zone-row: 44px;
+  --card-zone-usage: 152px;
+  --card-zone-action: 128px;
+  /* Flexible tracks, weighted so names get the most of the room that is left. */
+  --card-track-name: minmax(0, 3fr);
+  --card-track-source: minmax(0, 1.3fr);
+  --card-track-file: minmax(0, 1fr);
+  /* Disabled cards keep their layout; they are only dimmed. */
+  --card-disabled-opacity: 0.55;
+}

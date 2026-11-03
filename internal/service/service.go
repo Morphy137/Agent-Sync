@@ -118,6 +118,11 @@ type ConnectionDraft struct {
 
 const (
 	PendingLinkTTL = 15 * time.Minute
+
+	// backgroundLockAttempts and backgroundLockRetryDelay bound how long a periodic check waits
+	// for a momentary operation to release the service lock (about two seconds in total).
+	backgroundLockAttempts   = 20
+	backgroundLockRetryDelay = 100 * time.Millisecond
 )
 
 // PendingLink stores an in-flight connection awaiting user resolution (R2, R3).
@@ -723,22 +728,56 @@ func (s *Service) CheckRemote() (*orchestrator.SyncPlan, error) {
 	return s.PlanSync()
 }
 
-// TryBackgroundCheck attempts to acquire the service lock without blocking (for the scheduler, C3).
-// If acquired, it runs a remote fetch + PlanSync and emits the full SyncPlan (H5).
+// tryLockBriefly retries TryLock for a short while, so a momentary read does not cancel a periodic
+// check, and gives up while a long operation (such as a sync) holds the lock.
+func (s *Service) tryLockBriefly() bool {
+	for attempt := 0; attempt < backgroundLockAttempts; attempt++ {
+		if s.mu.TryLock() {
+			return true
+		}
+		time.Sleep(backgroundLockRetryDelay)
+	}
+	return false
+}
+
+// snapshotRemotesForCheck returns what a periodic check needs to fetch without holding the lock.
+func (s *Service) snapshotRemotesForCheck() (rootPath string, subs []config.Subscription, ok bool) {
+	if !s.tryLockBriefly() {
+		return "", nil, false
+	}
+	defer s.mu.Unlock()
+	if s.cfg.RootPath == "" {
+		return "", nil, false
+	}
+	return s.cfg.RootPath, append([]config.Subscription(nil), s.cfg.Subscriptions...), true
+}
+
+// TryBackgroundCheck runs the periodic remote check for the scheduler (C3). The fetches run without
+// the service lock, so reads stay responsive while the network is slow; the lock is taken only to
+// snapshot the remotes and to apply the results. It skips the check while a long operation holds
+// the lock, and emits the full SyncPlan when it completes (H5).
 func (s *Service) TryBackgroundCheck() (*orchestrator.SyncPlan, bool) {
-	if !s.mu.TryLock() {
+	rootPath, subs, ok := s.snapshotRemotesForCheck()
+	if !ok {
+		return nil, false
+	}
+	rootFetchErr := orchestrator.FetchRemote(rootPath)
+	subscriptionFetches := fetchSubscriptions(subs)
+
+	if !s.tryLockBriefly() {
 		return nil, false
 	}
 	defer s.mu.Unlock()
 
-	if s.cfg.RootPath == "" {
+	// The fetched results belong to the root that was configured when they started.
+	if s.cfg.RootPath != rootPath {
 		return nil, false
 	}
 
 	s.reconcileAllLocked()
-	s.checkSubscriptionsLocked()
+	s.checkFetchedSubscriptionsLocked(subscriptionFetches)
 	s.syncOrchestratorRulesLocked()
-	plan, err := s.orch.PlanSyncWithOptions(s.cfg, s.st, true)
+	plan, err := s.orch.PlanSyncAfterFetch(s.cfg, s.st, rootFetchErr)
 	if err != nil {
 		return nil, false
 	}

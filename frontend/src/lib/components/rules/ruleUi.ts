@@ -74,6 +74,8 @@ export const IN_SYNC = "in_sync";
 /** Statuses that always require the user to look at a diff before AgentSync touches the file. */
 const ALWAYS_REVIEW_STATUSES: readonly string[] = ["conflict", "drift", "untracked_diff"];
 const TARGET_CHANGED = "target_changed";
+/** The file no longer exists in the source, so there is nothing to view. */
+export const SOURCE_DELETED = "source_deleted";
 
 export type DotTone = "ok" | "down" | "up" | "conflict" | "idle";
 
@@ -133,6 +135,17 @@ export function destinationSummary(
   return { tone: fileDotTone(worst.status), labelKey: `rules.file_status.${worst.status}` };
 }
 
+/** The one file a file destination syncs (its status is shown inline), or null for folders. */
+export function singleDestinationFile(
+  destination: rules.Destination,
+  status: rulesync.DestinationStatus | undefined
+): rulesync.FileStatus | null {
+  const files = status?.files ?? [];
+  return files.length === 1 && files[0].relPath === destination.path.split("/").pop()
+    ? files[0]
+    : null;
+}
+
 /** True when changes made in the destination can be written back to the source. */
 export function canWriteBack(rule: rules.Rule, dest: rules.Destination | undefined): boolean {
   return rule.source?.origin !== "subscription" && !dest?.transform;
@@ -147,6 +160,19 @@ export function needsReview(
   if (ALWAYS_REVIEW_STATUSES.includes(status)) return true;
   if (status !== TARGET_CHANGED) return false;
   return dest?.mode !== "two_way" || !canWriteBack(rule, dest);
+}
+
+/** Top-level files shown first when a rule's source is opened in the viewer, in priority order. */
+const VIEWER_ENTRY_FILES = ["skill.md", "readme.md"];
+
+/** The file the viewer opens first: the requested one, else a top-level SKILL.md or README.md, else the first. */
+export function defaultViewerPath(files: service.RuleSourceFile[], requested = ""): string {
+  if (files.some((file) => file.path === requested)) return requested;
+  for (const entry of VIEWER_ENTRY_FILES) {
+    const match = files.find((file) => file.path.toLowerCase() === entry);
+    if (match) return match.path;
+  }
+  return files[0]?.path ?? "";
 }
 
 export function isFolderKind(kind: string | undefined): boolean {

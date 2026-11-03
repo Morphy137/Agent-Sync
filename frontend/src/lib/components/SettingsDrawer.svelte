@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { service } from "../../../wailsjs/go/models";
-  import { appState } from "../stores/appState.svelte";
+  import { appState, SETTINGS_DEFAULTS } from "../stores/appState.svelte";
   import { t, setLocale } from "../i18n";
   import { applyTheme } from "../theme/theme";
   import Drawer from "./Drawer.svelte";
@@ -22,20 +22,19 @@
   interface Props {
     open: boolean;
     onclose: () => void;
-    onsave: (
-      payload: service.SettingsPayload,
-      gitName: string,
-      gitEmail: string,
-      newRootPath?: string
-    ) => void;
   }
 
-  let { open, onclose, onsave }: Props = $props();
+  let { open, onclose }: Props = $props();
+
+  /** Wait after the last keystroke before free-text and numeric settings are saved. */
+  const AUTOSAVE_DEBOUNCE_MS = 600;
+  const MIN_BACKUP_RETENTION = 1;
 
   let language = $state<string>("system");
   let theme = $state<string>("system");
   let exclusionsOpen = $state(false);
   let changelogOpen = $state(false);
+  let restoreModalOpen = $state(false);
 
   /** Project page; starring it helps others find AgentSync. */
   const PROJECT_URL = "https://github.com/Morphy137/Agent-Sync";
@@ -54,54 +53,220 @@
     appState.addToast(type, message);
   }
   let backupPath = $state<string>("");
-  let backupRetention = $state<number>(20);
-  let checkInterval = $state<number>(5);
-  let confirmBeforeSync = $state<boolean>(true);
+  let backupPathUsable = $state(true);
+  let backupRetention = $state<number>(SETTINGS_DEFAULTS.backupRetention);
+  let checkInterval = $state<number>(SETTINGS_DEFAULTS.checkIntervalMinutes);
+  let confirmBeforeSync = $state<boolean>(SETTINGS_DEFAULTS.confirmBeforeSync);
   let gitUserName = $state<string>("");
   let gitUserEmail = $state<string>("");
 
   let rootPath = $state<string>("");
-  let initialRootPath = $state<string>("");
   let confirmRootModalOpen = $state(false);
 
-  // Snapshots for revert on cancel (R5)
-  let initialLanguage = $state<string>("system");
-  let initialTheme = $state<string>("system");
+  const retentionInvalid = $derived(
+    !Number.isInteger(backupRetention) || backupRetention < MIN_BACKUP_RETENTION
+  );
+
   let wasOpen = false;
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let saveChain: Promise<void> = Promise.resolve();
 
   $effect(() => {
     if (open && !wasOpen) {
       wasOpen = true;
-      if (appState.config) {
-        language = appState.config.language || "system";
-        theme = appState.config.theme || "system";
-        initialLanguage = language;
-        initialTheme = theme;
-        backupPath = appState.config.backupPath || "";
-        backupRetention = appState.config.backupRetention || 20;
-        checkInterval = appState.config.checkIntervalMinutes ?? 5;
-        confirmBeforeSync = appState.config.confirmBeforeSync ?? true;
-        checkUpdates = !appState.config.disableUpdateCheck;
-        rootPath = appState.config.rootPath || "";
-        initialRootPath = rootPath;
-      }
-      if (appState.gitInfo) {
-        gitUserName = appState.gitInfo.userName || "";
-        gitUserEmail = appState.gitInfo.userEmail || "";
-      }
+      loadFromState();
     } else if (!open && wasOpen) {
       wasOpen = false;
     }
   });
 
+  function loadFromState() {
+    const cfg = appState.config;
+    if (cfg) {
+      language = cfg.language || SETTINGS_DEFAULTS.language;
+      theme = cfg.theme || SETTINGS_DEFAULTS.theme;
+      backupPath = cfg.backupPath || "";
+      backupPathUsable = true;
+      backupRetention = cfg.backupRetention || SETTINGS_DEFAULTS.backupRetention;
+      checkInterval = cfg.checkIntervalMinutes ?? SETTINGS_DEFAULTS.checkIntervalMinutes;
+      confirmBeforeSync = cfg.confirmBeforeSync ?? SETTINGS_DEFAULTS.confirmBeforeSync;
+      checkUpdates = !cfg.disableUpdateCheck;
+      rootPath = cfg.rootPath || "";
+    }
+    if (appState.gitInfo) {
+      gitUserName = appState.gitInfo.userName || "";
+      gitUserEmail = appState.gitInfo.userEmail || "";
+    }
+  }
+
+  /** Settings to send: invalid fields keep their last saved value so they are never overwritten. */
+  function buildPayload(): service.SettingsPayload {
+    const saved = appState.config;
+    return {
+      language,
+      theme,
+      backupPath: backupPathUsable && backupPath.trim() ? backupPath : (saved?.backupPath ?? ""),
+      backupRetention: retentionInvalid
+        ? (saved?.backupRetention ?? SETTINGS_DEFAULTS.backupRetention)
+        : backupRetention,
+      checkIntervalMinutes: checkInterval,
+      confirmBeforeSync,
+      disableUpdateCheck: !checkUpdates,
+    };
+  }
+
+  function isSameAsSaved(payload: service.SettingsPayload): boolean {
+    const saved = appState.config;
+    if (!saved) return false;
+    return (
+      payload.language === (saved.language || SETTINGS_DEFAULTS.language) &&
+      payload.theme === (saved.theme || SETTINGS_DEFAULTS.theme) &&
+      payload.backupPath === saved.backupPath &&
+      payload.backupRetention === saved.backupRetention &&
+      payload.checkIntervalMinutes === saved.checkIntervalMinutes &&
+      payload.confirmBeforeSync === saved.confirmBeforeSync &&
+      payload.disableUpdateCheck === Boolean(saved.disableUpdateCheck)
+    );
+  }
+
+  /** Puts the last saved settings back in the fields and the live theme and language. */
+  function restoreSavedSettings() {
+    loadFromState();
+    applyTheme(theme);
+    setLocale(language as any);
+  }
+
+  async function persistSettings() {
+    const payload = buildPayload();
+    if (!isSameAsSaved(payload)) {
+      try {
+        appState.config = await api.updateSettings(payload);
+      } catch (err) {
+        appState.showError(err);
+        restoreSavedSettings();
+        return;
+      }
+    }
+    await persistGitIdentity();
+  }
+
+  async function persistGitIdentity() {
+    const name = gitUserName.trim();
+    const email = gitUserEmail.trim();
+    const info = appState.gitInfo;
+    if (!info?.isRepo || !email) return;
+    if (name === (info.userName || "") && email === (info.userEmail || "")) return;
+    try {
+      await api.setGitIdentity(name, email);
+      appState.gitInfo = await api.getGitInfo();
+    } catch (err) {
+      appState.showError(err);
+    }
+  }
+
+  /** Saves one at a time, always from the latest field values, so an older save cannot win. */
+  function saveNow(): Promise<void> {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    saveChain = saveChain.then(persistSettings);
+    return saveChain;
+  }
+
+  function saveDebounced() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => void saveNow(), AUTOSAVE_DEBOUNCE_MS);
+  }
+
   function handleLanguageChange(val: string) {
     language = val;
     setLocale(val as any);
+    void saveNow();
   }
 
   function handleThemeChange(val: string) {
     theme = val;
     applyTheme(val);
+    void saveNow();
+  }
+
+  function handleIntervalChange(val: string | number) {
+    checkInterval = Number(val);
+    void saveNow();
+  }
+
+  function handleConfirmBeforeSyncChange(checked: boolean) {
+    confirmBeforeSync = checked;
+    void saveNow();
+  }
+
+  function handleCheckUpdatesChange(checked: boolean) {
+    checkUpdates = checked;
+    void saveNow();
+  }
+
+  function isUsableFolder(info: service.PathInfo | null): boolean {
+    return Boolean(info?.exists && info.isDir && info.writable && !info.isInsideRoot);
+  }
+
+  function handleBackupPathChange(value: string, info: service.PathInfo | null) {
+    backupPath = value;
+    backupPathUsable = isUsableFolder(info);
+    if (backupPathUsable && value.trim() !== (appState.config?.backupPath ?? "")) void saveNow();
+  }
+
+  function handleRetentionInput(value: string) {
+    backupRetention = Number(value);
+    if (!retentionInvalid) saveDebounced();
+  }
+
+  function handleRootPathChange(value: string, info: service.PathInfo | null) {
+    rootPath = value;
+    const current = appState.config?.rootPath ?? "";
+    if (!value.trim() || value.trim() === current || !isUsableFolder(info)) return;
+    confirmRootModalOpen = true;
+  }
+
+  function cancelRootChange() {
+    confirmRootModalOpen = false;
+    rootPath = appState.config?.rootPath ?? "";
+  }
+
+  async function confirmRootChange() {
+    confirmRootModalOpen = false;
+    const nextRoot = rootPath.trim();
+    try {
+      await saveChain;
+      appState.config = await api.setRootPath(nextRoot);
+      await appState.refreshAll();
+    } catch (err) {
+      appState.showError(err);
+      rootPath = appState.config?.rootPath ?? "";
+    }
+  }
+
+  /** Backups default to a "backups" folder inside the app data folder. */
+  function defaultBackupPath(): string {
+    const dataDir = updateState.info?.dataDir;
+    if (!dataDir) return appState.config?.backupPath ?? "";
+    const separator = dataDir.includes("\\") ? "\\" : "/";
+    return `${dataDir.replace(/[\\/]+$/, "")}${separator}${SETTINGS_DEFAULTS.backupFolderName}`;
+  }
+
+  async function confirmRestoreDefaults() {
+    restoreModalOpen = false;
+    language = SETTINGS_DEFAULTS.language;
+    theme = SETTINGS_DEFAULTS.theme;
+    backupPath = defaultBackupPath();
+    backupPathUsable = true;
+    backupRetention = SETTINGS_DEFAULTS.backupRetention;
+    checkInterval = SETTINGS_DEFAULTS.checkIntervalMinutes;
+    confirmBeforeSync = SETTINGS_DEFAULTS.confirmBeforeSync;
+    checkUpdates = !SETTINGS_DEFAULTS.disableUpdateCheck;
+    setLocale(language as any);
+    applyTheme(theme);
+    await saveNow();
   }
 
   function handleReplayTutorial() {
@@ -110,42 +275,8 @@
   }
 
   function handleClose() {
-    // Revert unsaved theme & language (R5)
-    if (language !== initialLanguage) {
-      setLocale(initialLanguage as any);
-    }
-    if (theme !== initialTheme) {
-      applyTheme(initialTheme);
-    }
+    if (saveTimer) void saveNow();
     onclose();
-  }
-
-  function handleSave() {
-    if (rootPath.trim() && rootPath.trim() !== initialRootPath) {
-      confirmRootModalOpen = true;
-      return;
-    }
-    doSave();
-  }
-
-  function doSave() {
-    initialLanguage = language;
-    initialTheme = theme;
-    onsave(
-      {
-        language,
-        theme,
-        backupPath,
-        backupRetention: Number(backupRetention) || 20,
-        checkIntervalMinutes: Number(checkInterval),
-        confirmBeforeSync,
-        disableUpdateCheck: !checkUpdates,
-      },
-      gitUserName.trim(),
-      gitUserEmail.trim(),
-      rootPath.trim() !== initialRootPath ? rootPath.trim() : undefined
-    );
-    confirmRootModalOpen = false;
   }
 </script>
 
@@ -186,13 +317,13 @@
             { value: 15, label: t("settings.interval_minutes", { count: 15 }) },
             { value: 30, label: t("settings.interval_minutes", { count: 30 }) },
           ]}
-          onchange={(val) => (checkInterval = Number(val))}
+          onchange={handleIntervalChange}
         />
 
         <Switch
           label={t("settings.confirm_before_sync_label")}
           checked={confirmBeforeSync}
-          onchange={(checked) => (confirmBeforeSync = checked)}
+          onchange={handleConfirmBeforeSyncChange}
         />
       </div>
     </Card>
@@ -207,15 +338,18 @@
           value={backupPath}
           mode="backup"
           allowCreate={true}
-          onchange={(v) => (backupPath = v)}
+          onchange={handleBackupPathChange}
         />
 
         <Input
           label={t("settings.backup_retention_label")}
           type="number"
           value={backupRetention}
-          oninput={(v) => (backupRetention = Number(v))}
+          oninput={handleRetentionInput}
         />
+        {#if retentionInvalid}
+          <p class="field-error" role="alert">{t("settings.retention_invalid")}</p>
+        {/if}
       </div>
     </Card>
 
@@ -230,7 +364,7 @@
             value={rootPath}
             mode="root"
             allowCreate={false}
-            onchange={(v) => (rootPath = v)}
+            onchange={handleRootPathChange}
           />
 
           {#if appState.gitInfo?.isRepo}
@@ -244,14 +378,20 @@
               label={t("settings.git_name_label")}
               placeholder={t("settings.git_name_placeholder")}
               value={gitUserName}
-              oninput={(v) => (gitUserName = v)}
+              oninput={(v) => {
+                gitUserName = v;
+                saveDebounced();
+              }}
             />
 
             <Input
               label={t("settings.git_email_label")}
               placeholder={t("settings.git_email_placeholder")}
               value={gitUserEmail}
-              oninput={(v) => (gitUserEmail = v)}
+              oninput={(v) => {
+                gitUserEmail = v;
+                saveDebounced();
+              }}
             />
             <p class="field-hint">{t("settings.git_identity_hint")}</p>
 
@@ -312,7 +452,7 @@
         <Switch
           label={t("updates.auto_check")}
           checked={checkUpdates}
-          onchange={(checked) => (checkUpdates = checked)}
+          onchange={handleCheckUpdatesChange}
         />
 
         <div class="help-actions">
@@ -341,9 +481,9 @@
       </div>
     </Card>
 
-    <div class="save-actions">
-      <Button variant="primary" onclick={handleSave}>
-        {t("settings.button_save")}
+    <div class="footer-actions">
+      <Button variant="secondary" onclick={() => (restoreModalOpen = true)}>
+        {t("settings.restore_defaults_button")}
       </Button>
     </div>
   </div>
@@ -355,16 +495,34 @@
 <Modal
   open={confirmRootModalOpen}
   title={t("settings.confirm_root_change_title")}
-  onclose={() => (confirmRootModalOpen = false)}
+  onclose={cancelRootChange}
 >
   <div class="confirm-root-body">
     <p class="confirm-root-text">{t("settings.confirm_root_change_msg")}</p>
     <div class="confirm-root-actions">
-      <Button variant="secondary" onclick={() => (confirmRootModalOpen = false)}>
+      <Button variant="secondary" onclick={cancelRootChange}>
         {t("common.cancel")}
       </Button>
-      <Button variant="primary" onclick={doSave}>
+      <Button variant="primary" onclick={confirmRootChange}>
         {t("common.confirm")}
+      </Button>
+    </div>
+  </div>
+</Modal>
+
+<Modal
+  open={restoreModalOpen}
+  title={t("settings.restore_defaults_title")}
+  onclose={() => (restoreModalOpen = false)}
+>
+  <div class="confirm-root-body">
+    <p class="confirm-root-text">{t("settings.restore_defaults_msg")}</p>
+    <div class="confirm-root-actions">
+      <Button variant="secondary" onclick={() => (restoreModalOpen = false)}>
+        {t("common.cancel")}
+      </Button>
+      <Button variant="primary" onclick={confirmRestoreDefaults}>
+        {t("settings.restore_defaults_confirm")}
       </Button>
     </div>
   </div>
@@ -502,7 +660,14 @@
     line-height: 1.4;
   }
 
-  .save-actions {
+  .field-error {
+    margin: calc(var(--space-2) * -1) 0 0;
+    font-size: var(--text-xs);
+    color: var(--danger);
+    line-height: 1.5;
+  }
+
+  .footer-actions {
     margin-top: var(--space-2);
     display: flex;
     justify-content: flex-end;
