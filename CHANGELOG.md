@@ -4,6 +4,8 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-03
+
 ### Changed
 - Settings now save on their own; the Save button is gone.
 - Sync rules, subscriptions, connections and locations use tidy, aligned rows that keep their size.
