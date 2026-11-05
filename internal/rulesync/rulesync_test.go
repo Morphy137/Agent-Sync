@@ -508,3 +508,66 @@ func TestDotFilesInFolderSourceAreSynced(t *testing.T) {
 		t.Fatalf(".git and secrets must never be synced")
 	}
 }
+
+func TestSharedTransformDestinations(t *testing.T) {
+	e := newEnv(t)
+	e.write(filepath.Join(e.repo, "blender.json"), `{"mcpServers":{"blender":{"command":"blender"}}}`)
+	e.write(filepath.Join(e.repo, "blockbench.json"), `{"mcpServers":{"blockbench":{"command":"blockbench"}}}`)
+	d := dest("d", aliasA, "agents.json", rules.ModeOneWay)
+	d.Transform = &rules.Transform{Type: rules.TransformJSONMerge, Key: mcpKey}
+	all := []rules.Rule{repoRule("blender", "blender.json", d), repoRule("blockbench", "blockbench.json", d)}
+	if report := e.engine.Status(all); len(report.Collisions) != 0 {
+		t.Fatalf("distinct MCP entries must coexist: %+v", report.Collisions)
+	}
+	if result := e.sync(all); result.Written != 2 || result.Skipped != 0 {
+		t.Fatalf("expected both MCP entries to be written: %+v", result)
+	}
+	target := filepath.Join(e.locA, "agents.json")
+	content := e.read(target)
+	if !strings.Contains(content, `"blender"`) || !strings.Contains(content, `"blockbench"`) {
+		t.Fatalf("both entries must remain: %s", content)
+	}
+	e.write(filepath.Join(e.repo, "blender.json"), `{"mcpServers":{}}`)
+	e.sync(all)
+	content = e.read(target)
+	if strings.Contains(content, `"blender"`) || !strings.Contains(content, `"blockbench"`) {
+		t.Fatalf("removing one entry must preserve the other: %s", content)
+	}
+	e.write(filepath.Join(e.repo, "blender.json"), `{"mcpServers":{"blockbench":{"command":"other"}}}`)
+	if report := e.engine.Status(all); len(report.Collisions) == 0 {
+		t.Fatal("rules owning the same MCP entry must collide")
+	}
+}
+
+func TestSharedFolderDestinations(t *testing.T) {
+	e := newEnv(t)
+	e.write(filepath.Join(e.repo, "first", "a", "SKILL.md"), "first")
+	e.write(filepath.Join(e.repo, "second", "b", "SKILL.md"), "second")
+	all := []rules.Rule{
+		repoRule("first", "first", dest("d", aliasA, "skills", rules.ModeTwoWay)),
+		repoRule("second", "second", dest("d", aliasA, "skills", rules.ModeTwoWay)),
+	}
+	if report := e.engine.Status(all); len(report.Collisions) != 0 {
+		t.Fatalf("distinct skills must coexist: %+v", report.Collisions)
+	}
+	e.sync(all)
+	if e.read(filepath.Join(e.locA, "skills", "a", "SKILL.md")) != "first" || e.read(filepath.Join(e.locA, "skills", "b", "SKILL.md")) != "second" {
+		t.Fatal("both skills must be present")
+	}
+	e.write(filepath.Join(e.locA, "skills", "b", "SKILL.md"), "edited")
+	e.sync(all)
+	if e.read(filepath.Join(e.repo, "second", "b", "SKILL.md")) != "edited" || e.read(filepath.Join(e.repo, "first", "a", "SKILL.md")) != "first" {
+		t.Fatal("a two-way edit must return only to its own source")
+	}
+	if err := os.Remove(filepath.Join(e.repo, "first", "a", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	e.write(filepath.Join(e.repo, "second", "a", "SKILL.md"), "replacement")
+	if report := e.engine.Status(all); len(report.Collisions) == 0 {
+		t.Fatal("a pending deletion must collide with another rule's file")
+	}
+	e.sync(all)
+	if e.read(filepath.Join(e.locA, "skills", "a", "SKILL.md")) != "first" {
+		t.Fatal("conflicting target must not be deleted")
+	}
+}

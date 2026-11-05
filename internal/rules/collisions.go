@@ -9,10 +9,12 @@ import (
 
 // destTargets is a resolved destination reduced to the absolute paths it writes.
 type destTargets struct {
-	ref   DestRef
-	root  string
-	isDir bool
-	files []string
+	ref       DestRef
+	root      string
+	isDir     bool
+	files     []string
+	transform *Transform
+	entries   []string
 }
 
 // points returns every absolute path the destination owns: its folder root (folder sources)
@@ -127,8 +129,10 @@ func buildDestTargets(resolved []ResolvedDestination) []destTargets {
 			continue
 		}
 		dt := destTargets{
-			ref:   DestRef{RuleID: rd.RuleID, DestID: rd.DestID},
-			isDir: rd.SourceIsDir,
+			ref:       DestRef{RuleID: rd.RuleID, DestID: rd.DestID},
+			isDir:     rd.SourceIsDir,
+			transform: rd.Transform,
+			entries:   rd.MergeEntries,
 		}
 		if rd.TargetRoot != "" {
 			dt.root = filepath.Clean(rd.TargetRoot)
@@ -149,60 +153,71 @@ func buildDestTargets(resolved []ResolvedDestination) []destTargets {
 // detectSameTargets reports same_target for identical file targets across destinations and
 // case_conflict when targets differ only by letter case (even inside one destination).
 func detectSameTargets(set *collisionSet, dests []destTargets) {
-	type variant struct {
-		refs []DestRef
+	type target struct {
+		path string
+		dest destTargets
 	}
-	groups := make(map[string]map[string]*variant)
+	groups := make(map[string][]target)
 	for _, d := range dests {
-		for _, f := range d.files {
-			folded := foldPath(f)
-			if groups[folded] == nil {
-				groups[folded] = make(map[string]*variant)
-			}
-			v := groups[folded][f]
-			if v == nil {
-				v = &variant{}
-				groups[folded][f] = v
-			}
-			v.refs = append(v.refs, d.ref)
+		for _, file := range d.files {
+			groups[foldPath(file)] = append(groups[foldPath(file)], target{file, d})
 		}
 	}
-
-	for _, variants := range groups {
-		exacts := make([]string, 0, len(variants))
-		var all []DestRef
-		for exact, v := range variants {
-			exacts = append(exacts, exact)
-			all = append(all, v.refs...)
-		}
-		sort.Strings(exacts)
-		if len(exacts) > 1 {
-			set.add(CollisionCaseConflict, exacts[0], all...)
-			continue
-		}
-		if len(dedupeRefs(all)) > 1 {
-			set.add(CollisionSameTarget, exacts[0], all...)
+	for _, group := range groups {
+		for i, a := range group {
+			for _, b := range group[i+1:] {
+				if a.path != b.path {
+					set.add(CollisionCaseConflict, min(a.path, b.path), a.dest.ref, b.dest.ref)
+				} else if a.dest.ref != b.dest.ref && !compatibleMerges(a.dest, b.dest) {
+					set.add(CollisionSameTarget, a.path, a.dest.ref, b.dest.ref)
+				}
+			}
 		}
 	}
 }
 
-// detectFolderOverlaps reports a folder destination that contains another destination.
-func detectFolderOverlaps(set *collisionSet, dests []destTargets) {
-	for i, folder := range dests {
-		if !folder.isDir {
-			continue
+func compatibleMerges(a, b destTargets) bool {
+	if a.transform == nil || b.transform == nil || *a.transform != *b.transform || a.entries == nil || b.entries == nil {
+		return false
+	}
+	for _, name := range a.entries {
+		for _, other := range b.entries {
+			if name == other {
+				return false
+			}
 		}
-		for j, other := range dests {
-			if i == j || other.ref == folder.ref {
-				continue
-			}
-			candidates := other.files
-			if other.isDir {
-				candidates = []string{other.root}
-			}
-			for _, c := range candidates {
-				if isWithin(c, folder.root) {
-					set.add(CollisionFolderOverlap, c, folder.ref, other.ref)
+	}
+	return true
+}
+
+// detectFolderOverlaps reports file-versus-directory path conflicts, not shared folders.
+func detectFolderOverlaps(set *collisionSet, dests []destTargets) {
+	type target struct {
+		path string
+		ref  DestRef
+	}
+	files := make(map[string][]target)
+	for _, d := range dests {
+		for _, p := range d.files {
+			files[foldPath(p)] = append(files[foldPath(p)], target{p, d.ref})
+		}
+	}
+	for _, d := range dests {
+		points := d.files
+		if d.isDir {
+			points = append(append([]string{}, points...), d.root)
+		}
+		for _, point := range points {
+			for parent := point; ; parent = filepath.Dir(parent) {
+				if parent != point || (d.isDir && point == d.root) {
+					for _, file := range files[foldPath(parent)] {
+						if file.ref != d.ref {
+							set.add(CollisionFolderOverlap, file.path, file.ref, d.ref)
+						}
+					}
+				}
+				next := filepath.Dir(parent)
+				if next == parent {
 					break
 				}
 			}

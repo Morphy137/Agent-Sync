@@ -10,6 +10,7 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ### Fixed
 - Dragged rules keep their category color around the handle.
+- Sync separate MCP servers and skills to the same destination without false conflicts.
 
 ## [0.0.8] - 2026-11-03
 
