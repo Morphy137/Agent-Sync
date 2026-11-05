@@ -103,3 +103,5 @@ claude mcp add --scope user agentsync -- C:\Tools\agentsync-cli.exe mcp
 
 Codex (`~/.codex/config.toml`): `[mcp_servers.agentsync]` with `command` and `args = ["mcp"]`.
 Gemini CLI (`~/.gemini/settings.json`): `mcpServers.agentsync` with the same command and args.
+
+Rules may share a destination folder when they manage different files. MCP merge rules may share a configuration file when their managed entry names are distinct; overlapping entries remain blocked.

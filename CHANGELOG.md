@@ -4,6 +4,9 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+### Fixed
+- Sync separate MCP servers and skills to the same destination without false conflicts.
+
 ## [0.0.8] - 2026-11-03
 
 ### Added

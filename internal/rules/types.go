@@ -119,6 +119,8 @@ type ResolvedDestination struct {
 	Pairs         []Pair
 	Unmapped      bool
 	SourceMissing bool
+	Transform     *Transform
+	MergeEntries  []string
 }
 
 // Collision types.

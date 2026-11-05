@@ -415,6 +415,7 @@ func TestRenderTOML(t *testing.T) {
 		source   string
 		existing string
 		want     string
+		prev     []string
 	}{
 		{
 			name:     "missing file",
@@ -445,18 +446,14 @@ func TestRenderTOML(t *testing.T) {
 			source:   `{}`,
 			existing: "a = 1\n" + begin + "[mcp_servers.old]\nx = 1\n" + end + "b = 2\n",
 			want:     "a = 1\nb = 2\n",
-		},
-		{
-			name:     "invalid TOML inside the old block is discarded",
-			source:   `{"a": {"command": "a"}}`,
-			existing: "a = 1\n" + begin + "[[[ broken\n" + end,
-			want:     "a = 1\n" + begin + "[mcp_servers.a]\ncommand = \"a\"\n" + end,
+			prev:     []string{"old"},
 		},
 		{
 			name:     "markers with surrounding whitespace are recognised",
 			source:   `{"a": {"command": "a"}}`,
 			existing: "  # >>> agentsync managed: mcp_servers >>>  \n[mcp_servers.old]\n\t# <<< agentsync managed: mcp_servers <<<",
 			want:     begin + "[mcp_servers.a]\ncommand = \"a\"\n" + end,
+			prev:     []string{"old"},
 		},
 		{
 			name:     "unowned entries with other names coexist",
@@ -498,7 +495,7 @@ func TestRenderTOML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			source := mcpSource(tomlTestKey, tt.source)
-			result, err := Render(tomlSpec, source, []byte(tt.existing), nil)
+			result, err := Render(tomlSpec, source, []byte(tt.existing), tt.prev)
 			if err != nil {
 				t.Fatalf("Render: %v", err)
 			}
@@ -517,6 +514,34 @@ func TestRenderTOML(t *testing.T) {
 			}
 			assertRoundTrip(t, tomlSpec, source, result)
 		})
+	}
+}
+
+func TestRenderTOMLSharedManagedBlock(t *testing.T) {
+	first := mcpSource(tomlTestKey, `{"blender":{"command":"blender","env":{"FOO":"bar"}}}`)
+	second := mcpSource(tomlTestKey, `{"blockbench":{"command":"blockbench"}}`)
+	initial := []byte("[mcp_servers]\nuser = { command = \"custom\" }\n")
+	a, err := Render(tomlSpec, first, initial, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Render(tomlSpec, second, a.Output, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := TargetView(tomlSpec, b.Output, []string{"blender", "blockbench", "user"})
+	if err != nil || string(view) != `{"blender":{"command":"blender","env":{"FOO":"bar"}},"blockbench":{"command":"blockbench"},"user":{"command":"custom"}}` {
+		t.Fatalf("shared entries lost: %s, %v", view, err)
+	}
+	_, err = Render(tomlSpec, first, b.Output, nil)
+	assertTransformError(t, err, ReasonEntryConflict, map[string]string{ParamEntry: "blender"})
+	removed, err := Render(tomlSpec, mcpSource(tomlTestKey, `{}`), b.Output, a.Managed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err = TargetView(tomlSpec, removed.Output, []string{"blender", "blockbench", "user"})
+	if err != nil || string(view) != `{"blockbench":{"command":"blockbench"},"user":{"command":"custom"}}` {
+		t.Fatalf("removal affected another rule: %s, %v", view, err)
 	}
 }
 
@@ -559,6 +584,7 @@ func TestRenderTOMLErrors(t *testing.T) {
 			params:   map[string]string{ParamDetail: detailUnterminatedBlock},
 		},
 		{name: "invalid outside TOML", source: `{"a": {}}`, existing: "a = \n", reason: ReasonInvalidTargetTOML},
+		{name: "invalid managed TOML", source: `{"a": {}}`, existing: "# >>> agentsync managed: mcp_servers >>>\n[[[ broken\n# <<< agentsync managed: mcp_servers <<<\n", reason: ReasonInvalidTargetTOML},
 		{
 			name:     "key is not a table",
 			source:   `{"a": {}}`,
@@ -742,5 +768,17 @@ func TestDriftDetection(t *testing.T) {
 				t.Fatalf("managed edit not detected: %s", drifted)
 			}
 		})
+	}
+}
+
+func TestCodexMCPMergeAcceptsStandardSource(t *testing.T) {
+	source := []byte(`{"mcpServers":{"blender":{"command":"blender"}}}`)
+	result, err := Render(tomlSpec, source, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := TargetView(tomlSpec, result.Output, []string{"blender"})
+	if err != nil || string(view) != `{"blender":{"command":"blender"}}` {
+		t.Fatalf("converted MCP entry missing: %s, %v", view, err)
 	}
 }

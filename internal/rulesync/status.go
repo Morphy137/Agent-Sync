@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"agentsync/internal/apperr"
 	"agentsync/internal/fsops"
@@ -15,13 +16,16 @@ import (
 
 // plannedDest is one destination of one rule, resolved but not yet hashed.
 type plannedDest struct {
-	rule      rules.Rule
-	dest      rules.Destination
-	resolved  rules.ResolvedDestination
-	sourceAbs string
-	err       error
-	active    bool
-	blocked   bool
+	rule             rules.Rule
+	dest             rules.Destination
+	resolved         rules.ResolvedDestination
+	sourceAbs        string
+	err              error
+	active           bool
+	blocked          bool
+	collision        rules.ResolvedDestination
+	mergeEntries     map[string]bool
+	protectedEntries []string
 }
 
 // fileEval is the evaluation of one file, with the hashes used to decide its status.
@@ -71,7 +75,7 @@ func (e *Engine) plan(all []rules.Rule) ([]*plannedDest, []rules.Collision) {
 			if pd.active {
 				pd.resolved, pd.err = rules.Resolve(e.Env, r, d)
 				if pd.err == nil && !pd.resolved.Unmapped {
-					resolved = append(resolved, pd.resolved)
+					pd.collision = e.collisionDestination(pd)
 				}
 			} else {
 				pd.resolved.TargetRoot, _ = rules.LocationRoot(e.Env, d.Location)
@@ -80,6 +84,12 @@ func (e *Engine) plan(all []rules.Rule) ([]*plannedDest, []rules.Collision) {
 		}
 	}
 
+	protectTransferredEntries(planned)
+	for _, pd := range planned {
+		if pd.active && pd.err == nil && !pd.resolved.Unmapped {
+			resolved = append(resolved, pd.collision)
+		}
+	}
 	collisions := rules.DetectCollisions(e.Env, resolved, sources)
 	blocked := make(map[rules.DestRef]bool)
 	for _, c := range collisions {
@@ -96,6 +106,81 @@ func (e *Engine) plan(all []rules.Rule) ([]*plannedDest, []rules.Collision) {
 		collisions = []rules.Collision{}
 	}
 	return planned, collisions
+}
+
+// collisionDestination includes previously managed files and merge entries so a pending
+// deletion cannot remove content now claimed by another rule.
+func (e *Engine) collisionDestination(pd *plannedDest) rules.ResolvedDestination {
+	rd := pd.resolved
+	if rd.SourceIsDir {
+		present := make(map[string]bool, len(rd.Pairs))
+		for _, pair := range rd.Pairs {
+			present[pair.RelPath] = true
+		}
+		for rel := range e.baselines(BaselineKey(pd.rule.ID, pd.dest.ID)) {
+			clean, err := rules.NormalizeRelPath(rel)
+			if err == nil && clean == rel && clean != "." && !present[rel] && !rules.IsIgnoredBy(pd.dest, rel) {
+				rd.Pairs = append(rd.Pairs, rules.Pair{TargetAbs: filepath.Join(rd.TargetRoot, filepath.FromSlash(rel))})
+			}
+		}
+	}
+	if pd.dest.Transform == nil || e.Transformer == nil || len(rd.Pairs) != 1 {
+		return rd
+	}
+	src, err := os.ReadFile(rd.Pairs[0].SourceAbs)
+	if err != nil {
+		return rd
+	}
+	view, err := e.Transformer.SourceView(*pd.dest.Transform, src)
+	if err != nil {
+		return rd
+	}
+	var entries map[string]json.RawMessage
+	if json.Unmarshal(view, &entries) != nil || entries == nil {
+		return rd
+	}
+	pd.mergeEntries = make(map[string]bool, len(entries))
+	for name := range entries {
+		pd.mergeEntries[name] = true
+	}
+	rd.Transform = pd.dest.Transform
+	rd.MergeEntries = append([]string{}, e.managedEntries(pd.rule.ID, pd.dest.ID)...)
+	for name := range entries {
+		rd.MergeEntries = append(rd.MergeEntries, name)
+	}
+	return rd
+}
+
+// An entry previously owned by one rule can move to another rule at the same target.
+// Keep it in the target while the old owner updates its bookkeeping.
+func protectTransferredEntries(planned []*plannedDest) {
+	for _, owner := range planned {
+		if owner.collision.Transform == nil || len(owner.collision.Pairs) != 1 {
+			continue
+		}
+		for _, other := range planned {
+			if owner == other || other.collision.Transform == nil || len(other.collision.Pairs) != 1 ||
+				*owner.collision.Transform != *other.collision.Transform ||
+				!strings.EqualFold(owner.collision.Pairs[0].TargetAbs, other.collision.Pairs[0].TargetAbs) {
+				continue
+			}
+			for name := range other.mergeEntries {
+				if !owner.mergeEntries[name] && containsString(owner.collision.MergeEntries, name) && !containsString(owner.protectedEntries, name) {
+					owner.protectedEntries = append(owner.protectedEntries, name)
+				}
+			}
+		}
+		if len(owner.protectedEntries) == 0 {
+			continue
+		}
+		kept := make([]string, 0, len(owner.collision.MergeEntries))
+		for _, name := range owner.collision.MergeEntries {
+			if !containsString(owner.protectedEntries, name) {
+				kept = append(kept, name)
+			}
+		}
+		owner.collision.MergeEntries = kept
+	}
 }
 
 // Status computes the full report (no writes).

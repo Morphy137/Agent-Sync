@@ -135,11 +135,13 @@ Drift detection only looks at the managed entries, so the rest of the file can c
 
 | Type | Example |
 |---|---|
-| `same_target` | Two rules write `claude/CLAUDE.md` |
+| `same_target` | Two rules write `claude/CLAUDE.md` or manage the same MCP entry |
 | `case_conflict` | `CLAUDE.md` vs `claude.md` (same file on Windows/macOS) |
-| `folder_overlap` | A folder destination contains another destination |
+| `folder_overlap` | A file destination overlaps a folder or another file path |
 | `cycle` | A destination is (inside) a rule source |
 | `inside_repo` | A destination is inside the repository |
+
+Rules can share a destination folder when they manage different files. Compatible merge transforms can share a configuration file when they manage different entries.
 
 Saving a colliding rule succeeds but the app warns immediately, and **every involved destination
 is blocked** until you change a path, disable a destination or exclude it. For per-PC/per-agent
