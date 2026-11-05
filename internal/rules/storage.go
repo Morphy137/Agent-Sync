@@ -151,7 +151,10 @@ func saveFile(path string, f *File) error {
 	if f == nil {
 		f = emptyFile()
 	}
-	out := File{Version: CurrentVersion, Rules: make([]Rule, 0, len(f.Rules))}
+	out := File{Version: CurrentVersion, Rules: make([]Rule, 0, len(f.Rules)), Categories: append([]Category(nil), f.Categories...)}
+	for i := range out.Categories {
+		out.Categories[i].Scope = ""
+	}
 	for _, r := range f.Rules {
 		r.Scope = ""
 		if r.Destinations == nil {
@@ -166,6 +169,64 @@ func saveFile(path string, f *File) error {
 	enc.SetIndent("", jsonIndent)
 	// Encode appends the trailing newline required for diff-friendly files.
 	if err := enc.Encode(out); err != nil {
+		return apperr.Wrap(apperr.WriteFailed, err)
+	}
+	return fsops.AtomicWrite(path, buf.Bytes(), fsops.DefaultFilePerms)
+}
+
+// CategoryAssignment identifies a rule and its inferred category during migration.
+type CategoryAssignment struct {
+	RuleID     string
+	CategoryID string
+}
+
+// SaveCategoryAssignments updates only category IDs, preserving unrecognized JSON fields.
+func SaveCategoryAssignments(path string, assignments map[int]CategoryAssignment) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return apperr.Wrap(apperr.WriteFailed, err).WithParam("path", path)
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(data, &document); err != nil {
+		return apperr.Wrap(apperr.InvalidRule, err)
+	}
+	var entries []map[string]json.RawMessage
+	if err := json.Unmarshal(document["rules"], &entries); err != nil {
+		return apperr.Wrap(apperr.InvalidRule, err)
+	}
+	for index, assignment := range assignments {
+		if index < 0 || index >= len(entries) || entries[index] == nil {
+			return apperr.New(apperr.InvalidRule).WithParam("reason", ReasonMalformedFile)
+		}
+		var id string
+		if err := json.Unmarshal(entries[index]["id"], &id); err != nil || id != assignment.RuleID {
+			return apperr.New(apperr.InvalidRule).WithParam("reason", "rules_changed")
+		}
+		// A concurrent edit must not replace an explicit choice.
+		var existing string
+		if raw, ok := entries[index]["categoryId"]; ok {
+			if err := json.Unmarshal(raw, &existing); err != nil {
+				return apperr.Wrap(apperr.InvalidRule, err)
+			}
+		}
+		if existing != "" {
+			continue
+		}
+		encoded, err := json.Marshal(assignment.CategoryID)
+		if err != nil {
+			return apperr.Wrap(apperr.WriteFailed, err)
+		}
+		entries[index]["categoryId"] = encoded
+	}
+	document["rules"], err = json.Marshal(entries)
+	if err != nil {
+		return apperr.Wrap(apperr.WriteFailed, err)
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", jsonIndent)
+	if err := enc.Encode(document); err != nil {
 		return apperr.Wrap(apperr.WriteFailed, err)
 	}
 	return fsops.AtomicWrite(path, buf.Bytes(), fsops.DefaultFilePerms)

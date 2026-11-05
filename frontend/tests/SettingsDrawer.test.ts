@@ -27,6 +27,7 @@ const mockApi = vi.hoisted(() => ({
   setGitIdentity: vi.fn(),
   getGitInfo: vi.fn(),
   getStartupStatus: vi.fn(),
+  getRuleCategories: vi.fn(),
   setRootPath: vi.fn(),
   openURL: vi.fn(),
 }));
@@ -75,6 +76,7 @@ describe("SettingsDrawer.svelte", () => {
     }));
     mockApi.getGitInfo.mockResolvedValue({ isRepo: true, userName: "x", userEmail: "x@x.com" });
     mockApi.getStartupStatus.mockResolvedValue({ supported: true, enabled: false });
+    mockApi.getRuleCategories.mockResolvedValue([]);
   });
 
   afterEach(() => {
