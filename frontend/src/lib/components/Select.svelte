@@ -20,6 +20,7 @@
     /** "sunken" sits inside forms (default); "raised" sits on sunken panels. */
     variant?: "sunken" | "raised";
     onchange: (val: any) => void;
+    onchoose?: (val: any) => void;
   }
 
   let {
@@ -32,6 +33,7 @@
     disabled = false,
     variant = "sunken",
     onchange,
+    onchoose,
   }: Props = $props();
 
   const LIST_GAP_PX = 4;
@@ -84,6 +86,7 @@
     const option = options[index];
     if (!option || option.disabled) return;
     closeList();
+    onchoose?.(option.value);
     if (String(option.value) !== String(value)) onchange(option.value);
   }
 

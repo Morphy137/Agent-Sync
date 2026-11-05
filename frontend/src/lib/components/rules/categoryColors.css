@@ -1,0 +1,4 @@
+.category-rule-surface {
+  background-color: var(--surface);
+  background-color: color-mix(in srgb, var(--category-color, var(--surface)) 12%, var(--surface));
+}

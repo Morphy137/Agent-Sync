@@ -99,6 +99,26 @@ You normally edit rules from the app; the files are plain JSON (2-space indent) 
 
 ---
 
+## Categories
+
+Rules can be grouped into named categories with theme-aware colors. The app proposes MCP,
+Skills, or Instructions from recognized content and lets you change the choice. When opening the
+rules view, existing rules without a category are classified once; unavailable sources are retried
+later. Other content is assigned `uncategorized`. Manual assignments are never replaced by detection.
+
+Repository rules and categories are stored in `agentsync.rules.json`; local and subscription
+rules and local categories use `rules.local.json`. A repository rule cannot use a local-only
+category. Manage categories in Settings; deleting one moves its rules to `uncategorized`.
+Collapsed sections and the manual order of categories and rules are local display preferences; searches reveal matching rules.
+
+Category definitions use `categories` with `id`, `name`, and `color`; each rule stores
+`categoryId`. Built-in IDs are `mcp`, `skill`, and `instructions`; color IDs are `blue`, `purple`,
+`green`, `amber`, `teal`, `rose`, and `gray`. Categories can also specify a predefined `icon`. A built-in category can be hidden with a `deleted`
+marker. Older AgentSync versions do not recognize category fields and can remove them when saving a
+rules file, so update all clients that edit the same repository.
+
+---
+
 ## Modes
 
 | Mode | Source → destination | Destination edits |

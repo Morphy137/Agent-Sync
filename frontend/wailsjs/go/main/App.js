@@ -50,6 +50,10 @@ export function DeleteRule(arg1) {
   return window['go']['main']['App']['DeleteRule'](arg1);
 }
 
+export function DeleteRuleCategory(arg1, arg2) {
+  return window['go']['main']['App']['DeleteRuleCategory'](arg1, arg2);
+}
+
 export function DetectSource(arg1) {
   return window['go']['main']['App']['DetectSource'](arg1);
 }
@@ -92,6 +96,10 @@ export function GetRecognizersPath() {
 
 export function GetRepoFileDiff(arg1, arg2) {
   return window['go']['main']['App']['GetRepoFileDiff'](arg1, arg2);
+}
+
+export function GetRuleCategories() {
+  return window['go']['main']['App']['GetRuleCategories']();
 }
 
 export function GetRuleDiff(arg1, arg2, arg3) {
@@ -166,6 +174,10 @@ export function ListSubscriptions() {
   return window['go']['main']['App']['ListSubscriptions']();
 }
 
+export function MigrateRuleCategories() {
+  return window['go']['main']['App']['MigrateRuleCategories']();
+}
+
 export function OpenInExplorer(arg1) {
   return window['go']['main']['App']['OpenInExplorer'](arg1);
 }
@@ -218,6 +230,10 @@ export function SaveRule(arg1, arg2) {
   return window['go']['main']['App']['SaveRule'](arg1, arg2);
 }
 
+export function SaveRuleCategory(arg1, arg2) {
+  return window['go']['main']['App']['SaveRuleCategory'](arg1, arg2);
+}
+
 export function SaveRuleSourceFile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['SaveRuleSourceFile'](arg1, arg2, arg3, arg4);
 }
@@ -256,6 +272,10 @@ export function SetTutorialCompleted(arg1) {
 
 export function SuggestPlacement(arg1, arg2) {
   return window['go']['main']['App']['SuggestPlacement'](arg1, arg2);
+}
+
+export function SuggestRuleCategory(arg1, arg2) {
+  return window['go']['main']['App']['SuggestRuleCategory'](arg1, arg2);
 }
 
 export function SyncRules() {

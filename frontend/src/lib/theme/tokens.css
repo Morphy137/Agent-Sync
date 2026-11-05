@@ -60,6 +60,13 @@
   --sunken: inset 0 1px 2px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
   --primary-elev: 0 1px 2px rgba(0, 0, 0, 0.16), 0 3px 8px rgba(0, 0, 0, 0.1);
 
+  --category-blue: #3565b0;
+  --category-purple: #7849b0;
+  --category-green: #287b4f;
+  --category-amber: #94640e;
+  --category-teal: #147b7b;
+  --category-rose: #b23e67;
+  --category-gray: #686873;
   --dot-ok: #2f8a5b;
   --dot-down: #3f6fc4;
   --dot-up: #b07a1f;
@@ -85,6 +92,13 @@
   --sunken: inset 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   --primary-elev: 0 1px 2px rgba(0, 0, 0, 0.3), 0 3px 8px rgba(0, 0, 0, 0.22);
 
+  --category-blue: #8cb5fa;
+  --category-purple: #c49aef;
+  --category-green: #7dd5a4;
+  --category-amber: #efc56a;
+  --category-teal: #77d2cf;
+  --category-rose: #f095b5;
+  --category-gray: #b4b4bf;
   --dot-ok: #5bbf8a;
   --dot-down: #7aa2e8;
   --dot-up: #d9a84e;

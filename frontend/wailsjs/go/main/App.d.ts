@@ -35,6 +35,8 @@ export function CreateRoot(arg1:string,arg2:string):Promise<config.Config>;
 
 export function DeleteRule(arg1:string):Promise<void>;
 
+export function DeleteRuleCategory(arg1:string,arg2:string):Promise<void>;
+
 export function DetectSource(arg1:rules.Source):Promise<recognize.SourceInfo>;
 
 export function DiscardRepoFile(arg1:string):Promise<void>;
@@ -56,6 +58,8 @@ export function GetGitignore():Promise<service.GitignorePayload>;
 export function GetRecognizersPath():Promise<string>;
 
 export function GetRepoFileDiff(arg1:string,arg2:string):Promise<rulesync.Diff>;
+
+export function GetRuleCategories():Promise<Array<rules.Category>>;
 
 export function GetRuleDiff(arg1:string,arg2:string,arg3:string):Promise<rulesync.Diff>;
 
@@ -93,6 +97,8 @@ export function ListSubscriptionSuggestions(arg1:string):Promise<Array<service.S
 
 export function ListSubscriptions():Promise<Array<service.SubscriptionInfo>>;
 
+export function MigrateRuleCategories():Promise<void>;
+
 export function OpenInExplorer(arg1:string):Promise<void>;
 
 export function OpenPath(arg1:string):Promise<void>;
@@ -119,6 +125,8 @@ export function SaveLocation(arg1:string,arg2:string):Promise<config.Config>;
 
 export function SaveRule(arg1:rules.Rule,arg2:string):Promise<service.SaveRuleResult>;
 
+export function SaveRuleCategory(arg1:rules.Category,arg2:string):Promise<rules.Category>;
+
 export function SaveRuleSourceFile(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
 export function SelectFile(arg1:string,arg2:string):Promise<string>;
@@ -138,6 +146,8 @@ export function SetSubscriptionAutoUpdate(arg1:string,arg2:boolean):Promise<conf
 export function SetTutorialCompleted(arg1:boolean):Promise<config.Config>;
 
 export function SuggestPlacement(arg1:rules.Source,arg2:string):Promise<recognize.Suggestion>;
+
+export function SuggestRuleCategory(arg1:rules.Source,arg2:string):Promise<string>;
 
 export function SyncRules():Promise<rulesync.ApplyResult>;
 

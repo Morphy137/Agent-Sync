@@ -22,6 +22,7 @@
   import DestinationStatusRow from "./DestinationStatusRow.svelte";
   import StatusDot from "./StatusDot.svelte";
   import "../cardZones.css";
+  import "./categoryColors.css";
   import {
     AUTO_KIND,
     baseName,
@@ -239,7 +240,7 @@
 <svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeyDown} />
 
 <article
-  class="rule-card"
+  class="rule-card category-rule-surface"
   class:compact
   class:rule-disabled={!rule.enabled}
   class:menu-open={menuOpen}
@@ -435,7 +436,6 @@
   .rule-card {
     /* The row layout reacts to the width of the card, not of the window. */
     container-type: inline-size;
-    background-color: var(--surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--elev-1);
     padding: var(--space-4);

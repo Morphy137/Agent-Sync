@@ -374,3 +374,22 @@ func (a *App) CreateRoot(parentDir string, name string) (*config.Config, error) 
 func (a *App) CloneRepository(url string, parentDir string, name string) (*config.Config, error) {
 	return a.svc.CloneRepository(url, parentDir, name)
 }
+
+// GetRuleCategories lists available rule categories.
+func (a *App) GetRuleCategories() ([]rules.Category, error) { return a.svc.GetRuleCategories() }
+
+// SaveRuleCategory creates or updates a rule category.
+func (a *App) SaveRuleCategory(category rules.Category, scope string) (rules.Category, error) {
+	return a.svc.SaveRuleCategory(category, scope)
+}
+
+// DeleteRuleCategory removes a rule category.
+func (a *App) DeleteRuleCategory(id, scope string) error { return a.svc.DeleteRuleCategory(id, scope) }
+
+// MigrateRuleCategories assigns categories to existing rules.
+func (a *App) MigrateRuleCategories() error { return a.svc.MigrateRuleCategories() }
+
+// SuggestRuleCategory detects a source's available category.
+func (a *App) SuggestRuleCategory(source rules.Source, kind string) (string, error) {
+	return a.svc.SuggestRuleCategory(source, kind)
+}

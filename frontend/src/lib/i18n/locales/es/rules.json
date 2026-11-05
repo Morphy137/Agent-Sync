@@ -224,7 +224,8 @@
       "not_detected": "Tipo no detectado",
       "selection_name": "{count} archivos",
       "selection_name_one": "{count} archivo",
-      "selection_name_other": "{count} archivos"
+      "selection_name_other": "{count} archivos",
+      "category_label": "Categoría"
     },
     "location_select": {
       "label": "Ubicación",
@@ -275,6 +276,55 @@
       "remove_item": "Quitar {name}"
     },
     "layout_grid": "Vista de cuadrícula",
-    "layout_list": "Vista de lista"
+    "layout_list": "Vista de lista",
+    "categories": {
+      "skill": "Habilidades",
+      "mcp": "MCP",
+      "instructions": "Instrucciones",
+      "uncategorized": "Sin categoría",
+      "attention": "Requieren atención",
+      "title": "Categorías de reglas",
+      "description": "Organiza las reglas con categorías personalizadas. Al eliminar una categoría, sus reglas pasan a Sin categoría.",
+      "add": "Añadir categoría",
+      "edit": "Editar categoría",
+      "delete": "Eliminar categoría",
+      "delete_title": "¿Eliminar categoría?",
+      "delete_message": "Las reglas de {name} pasarán a Sin categoría.",
+      "name": "Nombre",
+      "color": "Color",
+      "scope": "Disponibilidad",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "colors": {
+        "blue": "Azul",
+        "purple": "Morado",
+        "green": "Verde",
+        "amber": "Ámbar",
+        "teal": "Turquesa",
+        "rose": "Rosa",
+        "gray": "Gris"
+      },
+      "count_one": "{count} regla",
+      "count_other": "{count} reglas",
+      "icon": "Icono",
+      "preview": "Vista previa",
+      "preview_name": "Nombre de la categoría",
+      "reorder": "Arrastrar para ordenar {name}; usa las flechas arriba y abajo con el teclado",
+      "reorder_search_disabled": "Borra la búsqueda para ordenar las categorías",
+      "icons": {
+        "folder": "Carpeta",
+        "book": "Libro",
+        "code": "Código",
+        "terminal": "Terminal",
+        "puzzle": "Rompecabezas",
+        "bot": "Bot",
+        "shield": "Escudo",
+        "star": "Estrella",
+        "tag": "Etiqueta",
+        "settings": "Ajustes"
+      },
+      "reorder_rule": "Arrastrar para ordenar {name}; usa las flechas arriba y abajo con el teclado",
+      "preview_rule": "Regla de ejemplo"
+    }
   }
 }

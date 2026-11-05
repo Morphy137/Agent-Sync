@@ -224,7 +224,8 @@
       "not_detected": "Type not detected",
       "selection_name": "{count} files",
       "selection_name_one": "{count} file",
-      "selection_name_other": "{count} files"
+      "selection_name_other": "{count} files",
+      "category_label": "Category"
     },
     "location_select": {
       "label": "Location",
@@ -275,6 +276,55 @@
       "remove_item": "Remove {name}"
     },
     "layout_grid": "Grid view",
-    "layout_list": "List view"
+    "layout_list": "List view",
+    "categories": {
+      "skill": "Skills",
+      "mcp": "MCP",
+      "instructions": "Instructions",
+      "uncategorized": "Uncategorized",
+      "attention": "Need attention",
+      "title": "Rule categories",
+      "description": "Organize rules with custom categories. Deleting a category moves its rules to Uncategorized.",
+      "add": "Add category",
+      "edit": "Edit category",
+      "delete": "Delete category",
+      "delete_title": "Delete category?",
+      "delete_message": "Rules in {name} will move to Uncategorized.",
+      "name": "Name",
+      "color": "Color",
+      "scope": "Availability",
+      "save": "Save",
+      "cancel": "Cancel",
+      "colors": {
+        "blue": "Blue",
+        "purple": "Purple",
+        "green": "Green",
+        "amber": "Amber",
+        "teal": "Teal",
+        "rose": "Rose",
+        "gray": "Gray"
+      },
+      "count_one": "{count} rule",
+      "count_other": "{count} rules",
+      "icon": "Icon",
+      "preview": "Preview",
+      "preview_name": "Category name",
+      "reorder": "Drag to reorder {name}; use the up and down arrow keys on your keyboard",
+      "reorder_search_disabled": "Clear the search to reorder categories",
+      "icons": {
+        "folder": "Folder",
+        "book": "Book",
+        "code": "Code",
+        "terminal": "Terminal",
+        "puzzle": "Puzzle",
+        "bot": "Bot",
+        "shield": "Shield",
+        "star": "Star",
+        "tag": "Tag",
+        "settings": "Settings"
+      },
+      "reorder_rule": "Drag to reorder {name}; use the up and down arrow keys on your keyboard",
+      "preview_rule": "Example rule"
+    }
   }
 }
