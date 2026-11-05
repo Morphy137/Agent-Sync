@@ -79,6 +79,7 @@ type Destination struct {
 
 // Rule maps one source to many destinations.
 type Rule struct {
+	CategoryID   string        `json:"categoryId,omitempty"`
 	ID           string        `json:"id"`
 	Name         string        `json:"name"`
 	Enabled      bool          `json:"enabled"`
@@ -89,10 +90,21 @@ type Rule struct {
 	Scope        string        `json:"scope,omitempty"`
 }
 
+// Category is a user-defined or built-in grouping for rules.
+type Category struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Color   string `json:"color"`
+	Icon    string `json:"icon,omitempty"`
+	Scope   string `json:"scope,omitempty"`
+	Deleted bool   `json:"deleted,omitempty"`
+}
+
 // File is the on-disk format of both the repo and the local rules files.
 type File struct {
-	Version int    `json:"version"`
-	Rules   []Rule `json:"rules"`
+	Version    int        `json:"version"`
+	Rules      []Rule     `json:"rules"`
+	Categories []Category `json:"categories,omitempty"`
 }
 
 // Env carries everything needed to turn a rule into absolute paths on this machine.
@@ -119,6 +131,8 @@ type ResolvedDestination struct {
 	Pairs         []Pair
 	Unmapped      bool
 	SourceMissing bool
+	Transform     *Transform
+	MergeEntries  []string
 }
 
 // Collision types.

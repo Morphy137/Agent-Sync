@@ -55,6 +55,8 @@ to its own folder in the **Locations** view (stored in `config.json`):
 | `repo` (shared) | `<repo>/agentsync.rules.json` — committed and synced like any other repo file | Rules you want on every PC |
 | `local` (this PC only) | `<configDir>/rules.local.json` | Local sources (absolute paths), subscription rules, machine-specific tweaks |
 
+New rules and categories default to local; choose the repository scope explicitly to share them. Subscription suggestions are always saved locally.
+
 Both files share the same format:
 
 ```json
@@ -99,6 +101,29 @@ You normally edit rules from the app; the files are plain JSON (2-space indent) 
 
 ---
 
+## Categories
+
+Rules can be grouped into named categories with theme-aware colors. The app proposes MCP,
+Skills, or Instructions from recognized content and lets you change the choice. When opening the
+rules view, existing local rules without a category are classified once; unavailable sources are retried
+later. Shared rules without a category are classified for display without modifying the repository;
+their category can be saved by explicitly choosing it when editing the rule. Other content is assigned `uncategorized`.
+Manual assignments are never replaced by detection.
+
+Repository rules and categories are stored in `agentsync.rules.json`; local and subscription
+rules and local categories use `rules.local.json`. A repository rule cannot use a local-only
+category. Manage categories in Settings; deleting a local category moves matching local rules to
+`uncategorized` without rewriting shared rules. Deleting a shared category also updates its shared rules.
+Collapsed sections and the manual order of categories and rules are local display preferences; searches reveal matching rules.
+
+Category definitions use `categories` with `id`, `name`, and `color`; each rule stores
+`categoryId`. Built-in IDs are `mcp`, `skill`, and `instructions`; color IDs are `blue`, `purple`,
+`green`, `amber`, `teal`, `rose`, and `gray`. Categories can also specify a predefined `icon`. A built-in category can be hidden with a `deleted`
+marker. Older AgentSync versions do not recognize category fields and can remove them when saving a
+rules file, so update all clients that edit the same repository.
+
+---
+
 ## Modes
 
 | Mode | Source → destination | Destination edits |
@@ -135,11 +160,13 @@ Drift detection only looks at the managed entries, so the rest of the file can c
 
 | Type | Example |
 |---|---|
-| `same_target` | Two rules write `claude/CLAUDE.md` |
+| `same_target` | Two rules write `claude/CLAUDE.md` or manage the same MCP entry |
 | `case_conflict` | `CLAUDE.md` vs `claude.md` (same file on Windows/macOS) |
-| `folder_overlap` | A folder destination contains another destination |
+| `folder_overlap` | A file destination overlaps a folder or another file path |
 | `cycle` | A destination is (inside) a rule source |
 | `inside_repo` | A destination is inside the repository |
+
+Rules can share a destination folder when they manage different files. Compatible merge transforms can share a configuration file when they manage different entries.
 
 Saving a colliding rule succeeds but the app warns immediately, and **every involved destination
 is blocked** until you change a path, disable a destination or exclude it. For per-PC/per-agent

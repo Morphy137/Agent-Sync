@@ -6,6 +6,8 @@ import { matchesRuleQuery } from "../src/lib/components/rules/ruleUi";
 
 const mockApi = vi.hoisted(() => ({
   getRulesReport: vi.fn(),
+  migrateRuleCategories: vi.fn(),
+  getRuleCategories: vi.fn(),
   getStatus: vi.fn(),
   openPath: vi.fn(),
 }));
@@ -104,6 +106,8 @@ describe("Rules search", () => {
       pending: 0,
       conflicts: 0,
     });
+    mockApi.migrateRuleCategories.mockResolvedValue(undefined);
+    mockApi.getRuleCategories.mockResolvedValue([]);
     mockApi.getStatus.mockResolvedValue({ rulesPending: 0 });
   });
 
@@ -112,6 +116,9 @@ describe("Rules search", () => {
     appState.ruleReport = null;
     appState.activeView = "rules";
     vi.restoreAllMocks();
+    delete (document as any).elementFromPoint;
+    localStorage.removeItem("agentsync_category_order:C:/repo");
+    localStorage.removeItem("agentsync_rule_order:C:/repo");
   });
 
   it("filters as you type and shows the shown-of-total count", async () => {
@@ -145,6 +152,170 @@ describe("Rules search", () => {
     await fireEvent.keyDown(field, { key: "Escape" });
     await waitFor(() => expect(field.value).toBe(""));
     expect(queryByRole("article", { name: "Team skills" })).not.toBeNull();
+  });
+
+  it("groups rules, preserves collapsed sections, and reveals search results", async () => {
+    localStorage.removeItem("agentsync_collapsed_categories:C:/repo");
+    mockApi.getRuleCategories.mockResolvedValue([
+      { id: "instructions", name: "", color: "green", scope: "builtin" },
+      { id: "skill", name: "", color: "purple", scope: "builtin" },
+    ]);
+    mockApi.getRulesReport.mockResolvedValue({
+      rules: [
+        { ...instructions, rule: { ...instructions.rule, categoryId: "instructions" } },
+        { ...skills, rule: { ...skills.rule, categoryId: "skill" } },
+      ],
+      collisions: [],
+      unmapped: [],
+      pending: 0,
+      conflicts: 0,
+    });
+    const view = render(RulesView);
+    const section = await view.findByRole("button", { name: /Instructions.*1 rule/i });
+    await fireEvent.click(section);
+    expect(view.queryByRole("article", { name: "Agent instructions" })).toBeNull();
+    expect(
+      JSON.parse(localStorage.getItem("agentsync_collapsed_categories:C:/repo") ?? "[]")
+    ).toContain("instructions");
+    await fireEvent.input(await view.findByPlaceholderText("Search rules"), {
+      target: { value: "agent" },
+    });
+    expect(await view.findByRole("article", { name: "Agent instructions" })).toBeDefined();
+    localStorage.removeItem("agentsync_collapsed_categories:C:/repo");
+  });
+
+  async function setupReordering() {
+    localStorage.removeItem("agentsync_category_order:C:/repo");
+    localStorage.removeItem("agentsync_rule_order:C:/repo");
+    mockApi.getRuleCategories.mockResolvedValue([
+      { id: "instructions", name: "", color: "green", scope: "builtin" },
+      { id: "skill", name: "", color: "purple", scope: "builtin" },
+    ]);
+    const other = makeStatus("r3", "Other skill", { origin: "repo", path: "other" }, []);
+    mockApi.getRulesReport.mockResolvedValue({
+      rules: [
+        { ...instructions, rule: { ...instructions.rule, categoryId: "instructions" } },
+        { ...skills, rule: { ...skills.rule, categoryId: "skill" } },
+        { ...other, rule: { ...other.rule, categoryId: "skill" } },
+      ],
+      collisions: [],
+      unmapped: [],
+      pending: 0,
+      conflicts: 0,
+    });
+    const view = render(RulesView);
+    await view.findByRole("button", { name: /Drag to reorder Skills;/ });
+    return view;
+  }
+
+  function pointerEvent(target: Element | Window, type: string, x: number, y: number) {
+    const event = new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y });
+    Object.defineProperty(event, "pointerId", { value: 1 });
+    return fireEvent(target, event);
+  }
+
+  function hit(target: Element | null) {
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => target),
+    });
+  }
+
+  it("previews and commits a category drag on the placeholder", async () => {
+    const view = await setupReordering();
+    const handle = view.getByRole("button", { name: /Drag to reorder Instructions;/ });
+    const source = handle.closest(".category") as HTMLElement;
+    const target = view.container.querySelector('section[aria-label="Skills"]') as HTMLElement;
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 22, 22);
+    expect(document.querySelector(".rule-drag-preview")).toBeNull();
+    hit(target);
+    await pointerEvent(window, "pointermove", 50, 50);
+    const clone = document.querySelector(".rule-drag-preview") as HTMLElement;
+    expect(clone).not.toBeNull();
+    expect(clone.getAttribute("aria-hidden")).toBe("true");
+    expect(clone.hasAttribute("inert")).toBe(true);
+    expect(clone.style.getPropertyValue("--category-color")).toContain("--category-green");
+    expect(clone.querySelector("[id]")).toBeNull();
+    expect(clone.style.left).toBe("30px");
+    expect(document.documentElement.classList.contains("rules-dragging")).toBe(true);
+    expect(Number(source.style.order)).toBeGreaterThan(Number(target.style.order));
+    expect(localStorage.getItem("agentsync_category_order:C:/repo")).toBeNull();
+    hit(view.container.querySelector(".category-list"));
+    await pointerEvent(window, "pointerup", 50, 50);
+    expect(
+      [...view.container.querySelectorAll("section.category")].map((node) =>
+        node.getAttribute("aria-label")
+      )
+    ).toEqual(["Skills", "Instructions"]);
+    expect(JSON.parse(localStorage.getItem("agentsync_category_order:C:/repo") ?? "[]")[0]).toBe(
+      "skill"
+    );
+    expect(document.querySelector(".rule-drag-preview")).toBeNull();
+    expect(document.documentElement.classList.contains("rules-dragging")).toBe(false);
+  });
+
+  it("retains keyboard ordering and cancels a rule drag on Escape or outside the viewport", async () => {
+    const view = await setupReordering();
+    await fireEvent.keyDown(view.getByRole("button", { name: /Drag to reorder Skills;/ }), {
+      key: "ArrowUp",
+    });
+    expect(view.container.querySelector("section.category")?.getAttribute("aria-label")).toBe(
+      "Skills"
+    );
+    const handle = view.getByRole("button", { name: /Drag to reorder Team skills;/ });
+    const source = handle.closest(".rule-order-row") as HTMLElement;
+    const target = view
+      .getByRole("article", { name: "Other skill" })
+      .closest(".rule-order-row") as HTMLElement;
+    hit(target);
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 50, 50);
+    const preview = document.querySelector(".rule-drag-preview--rule") as HTMLElement;
+    expect(preview).not.toBeNull();
+    expect(preview.style.getPropertyValue("--category-color")).toContain("--category-purple");
+    expect(Number(source.style.order)).toBeGreaterThan(Number(target.style.order));
+    await fireEvent.keyDown(window, { key: "Escape" });
+    expect(localStorage.getItem("agentsync_rule_order:C:/repo")).toBeNull();
+    expect(document.querySelector(".rule-drag-preview")).toBeNull();
+    expect(document.documentElement.classList.contains("rules-dragging")).toBe(false);
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 50, 50);
+    await pointerEvent(window, "pointerup", -1, 50);
+    expect(localStorage.getItem("agentsync_rule_order:C:/repo")).toBeNull();
+    expect(document.querySelector(".rule-drag-preview")).toBeNull();
+  });
+
+  it("commits a rule drag and cleans up on pointer cancellation and unmount", async () => {
+    const view = await setupReordering();
+    const handle = view.getByRole("button", { name: /Drag to reorder Team skills;/ });
+    const target = view
+      .getByRole("article", { name: "Other skill" })
+      .closest(".rule-order-row") as HTMLElement;
+    hit(target);
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 50, 50);
+    await pointerEvent(window, "pointerup", 50, 50);
+    expect(
+      JSON.parse(localStorage.getItem("agentsync_rule_order:C:/repo") ?? "[]").indexOf("r3")
+    ).toBeLessThan(
+      JSON.parse(localStorage.getItem("agentsync_rule_order:C:/repo") ?? "[]").indexOf("r2")
+    );
+    const saved = localStorage.getItem("agentsync_rule_order:C:/repo");
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 50, 50);
+    await pointerEvent(window, "pointercancel", 50, 50);
+    expect(localStorage.getItem("agentsync_rule_order:C:/repo")).toBe(saved);
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 50, 50);
+    await pointerEvent(handle, "lostpointercapture", 50, 50);
+    expect(document.querySelector(".rule-drag-preview")).toBeNull();
+    expect(localStorage.getItem("agentsync_rule_order:C:/repo")).toBe(saved);
+    await pointerEvent(handle, "pointerdown", 20, 20);
+    await pointerEvent(window, "pointermove", 50, 50);
+    view.unmount();
+    expect(document.querySelector(".rule-drag-preview")).toBeNull();
+    expect(document.documentElement.classList.contains("rules-dragging")).toBe(false);
   });
 
   it("hides the search when there are no rules", async () => {

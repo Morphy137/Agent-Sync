@@ -15,6 +15,7 @@
   import GitignoreModal from "./GitignoreModal.svelte";
   import BackupsModal from "./backups/BackupsModal.svelte";
   import ThemePicker from "./ThemePicker.svelte";
+  import CategorySettings from "./rules/CategorySettings.svelte";
   import ChangelogModal from "./ChangelogModal.svelte";
   import { Star, Sparkles, GraduationCap } from "@lucide/svelte";
   import { api } from "../api";
@@ -348,6 +349,13 @@
           ]}
           onchange={handleLanguageChange}
         />
+      </div>
+    </Card>
+
+    <Card padding="md">
+      <div class="section-block">
+        <h3 class="section-heading">{t("rules.categories.title")}</h3>
+        <CategorySettings {open} />
       </div>
     </Card>
 

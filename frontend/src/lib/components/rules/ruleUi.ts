@@ -392,6 +392,7 @@ export function applySuggestion(
 export interface RuleForm {
   id: string;
   name: string;
+  categoryId: string;
   enabled: boolean;
   scope: RuleScope;
   source: rules.Source | null;
@@ -481,6 +482,7 @@ export function buildRulePayload(form: RuleForm): rules.Rule {
   return rules.Rule.createFrom({
     id: form.id,
     name: form.name.trim(),
+    categoryId: form.categoryId,
     enabled: form.enabled,
     source: {
       origin: source.origin,

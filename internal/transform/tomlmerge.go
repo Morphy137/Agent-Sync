@@ -93,7 +93,7 @@ func findManagedBlock(key string, doc []byte) (managedBlock, error) {
 
 // renderTOML replaces (or appends) the managed block holding the source entries as
 // [Key.<name>] tables. Everything outside the block is preserved byte-for-byte.
-func renderTOML(spec Spec, entries []sourceEntry, existing []byte) ([]byte, error) {
+func renderTOML(spec Spec, entries []sourceEntry, existing []byte, prevManaged []string) ([]byte, error) {
 	block, err := findManagedBlock(spec.Key, existing)
 	if err != nil {
 		return nil, err
@@ -117,16 +117,52 @@ func renderTOML(spec Spec, entries []sourceEntry, existing []byte) ([]byte, erro
 		return nil, newError(ReasonEntryConflict, nil).WithParam(ParamEntry, name)
 	}
 
+	owned := toSet(prevManaged)
+	var kept map[string]any
+	if block.found {
+		var managed map[string]any
+		if err := toml.Unmarshal(existing[block.start:block.end], &managed); err != nil {
+			return nil, newError(ReasonInvalidTargetTOML, err)
+		}
+		if len(managed) > 0 {
+			var ok bool
+			kept, ok = managed[spec.Key].(map[string]any)
+			if !ok || len(managed) != 1 {
+				return nil, newError(ReasonInvalidTargetTOML, errKeyNotTable).WithParam(ParamKey, spec.Key)
+			}
+		}
+	}
+	if name, conflict := firstConflict(entries, func(name string) bool {
+		_, exists := kept[name]
+		return exists && !owned[name]
+	}); conflict {
+		return nil, newError(ReasonEntryConflict, nil).WithParam(ParamEntry, name)
+	}
+	for name := range owned {
+		delete(kept, name)
+	}
+
 	newline := detectNewline(existing)
 	var out bytes.Buffer
 	out.Write(before)
-	if len(entries) > 0 {
+	if len(entries) > 0 || len(kept) > 0 {
 		if !block.found {
 			writeAppendSeparator(&out, newline)
 		}
 		content, err := renderTOMLBlock(spec.Key, entries, newline)
 		if err != nil {
 			return nil, err
+		}
+		if len(kept) > 0 {
+			preserved, err := toml.Marshal(map[string]any{spec.Key: kept})
+			if err != nil {
+				return nil, newError(ReasonInvalidTargetTOML, err)
+			}
+			preserved = bytes.TrimPrefix(preserved, []byte("["+tomlKey(spec.Key)+"]\n"))
+			preserved = bytes.ReplaceAll(preserved, []byte(lineFeed), []byte(newline))
+			marker := []byte(managedEndMarker(spec.Key) + newline)
+			content = append(bytes.TrimSuffix(content, marker), preserved...)
+			content = append(content, marker...)
 		}
 		out.Write(content)
 	}

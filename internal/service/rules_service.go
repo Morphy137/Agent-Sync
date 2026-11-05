@@ -204,6 +204,18 @@ func (s *Service) GetRulesReport() (*rulesync.Report, error) {
 		return nil, err
 	}
 	report := s.engineLocked().Status(all)
+	set := s.recognizersLocked()
+	env := s.rulesEnvLocked()
+	repo, local, err := s.loadRuleFilesLocked()
+	if err != nil {
+		return nil, err
+	}
+	for i := range report.Rules {
+		if report.Rules[i].Rule.CategoryID == "" {
+			report.Rules[i].Rule.CategoryID = inferRuleCategory(report.Rules[i].Rule, env, set)
+		}
+		report.Rules[i].Rule.CategoryID = availableCategory(report.Rules[i].Rule.CategoryID, repo, local)
+	}
 	return &report, nil
 }
 
@@ -311,6 +323,18 @@ func (s *Service) saveRuleLocked(rule rules.Rule, scope string) (*SaveRuleResult
 	if scope == rules.ScopeRepo {
 		target, other = repoFile, localFile
 	}
+	if rule.CategoryID == "" {
+		if idx := findRuleIndex(target, rule.ID); idx >= 0 {
+			rule.CategoryID = target.Rules[idx].CategoryID
+		} else if idx := findRuleIndex(other, rule.ID); idx >= 0 {
+			rule.CategoryID = other.Rules[idx].CategoryID
+		}
+	}
+	rule.CategoryID = availableCategory(rule.CategoryID, repoFile, localFile)
+	if scope == rules.ScopeRepo && categoryExists(localFile.Categories, rule.CategoryID) &&
+		!categoryExists(repoFile.Categories, rule.CategoryID) && !categoryExists(builtinCategories, rule.CategoryID) {
+		return nil, apperr.New(apperr.InvalidRule).WithParam("reason", "local_category_in_repo_scope")
+	}
 	stored := rule
 	stored.Scope = ""
 	if idx := findRuleIndex(target, rule.ID); idx >= 0 {
@@ -318,17 +342,30 @@ func (s *Service) saveRuleLocked(rule rules.Rule, scope string) (*SaveRuleResult
 	} else {
 		target.Rules = append(target.Rules, stored)
 	}
+	otherChanged := false
 	if idx := findRuleIndex(other, rule.ID); idx >= 0 {
 		other.Rules = append(other.Rules[:idx], other.Rules[idx+1:]...)
+		otherChanged = true
 	}
 
-	if s.cfg.RootPath != "" {
+	if scope == rules.ScopeRepo {
 		if err := rules.SaveRepoRules(s.cfg.RootPath, repoFile); err != nil {
 			return nil, err
 		}
-	}
-	if err := rules.SaveLocalRules(localFile); err != nil {
-		return nil, err
+		if otherChanged {
+			if err := rules.SaveLocalRules(localFile); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		if err := rules.SaveLocalRules(localFile); err != nil {
+			return nil, err
+		}
+		if otherChanged {
+			if err := rules.SaveRepoRules(s.cfg.RootPath, repoFile); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	s.syncOrchestratorRulesLocked()

@@ -24,6 +24,10 @@ server** (tools such as `status`, `add_rule`, `sync`) when it is connected; othe
 - **Transform**: `json_merge:<key>` / `toml_merge:<key>` merges only AgentSync's MCP entries into an
   agent config file and keeps the rest.
 
+Rule reports may include a `categoryId`; categories organize presentation and do not change sync behavior.
+Older AgentSync clients can remove category fields when rewriting rules files, so use a current client
+when modifying categorized rules.
+
 ## Workflow
 
 1. **Check state** — `status` (CLI: `agentsync-cli status --json`). If no root is set, ask the user
@@ -103,3 +107,5 @@ claude mcp add --scope user agentsync -- C:\Tools\agentsync-cli.exe mcp
 
 Codex (`~/.codex/config.toml`): `[mcp_servers.agentsync]` with `command` and `args = ["mcp"]`.
 Gemini CLI (`~/.gemini/settings.json`): `mcpServers.agentsync` with the same command and args.
+
+Rules may share a destination folder when they manage different files. MCP merge rules may share a configuration file when their managed entry names are distinct; overlapping entries remain blocked.

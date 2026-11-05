@@ -5,6 +5,8 @@ import { appState } from "../src/lib/stores/appState.svelte";
 
 const mockApi = vi.hoisted(() => ({
   getRulesReport: vi.fn(),
+  getRuleCategories: vi.fn(),
+  migrateRuleCategories: vi.fn(),
   saveRule: vi.fn(),
   deleteRule: vi.fn(),
   getStatus: vi.fn(),
@@ -15,6 +17,7 @@ const mockApi = vi.hoisted(() => ({
   listSubscriptions: vi.fn(),
   getSubscriptionTree: vi.fn(),
   detectSource: vi.fn(),
+  suggestRuleCategory: vi.fn(),
   suggestPlacement: vi.fn(),
   listLocations: vi.fn(),
   importIntoRepo: vi.fn(),
@@ -110,6 +113,10 @@ describe("RulesView.svelte", () => {
     appState.config = { rootPath: "C:/repo" } as any;
     mockApi.getRulesReport.mockResolvedValue(sampleReport());
     mockApi.getStatus.mockResolvedValue({ rulesPending: 1 });
+    mockApi.getRuleCategories.mockResolvedValue([
+      { id: "skill", name: "", scope: "builtin", color: "purple" },
+      { id: "instructions", name: "", scope: "builtin", color: "green" },
+    ]);
   });
 
   afterEach(() => {
@@ -262,11 +269,16 @@ describe("RuleEditorModal.svelte", () => {
     setLocale("en");
     appState.config = { rootPath: "C:/repo" } as any;
     mockApi.getStatus.mockResolvedValue({ rulesPending: 1 });
+    mockApi.getRuleCategories.mockResolvedValue([
+      { id: "skill", name: "", scope: "builtin", color: "purple" },
+      { id: "instructions", name: "", scope: "builtin", color: "green" },
+    ]);
     mockApi.listLocations.mockResolvedValue(locations);
     mockApi.listRepoTree.mockResolvedValue([
       { path: "shared/AGENTS.md", isDir: false, size: 10, kind: "instructions" },
     ]);
     mockApi.listSubscriptions.mockResolvedValue([]);
+    mockApi.suggestRuleCategory.mockResolvedValue("instructions");
     mockApi.detectSource.mockResolvedValue({
       kind: "instructions",
       kindId: "instructions",
@@ -287,6 +299,37 @@ describe("RuleEditorModal.svelte", () => {
   afterEach(() => {
     appState.closeRuleEditor();
     cleanup();
+  });
+
+  it("defaults new rules to local while keeping shared selection and existing scope", async () => {
+    appState.openRuleEditor();
+    const view = render(RuleEditorModal);
+    expect(view.getByRole("radio", { name: "Local" }).getAttribute("aria-checked")).toBe("true");
+    await fireEvent.click(view.getByRole("radio", { name: "Shared (repository)" }));
+    expect(
+      view.getByRole("radio", { name: "Shared (repository)" }).getAttribute("aria-checked")
+    ).toBe("true");
+
+    appState.openRuleEditor({ rule: instructionsRule as any, scope: "repo" });
+    await waitFor(() =>
+      expect(
+        view.getByRole("radio", { name: "Shared (repository)" }).getAttribute("aria-checked")
+      ).toBe("true")
+    );
+  });
+
+  it("preserves the scope of an existing shared subscription rule", () => {
+    appState.openRuleEditor({
+      rule: {
+        ...instructionsRule,
+        source: { origin: "subscription", subscription: "s_1", path: "AGENTS.md" },
+      } as any,
+      scope: "repo",
+    });
+    const view = render(RuleEditorModal);
+    expect(
+      view.getByRole("radio", { name: "Shared (repository)" }).getAttribute("aria-checked")
+    ).toBe("true");
   });
 
   async function openWithPreset() {
@@ -313,6 +356,7 @@ describe("RuleEditorModal.svelte", () => {
     await waitFor(() => expect(mockApi.saveRule).toHaveBeenCalled());
     const [payload, scope] = mockApi.saveRule.mock.calls[0];
     expect(scope).toBe("repo");
+    expect(payload.categoryId).toBe("instructions");
     expect(payload.source).toMatchObject({ origin: "repo", path: "shared/AGENTS.md" });
     expect(payload.destinations[0]).toMatchObject({
       location: "claude",
@@ -322,6 +366,66 @@ describe("RuleEditorModal.svelte", () => {
     await waitFor(() => expect(appState.ruleEditor.open).toBe(false));
     await waitFor(() => expect(mockApi.getStatus).toHaveBeenCalled());
     await waitFor(() => expect(appState.statusPlan?.rulesPending).toBe(1));
+  });
+
+  it("keeps a manually selected category when detection finishes", async () => {
+    let finishDetection!: (value: any) => void;
+    mockApi.suggestRuleCategory.mockReturnValue(
+      new Promise((resolve) => {
+        finishDetection = resolve;
+      })
+    );
+    mockApi.saveRule.mockResolvedValue({ rule: instructionsRule, collisions: [] });
+    appState.openRuleEditor({
+      presetSource: { origin: "repo", path: "shared/AGENTS.md" } as any,
+      scope: "repo",
+    });
+    const view = render(RuleEditorModal);
+    await fireEvent.click(await view.findByRole("combobox", { name: /^Category/ }));
+    await fireEvent.click(await view.findByRole("option", { name: "Skills" }));
+    finishDetection("instructions");
+    await fireEvent.click(await view.findByRole("combobox", { name: /^Location/ }));
+    await fireEvent.click(await view.findByRole("option", { name: /claude/ }));
+    await view.findByText("Detected: Claude Code");
+    await fireEvent.click(view.getByText("Save rule"));
+    await waitFor(() => expect(mockApi.saveRule).toHaveBeenCalled());
+    expect(mockApi.saveRule.mock.calls[0][0].categoryId).toBe("skill");
+  });
+
+  it("keeps an explicit Uncategorized choice when detection finishes", async () => {
+    let finishDetection!: (value: any) => void;
+    mockApi.suggestRuleCategory.mockReturnValue(
+      new Promise((resolve) => {
+        finishDetection = resolve;
+      })
+    );
+    mockApi.saveRule.mockResolvedValue({ rule: instructionsRule, collisions: [] });
+    appState.openRuleEditor({
+      presetSource: { origin: "repo", path: "shared/AGENTS.md" } as any,
+      scope: "repo",
+    });
+    const view = render(RuleEditorModal);
+    await fireEvent.click(await view.findByRole("combobox", { name: /^Category/ }));
+    await fireEvent.click(await view.findByRole("option", { name: "Uncategorized" }));
+    finishDetection("instructions");
+    await fireEvent.click(await view.findByRole("combobox", { name: /^Location/ }));
+    await fireEvent.click(await view.findByRole("option", { name: /claude/ }));
+    await view.findByText("Detected: Claude Code");
+    await fireEvent.click(view.getByText("Save rule"));
+    await waitFor(() => expect(mockApi.saveRule).toHaveBeenCalled());
+    expect(mockApi.saveRule.mock.calls[0][0].categoryId).toBe("uncategorized");
+  });
+
+  it("does not suggest a deleted built-in category", async () => {
+    mockApi.getRuleCategories.mockResolvedValue([
+      { id: "skill", name: "", scope: "builtin", color: "purple" },
+    ]);
+    mockApi.suggestRuleCategory.mockResolvedValue("uncategorized");
+    mockApi.saveRule.mockResolvedValue({ rule: instructionsRule, collisions: [] });
+    const view = await openWithPreset();
+    await fireEvent.click(view.getByText("Save rule"));
+    await waitFor(() => expect(mockApi.saveRule).toHaveBeenCalled());
+    expect(mockApi.saveRule.mock.calls[0][0].categoryId).toBe("uncategorized");
   });
 
   it("warns about collisions after saving", async () => {

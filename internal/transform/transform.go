@@ -77,7 +77,7 @@ func Render(spec Spec, source []byte, existing []byte, prevManaged []string) (Re
 	case TypeJSONMerge:
 		output, err = renderJSON(spec, entries, existing, prevManaged)
 	case TypeTOMLMerge:
-		output, err = renderTOML(spec, entries, existing)
+		output, err = renderTOML(spec, entries, existing, prevManaged)
 	}
 	if err != nil {
 		return Result{}, err
@@ -162,6 +162,9 @@ func parseSourceEntries(spec Spec, source []byte) ([]sourceEntry, error) {
 		return nil, newError(ReasonInvalidSourceJSON, err)
 	}
 	keyValue, ok := top.get(spec.Key)
+	if !ok && spec.Type == TypeTOMLMerge && spec.Key == "mcp_servers" {
+		keyValue, ok = top.get("mcpServers")
+	}
 	if !ok {
 		return nil, newError(ReasonMissingKey, nil).WithParam(ParamKey, spec.Key)
 	}

@@ -127,6 +127,16 @@ describe("Compact rule list", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => cleanup());
 
+  it("uses the category surface without changing status information", () => {
+    const { getByRole } = renderRule();
+    expect(
+      getByRole("article", { name: "Agent instructions" }).classList.contains(
+        "category-rule-surface"
+      )
+    ).toBe(true);
+    expect(getByRole("img", { name: /changed on both sides/i })).toBeDefined();
+  });
+
   it("opens the source in the file editor", async () => {
     const { getByRole, onsource } = renderRule();
     await fireEvent.click(getByRole("button", { name: "AGENTS.md" }));

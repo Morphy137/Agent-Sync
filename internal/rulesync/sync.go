@@ -249,7 +249,7 @@ func (e *Engine) applyTransformDest(de *destEval, result *ApplyResult) error {
 		switch fe.Status {
 		case StatusNewInSource, StatusSourceChanged, StatusTargetMissing:
 		case StatusInSync:
-			if fe.baseline != "" {
+			if fe.baseline != "" && len(de.protectedEntries) == 0 {
 				continue
 			}
 		case StatusIgnored:
@@ -349,6 +349,15 @@ func (e *Engine) renderToTarget(de *destEval, rel, srcAbs, tgtAbs string, takeov
 		return false, apperr.Wrap(apperr.WriteFailed, err).WithParam("path", tgtAbs)
 	}
 	prev := e.managedEntries(de.rule.ID, de.dest.ID)
+	if len(de.protectedEntries) > 0 {
+		filtered := make([]string, 0, len(prev))
+		for _, name := range prev {
+			if !containsString(de.protectedEntries, name) {
+				filtered = append(filtered, name)
+			}
+		}
+		prev = filtered
+	}
 	out, managed, err := e.render(spec, src, existing, prev, takeover)
 	if err != nil {
 		return false, err

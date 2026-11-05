@@ -413,6 +413,28 @@ export namespace recognize {
 
 export namespace rules {
 	
+	export class Category {
+	    id: string;
+	    name: string;
+	    color: string;
+	    icon?: string;
+	    scope?: string;
+	    deleted?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Category(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.color = source["color"];
+	        this.icon = source["icon"];
+	        this.scope = source["scope"];
+	        this.deleted = source["deleted"];
+	    }
+	}
 	export class DestRef {
 	    ruleId: string;
 	    destId: string;
@@ -537,6 +559,7 @@ export namespace rules {
 	    }
 	}
 	export class Rule {
+	    categoryId?: string;
 	    id: string;
 	    name: string;
 	    enabled: boolean;
@@ -552,6 +575,7 @@ export namespace rules {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.categoryId = source["categoryId"];
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.enabled = source["enabled"];

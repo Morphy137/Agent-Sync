@@ -13,6 +13,7 @@
   import Switch from "../Switch.svelte";
   import SourcePicker from "./SourcePicker.svelte";
   import DestinationEditor from "./DestinationEditor.svelte";
+  import { categoryLabel } from "./categories";
   import {
     AUTO_KIND,
     KINDS,
@@ -34,10 +35,13 @@
 
   const hasRoot = $derived(Boolean(appState.config?.rootPath));
 
-  let form = $state<RuleForm>(blankForm("repo"));
+  let form = $state<RuleForm>(blankForm("local"));
   let errors = $state<RuleFormErrors>({ byDestination: {} });
   let showErrors = $state(false);
   let locations = $state<LocationOption[]>([]);
+  let categories = $state<rules.Category[]>([]);
+  let categoryTouched = false;
+  let detectionVersion = 0;
   /** Pseudo kind shown for multi-file selections. */
   const SELECTION_KIND = "files";
   let detectedKind = $state("");
@@ -50,12 +54,29 @@
     { value: "repo", label: t("rules.scope.repo") },
     { value: "local", label: t("rules.scope.local") },
   ]);
+  const categoryOptions = $derived([
+    { value: "uncategorized", label: t("rules.categories.uncategorized") },
+    ...categories
+      .filter(
+        (category) =>
+          category.id !== "uncategorized" &&
+          (form.scope === "local" ||
+            category.scope !== "local" ||
+            ["skill", "mcp", "instructions"].includes(category.id))
+      )
+      .map((category) => ({ value: category.id, label: categoryLabel(category) })),
+    ...(!categories.some((category) => category.id === form.categoryId) &&
+    form.categoryId !== "uncategorized"
+      ? [{ value: form.categoryId, label: form.categoryId }]
+      : []),
+  ]);
   const kindOptions = $derived(KINDS.map((k) => ({ value: k, label: t(`rules.kind.${k}`) })));
 
   function blankForm(scope: RuleScope): RuleForm {
     return {
       id: "",
       name: "",
+      categoryId: "uncategorized",
       enabled: true,
       scope,
       source: null,
@@ -70,6 +91,7 @@
     return {
       id: rule.id ?? "",
       name: rule.name ?? "",
+      categoryId: rule.categoryId || "uncategorized",
       enabled: rule.enabled ?? true,
       scope,
       source: rule.source ? rules.Source.createFrom(rule.source) : null,
@@ -95,6 +117,10 @@
       errors = { byDestination: {} };
       showErrors = false;
       detectedKind = "";
+      categoryTouched = Boolean(editor.rule);
+      detectionVersion++;
+      categories = [];
+      void loadCategories();
       void loadLocations();
       if (form.source) void detectSource(form.source, !editor.rule);
     });
@@ -105,6 +131,14 @@
     if (showErrors) errors = validateRuleForm(form, hasRoot);
   });
 
+  async function loadCategories() {
+    try {
+      categories = (await api.getRuleCategories()) ?? [];
+    } catch (err) {
+      appState.showError(err);
+    }
+  }
+
   async function loadLocations() {
     try {
       locations = toLocationOptions(await api.listLocations());
@@ -113,7 +147,19 @@
     }
   }
 
+  async function suggestCategory(source: rules.Source, version: number) {
+    try {
+      const suggestion = await api.suggestRuleCategory(source, form.kind);
+      if (version === detectionVersion && !categoryTouched)
+        form.categoryId = suggestion || "uncategorized";
+    } catch (err) {
+      if (version === detectionVersion) appState.showError(err);
+    }
+  }
+
   async function detectSource(source: rules.Source, isNewSource: boolean) {
+    const version = ++detectionVersion;
+    if (!categoryTouched) void suggestCategory(source, version);
     if (source.include?.length) {
       // A selection of files always lands in a folder; there is nothing more to detect.
       detectedKind = SELECTION_KIND;
@@ -128,12 +174,14 @@
     }
     try {
       const info = await api.detectSource(source);
+      if (version !== detectionVersion) return;
       detectedKind = info.kind;
       form.sourceIsDir = info.isDir;
       if (isNewSource && !form.name.trim()) {
         form.name = info.baseName || info.name || baseName(source.path);
       }
     } catch (err) {
+      if (version !== detectionVersion) return;
       detectedKind = "";
       appState.showError(err);
     }
@@ -246,13 +294,33 @@
         options={scopeOptions}
         value={form.scope}
         size="sm"
-        onchange={(scope) => (form.scope = scope as RuleScope)}
+        onchange={(scope) => {
+          form.scope = scope as RuleScope;
+          if (
+            scope === "repo" &&
+            categories.some(
+              (category) =>
+                category.id === form.categoryId &&
+                category.scope === "local" &&
+                !["skill", "mcp", "instructions"].includes(category.id)
+            )
+          )
+            form.categoryId = "uncategorized";
+        }}
       />
       <p class="hint">
         {form.scope === "repo" ? t("rules.scope.repo_hint") : t("rules.scope.local_hint")}
       </p>
       {#if errors.scope}<p class="error">{t(errors.scope)}</p>{/if}
     </section>
+
+    <Select
+      label={t("rules.editor.category_label")}
+      value={form.categoryId}
+      options={categoryOptions}
+      onchoose={() => (categoryTouched = true)}
+      onchange={(categoryId) => (form.categoryId = categoryId)}
+    />
 
     <section class="section">
       <h3 class="section-title">{t("rules.editor.source_title")}</h3>
@@ -273,7 +341,10 @@
               label={t("rules.editor.kind_label")}
               value={form.kind}
               options={kindOptions}
-              onchange={(kind) => (form.kind = kind)}
+              onchange={(kind) => {
+                form.kind = kind;
+                if (form.source && !categoryTouched) void detectSource(form.source, false);
+              }}
             />
           </div>
           <span

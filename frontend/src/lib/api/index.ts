@@ -98,6 +98,12 @@ export const api = {
   saveRule: (rule: rules.Rule, scope: RuleScope): Promise<service.SaveRuleResult> =>
     AppBindings.SaveRule(rule, scope),
   deleteRule: (id: string): Promise<void> => AppBindings.DeleteRule(id),
+  getRuleCategories: (): Promise<rules.Category[]> => AppBindings.GetRuleCategories(),
+  saveRuleCategory: (category: rules.Category, scope: RuleScope): Promise<rules.Category> =>
+    AppBindings.SaveRuleCategory(category, scope),
+  deleteRuleCategory: (id: string, scope: RuleScope): Promise<void> =>
+    AppBindings.DeleteRuleCategory(id, scope),
+  migrateRuleCategories: (): Promise<void> => AppBindings.MigrateRuleCategories(),
   syncRules: (): Promise<rulesync.ApplyResult> => AppBindings.SyncRules(),
   resolveRuleFile: (resolution: rulesync.Resolution): Promise<void> =>
     AppBindings.ResolveRuleFile(resolution),
@@ -122,6 +128,8 @@ export const api = {
     AppBindings.ImportIntoRepo(sourcePath, repoRelDir),
   detectSource: (source: rules.Source): Promise<recognize.SourceInfo> =>
     AppBindings.DetectSource(source),
+  suggestRuleCategory: (source: rules.Source, kind: string): Promise<string> =>
+    AppBindings.SuggestRuleCategory(source, kind),
   suggestPlacement: (source: rules.Source, alias: string): Promise<recognize.Suggestion> =>
     AppBindings.SuggestPlacement(source, alias),
   getRecognizersPath: (): Promise<string> => AppBindings.GetRecognizersPath(),

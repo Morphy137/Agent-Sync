@@ -188,6 +188,8 @@ describe("rules list viewer", () => {
   beforeEach(() => {
     setLocale("en");
     appState.config = { rootPath: "C:/repo" } as never;
+    vi.spyOn(api, "migrateRuleCategories").mockResolvedValue(undefined);
+    vi.spyOn(api, "getRuleCategories").mockResolvedValue([]);
     vi.spyOn(api, "getStatus").mockResolvedValue({ rulesPending: 0 } as never);
     vi.spyOn(api, "listRuleSourceFiles").mockResolvedValue([
       { path: "a/SKILL.md", name: "SKILL.md", absolutePath: "C:/s/a/SKILL.md" },

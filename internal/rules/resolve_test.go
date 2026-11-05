@@ -245,20 +245,23 @@ func TestDetectCollisions(t *testing.T) {
 		}
 	})
 
-	t.Run("folder overlap", func(t *testing.T) {
+	t.Run("shared folders and file conflicts", func(t *testing.T) {
 		root := filepath.Join(f.loc, "skills")
-		inner := filepath.Join(root, "extra.md")
 		got := rules.DetectCollisions(f.env, []rules.ResolvedDestination{
-			folder("r1", "d1", root, "a.md"),
-			file("r2", "d1", inner),
-			folder("r3", "d1", filepath.Join(root, "nested")),
+			folder("r1", "d1", root, "a/SKILL.md"),
+			folder("r2", "d1", root, "b/SKILL.md"),
 		}, nil)
-		want := []rules.Collision{
-			{Type: rules.CollisionFolderOverlap, Path: inner, Refs: []rules.DestRef{ref("r1", "d1"), ref("r2", "d1")}},
-			{Type: rules.CollisionFolderOverlap, Path: filepath.Join(root, "nested"), Refs: []rules.DestRef{ref("r1", "d1"), ref("r3", "d1")}},
+		if len(got) != 0 {
+			t.Fatalf("distinct files in a shared folder must not collide: %+v", got)
 		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("expected %+v, got %+v", want, got)
+		got = rules.DetectCollisions(f.env, []rules.ResolvedDestination{
+			folder("r1", "d1", root, "a/SKILL.md"),
+			file("r2", "d1", filepath.Join(root, "a", "SKILL.md")),
+			file("r3", "d1", filepath.Join(root, "b")),
+			folder("r4", "d1", filepath.Join(root, "b"), "SKILL.md"),
+		}, nil)
+		if len(got) != 2 {
+			t.Fatalf("overlapping files and file/folder paths must collide: %+v", got)
 		}
 	})
 
@@ -271,7 +274,6 @@ func TestDetectCollisions(t *testing.T) {
 		want := []rules.Collision{
 			{Type: rules.CollisionCycle, Path: srcDir, Refs: []rules.DestRef{ref("r2", "d1")}},
 			{Type: rules.CollisionCycle, Path: filepath.Join(srcDir, "a.md"), Refs: []rules.DestRef{ref("r1", "d1")}},
-			{Type: rules.CollisionFolderOverlap, Path: filepath.Join(srcDir, "a.md"), Refs: []rules.DestRef{ref("r1", "d1"), ref("r2", "d1")}},
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("expected %+v, got %+v", want, got)
