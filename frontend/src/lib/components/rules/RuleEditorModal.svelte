@@ -35,7 +35,7 @@
 
   const hasRoot = $derived(Boolean(appState.config?.rootPath));
 
-  let form = $state<RuleForm>(blankForm("repo"));
+  let form = $state<RuleForm>(blankForm("local"));
   let errors = $state<RuleFormErrors>({ byDestination: {} });
   let showErrors = $state(false);
   let locations = $state<LocationOption[]>([]);

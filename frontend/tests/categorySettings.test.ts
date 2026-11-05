@@ -24,6 +24,7 @@ describe("category settings", () => {
     mockApi.getRuleCategories.mockResolvedValue([
       { id: "skill", name: "", scope: "builtin", color: "purple" },
       { id: "custom", name: "Work", scope: "local", color: "blue" },
+      { id: "shared", name: "Shared work", scope: "repo", color: "blue" },
     ]);
   });
   afterEach(cleanup);
@@ -62,16 +63,51 @@ describe("category settings", () => {
       id: "skill",
       name: "My skills",
     });
-    expect(mockApi.saveRuleCategory.mock.calls[0][1]).toBe("repo");
+    expect(mockApi.saveRuleCategory.mock.calls[0][1]).toBe("local");
 
     await fireEvent.click(await view.findByRole("button", { name: "Delete category: Skills" }));
     expect(view.getByText("Rules in Skills will move to Uncategorized.")).toBeDefined();
     await fireEvent.click(view.getByRole("button", { name: "Delete category", exact: true }));
-    await waitFor(() => expect(mockApi.deleteRuleCategory).toHaveBeenCalledWith("skill", "repo"));
+    await waitFor(() => expect(mockApi.deleteRuleCategory).toHaveBeenCalledWith("skill", "local"));
 
     await fireEvent.click(await view.findByRole("button", { name: "Delete category: Work" }));
     expect(view.getByText("Rules in Work will move to Uncategorized.")).toBeDefined();
     await fireEvent.click(view.getByRole("button", { name: "Delete category", exact: true }));
     await waitFor(() => expect(mockApi.deleteRuleCategory).toHaveBeenCalledWith("custom", "local"));
+
+    await fireEvent.click(
+      await view.findByRole("button", { name: "Delete category: Shared work" })
+    );
+    await fireEvent.click(view.getByRole("button", { name: "Delete category", exact: true }));
+    await waitFor(() => expect(mockApi.deleteRuleCategory).toHaveBeenCalledWith("shared", "repo"));
+  });
+
+  it("defaults new categories to local and allows choosing shared", async () => {
+    const view = render(CategorySettings, { open: true });
+    await fireEvent.click(view.getByRole("button", { name: "Add category" }));
+    await fireEvent.input(view.getByLabelText("Name"), { target: { value: "Personal" } });
+    await fireEvent.click(view.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(mockApi.saveRuleCategory).toHaveBeenCalledWith(expect.anything(), "local")
+    );
+
+    await fireEvent.click(view.getByRole("button", { name: "Add category" }));
+    await fireEvent.input(view.getByLabelText("Name"), { target: { value: "Team" } });
+    await fireEvent.click(view.getByRole("combobox", { name: "Availability" }));
+    await fireEvent.click(view.getByRole("option", { name: "Shared (repository)" }));
+    await fireEvent.click(view.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(mockApi.saveRuleCategory).toHaveBeenLastCalledWith(expect.anything(), "repo")
+    );
+  });
+
+  it("preserves the scope of an existing shared category when edited", async () => {
+    const view = render(CategorySettings, { open: true });
+    await fireEvent.click(await view.findByRole("button", { name: "Edit category: Shared work" }));
+    await fireEvent.input(view.getByLabelText("Name"), { target: { value: "Team work" } });
+    await fireEvent.click(view.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(mockApi.saveRuleCategory).toHaveBeenCalledWith(expect.anything(), "repo")
+    );
   });
 });

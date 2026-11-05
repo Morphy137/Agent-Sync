@@ -8,7 +8,11 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 - Organize sync rules into colored, collapsible categories, with automatic suggestions for existing and new rules.
 - Choose category icons and colors visually, preview changes, and drag complete categories and rules to reorder them.
 
+### Changed
+- New rules and categories are saved on this PC by default; you can still share them through the repository.
+
 ### Fixed
+- Local rule and category changes no longer modify the shared rules file.
 - Dragged rules keep their category color around the handle.
 - Sync separate MCP servers and skills to the same destination without false conflicts.
 

@@ -55,6 +55,8 @@ to its own folder in the **Locations** view (stored in `config.json`):
 | `repo` (shared) | `<repo>/agentsync.rules.json` — committed and synced like any other repo file | Rules you want on every PC |
 | `local` (this PC only) | `<configDir>/rules.local.json` | Local sources (absolute paths), subscription rules, machine-specific tweaks |
 
+New rules and categories default to local; choose the repository scope explicitly to share them. Subscription suggestions are always saved locally.
+
 Both files share the same format:
 
 ```json
@@ -103,12 +105,15 @@ You normally edit rules from the app; the files are plain JSON (2-space indent) 
 
 Rules can be grouped into named categories with theme-aware colors. The app proposes MCP,
 Skills, or Instructions from recognized content and lets you change the choice. When opening the
-rules view, existing rules without a category are classified once; unavailable sources are retried
-later. Other content is assigned `uncategorized`. Manual assignments are never replaced by detection.
+rules view, existing local rules without a category are classified once; unavailable sources are retried
+later. Shared rules without a category are classified for display without modifying the repository;
+their category can be saved by explicitly choosing it when editing the rule. Other content is assigned `uncategorized`.
+Manual assignments are never replaced by detection.
 
 Repository rules and categories are stored in `agentsync.rules.json`; local and subscription
 rules and local categories use `rules.local.json`. A repository rule cannot use a local-only
-category. Manage categories in Settings; deleting one moves its rules to `uncategorized`.
+category. Manage categories in Settings; deleting a local category moves matching local rules to
+`uncategorized` without rewriting shared rules. Deleting a shared category also updates its shared rules.
 Collapsed sections and the manual order of categories and rules are local display preferences; searches reveal matching rules.
 
 Category definitions use `categories` with `id`, `name`, and `color`; each rule stores

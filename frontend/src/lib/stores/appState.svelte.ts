@@ -46,7 +46,7 @@ class AppState {
   ruleEditor = $state<RuleEditorState>({
     open: false,
     rule: null,
-    scope: "repo",
+    scope: "local",
     presetSource: null,
   });
   /** Incremented whenever rules, locations or subscriptions change; views reload when it changes. */
@@ -152,7 +152,7 @@ class AppState {
     this.ruleEditor = {
       open: true,
       rule: options.rule ?? null,
-      scope: options.scope ?? (this.config?.rootPath ? "repo" : "local"),
+      scope: options.scope ?? "local",
       presetSource: options.presetSource ?? null,
     };
   }

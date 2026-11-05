@@ -236,17 +236,17 @@ func (s *Service) DeleteRuleCategory(id, scope string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	builtin := categoryExists(builtinCategories, id)
-	if !builtin && scope != rules.ScopeRepo && scope != rules.ScopeLocal {
+	if builtin && scope == "builtin" {
+		scope = rules.ScopeLocal
+	}
+	if scope != rules.ScopeRepo && scope != rules.ScopeLocal {
 		return fmt.Errorf("invalid category scope")
+	}
+	if scope == rules.ScopeRepo && s.cfg.RootPath == "" {
+		return fmt.Errorf("repository root required")
 	}
 	if id == uncategorized {
 		return fmt.Errorf("uncategorized cannot be deleted")
-	}
-	if builtin {
-		scope = rules.ScopeLocal
-		if s.cfg.RootPath != "" {
-			scope = rules.ScopeRepo
-		}
 	}
 	repo, local, err := s.loadRuleFilesLocked()
 	if err != nil {
@@ -285,10 +285,12 @@ func (s *Service) DeleteRuleCategory(id, scope string) error {
 			localChanged = true
 		}
 	}
-	for i := range repo.Rules {
-		if repo.Rules[i].CategoryID == id {
-			repo.Rules[i].CategoryID = uncategorized
-			repoChanged = true
+	if scope == rules.ScopeRepo {
+		for i := range repo.Rules {
+			if repo.Rules[i].CategoryID == id {
+				repo.Rules[i].CategoryID = uncategorized
+				repoChanged = true
+			}
 		}
 	}
 	if scope == rules.ScopeLocal || localChanged {
@@ -305,7 +307,7 @@ func (s *Service) DeleteRuleCategory(id, scope string) error {
 	return nil
 }
 
-// MigrateRuleCategories assigns categories once, leaving unavailable sources for a future retry.
+// MigrateRuleCategories assigns local categories once, leaving unavailable sources for a future retry.
 func (s *Service) MigrateRuleCategories() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -314,37 +316,23 @@ func (s *Service) MigrateRuleCategories() error {
 		return err
 	}
 	env, set := s.rulesEnvLocked(), s.recognizersLocked()
-	changed := false
-	for _, pair := range []struct {
-		file  *rules.File
-		scope string
-	}{{repo, rules.ScopeRepo}, {local, rules.ScopeLocal}} {
-		assignments := make(map[int]rules.CategoryAssignment)
-		for i := range pair.file.Rules {
-			rule := &pair.file.Rules[i]
-			if rule.CategoryID != "" {
-				continue
-			}
-			if category := inferRuleCategory(*rule, env, set); category != "" {
-				assignments[i] = rules.CategoryAssignment{RuleID: rule.ID, CategoryID: availableCategory(category, repo, local)}
-			}
-		}
-		if len(assignments) == 0 {
+	assignments := make(map[int]rules.CategoryAssignment)
+	for i := range local.Rules {
+		rule := &local.Rules[i]
+		if rule.CategoryID != "" {
 			continue
 		}
-		path := rules.LocalRulesPath()
-		if pair.scope == rules.ScopeRepo {
-			path = filepath.Join(s.cfg.RootPath, rules.RulesFileName)
+		if category := inferRuleCategory(*rule, env, set); category != "" {
+			assignments[i] = rules.CategoryAssignment{RuleID: rule.ID, CategoryID: availableCategory(category, repo, local)}
 		}
-		err = rules.SaveCategoryAssignments(path, assignments)
-		if err != nil {
-			return err
-		}
-		changed = true
 	}
-	if changed {
-		s.emitRulesChangedLocked()
+	if len(assignments) == 0 {
+		return nil
 	}
+	if err := rules.SaveCategoryAssignments(rules.LocalRulesPath(), assignments); err != nil {
+		return err
+	}
+	s.emitRulesChangedLocked()
 	return nil
 }
 

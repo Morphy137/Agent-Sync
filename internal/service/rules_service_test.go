@@ -423,3 +423,70 @@ func TestSubscriptionFeedsRuleAndUpdates(t *testing.T) {
 		t.Errorf("subscription rules should be removed, %d rules remain", len(report.Rules))
 	}
 }
+
+func TestLocalRuleChangesDoNotWriteRepoRules(t *testing.T) {
+	f := newRulesFixture(t)
+	path := filepath.Join(f.root, rules.RulesFileName)
+	local, err := f.svc.SaveRule(instructionsRule(), rules.ScopeLocal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("local save created repository rules: %v", err)
+	}
+	original := `{"version":1,"extension":{"keep":true},"rules":[]}`
+	writeFile(t, path, original)
+	local.Rule.Name = "Updated"
+	if _, err := f.svc.SaveRule(local.Rule, rules.ScopeLocal); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.MigrateRuleCategories(); err != nil {
+		t.Fatal(err)
+	}
+	localFile, err := rules.LoadLocalRules()
+	if err != nil || len(localFile.Rules) != 1 || localFile.Rules[0].CategoryID != "instructions" {
+		t.Fatalf("local category migration: %+v, %v", localFile, err)
+	}
+	if err := f.svc.DeleteRule(local.Rule.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, path); got != original {
+		t.Fatalf("local operations changed repository rules: %s", got)
+	}
+}
+
+func TestMovingRuleBetweenScopesUpdatesBothFiles(t *testing.T) {
+	f := newRulesFixture(t)
+	saved, err := f.svc.SaveRule(instructionsRule(), rules.ScopeRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SaveRule(saved.Rule, rules.ScopeLocal); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := rules.LoadRepoRules(f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	local, err := rules.LoadLocalRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.Rules) != 0 || len(local.Rules) != 1 || local.Rules[0].ID != saved.Rule.ID {
+		t.Fatalf("repo-to-local move failed: repo=%+v local=%+v", repo.Rules, local.Rules)
+	}
+	if _, err := f.svc.SaveRule(saved.Rule, rules.ScopeRepo); err != nil {
+		t.Fatal(err)
+	}
+	repo, err = rules.LoadRepoRules(f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	local, err = rules.LoadLocalRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.Rules) != 1 || repo.Rules[0].ID != saved.Rule.ID || len(local.Rules) != 0 {
+		t.Fatalf("local-to-repo move failed: repo=%+v local=%+v", repo.Rules, local.Rules)
+	}
+}
