@@ -4,6 +4,8 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-11-05
+
 ### Added
 - Organize sync rules into colored, collapsible categories, with automatic suggestions for existing and new rules.
 - Choose category icons and colors visually, preview changes, and drag complete categories and rules to reorder them.
