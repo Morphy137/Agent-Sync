@@ -213,9 +213,8 @@ func TestApplySuggestionsCreatesPendingLocalRulesWithoutWritingFiles(t *testing.
 			t.Fatalf("unexpected rule: %+v", r)
 		}
 	}
-	repoFile, _ := rules.LoadRepoRules(f.root)
-	if len(repoFile.Rules) != 0 {
-		t.Fatalf("suggestions must never create repo-scope rules: %+v", repoFile.Rules)
+	if _, err := os.Stat(filepath.Join(f.root, rules.RulesFileName)); !os.IsNotExist(err) {
+		t.Fatalf("applying suggestions wrote repository rules: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(f.claudeDir, "CLAUDE.md")); !os.IsNotExist(err) {
 		t.Fatalf("applying wrote a file before Sync: %v", err)

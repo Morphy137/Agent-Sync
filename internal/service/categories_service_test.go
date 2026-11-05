@@ -38,8 +38,8 @@ func TestCategoryMigrationAndDeletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, rule := range repo.Rules {
-		if rule.ID == saved.Rule.ID && rule.CategoryID != "skill" {
-			t.Fatalf("skills folder category: %q", rule.CategoryID)
+		if rule.ID == saved.Rule.ID && rule.CategoryID != "" {
+			t.Fatalf("shared rule was migrated: %q", rule.CategoryID)
 		}
 		if rule.ID == missingSaved.Rule.ID && rule.CategoryID != "" {
 			t.Fatalf("missing source category: %q", rule.CategoryID)
@@ -134,15 +134,16 @@ func TestCategoryOverridesAndReadDoesNotMigrate(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, err := rules.LoadRepoRules(f.root)
-	if err != nil || file.Rules[0].CategoryID != "instructions" {
-		t.Fatalf("assignment lost: %+v, %v", file, err)
+	if err != nil || file.Rules[0].CategoryID != "" {
+		t.Fatalf("shared rule was unexpectedly changed: %+v, %v", file, err)
 	}
 }
 
 func TestCategoryMigrationPreservesExtensionsAndRejectsLocalCategoryInRepo(t *testing.T) {
 	f := newRulesFixture(t)
 	path := filepath.Join(f.root, rules.RulesFileName)
-	writeFile(t, path, `{"version":1,"custom":{"nested":[1,2]},"rules":[{"id":"r_test","name":"Test","enabled":true,"source":{"origin":"repo","path":"shared/AGENTS.md","customSource":true},"kind":"auto","destinations":[],"customRule":{"x":1}}]}`)
+	original := `{"version":1,"custom":{"nested":[1,2]},"rules":[{"id":"r_test","name":"Test","enabled":true,"source":{"origin":"repo","path":"shared/AGENTS.md","customSource":true},"kind":"auto","destinations":[],"customRule":{"x":1}}]}`
+	writeFile(t, path, original)
 	if err := f.svc.MigrateRuleCategories(); err != nil {
 		t.Fatal(err)
 	}
@@ -150,12 +151,15 @@ func TestCategoryMigrationPreservesExtensionsAndRejectsLocalCategoryInRepo(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
+	if string(data) != original {
+		t.Fatalf("migration changed shared rules: %s", data)
+	}
 	var document map[string]any
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatal(err)
 	}
 	item := document["rules"].([]any)[0].(map[string]any)
-	if document["custom"] == nil || item["customRule"] == nil || item["source"].(map[string]any)["customSource"] != true || item["categoryId"] != "instructions" {
+	if document["custom"] == nil || item["customRule"] == nil || item["source"].(map[string]any)["customSource"] != true || item["categoryId"] != nil {
 		t.Fatalf("extensions lost: %s", data)
 	}
 	category, err := f.svc.SaveRuleCategory(rules.Category{Name: "Local", Color: "blue"}, rules.ScopeLocal)
@@ -184,7 +188,7 @@ func TestDeleteBuiltinCategoryStaysDeleted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.svc.DeleteRuleCategory("instructions", "builtin"); err != nil {
+	if err := f.svc.DeleteRuleCategory("instructions", rules.ScopeRepo); err != nil {
 		t.Fatal(err)
 	}
 	categories, err := f.svc.GetRuleCategories()
@@ -216,8 +220,11 @@ func TestDeleteBuiltinCategoryStaysDeleted(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range repo.Rules {
-		if r.CategoryID != "uncategorized" {
+		if r.ID == saved.Rule.ID && r.CategoryID != "uncategorized" {
 			t.Fatalf("rule %s reclassified: %q", r.ID, r.CategoryID)
+		}
+		if r.ID == fresh.ID && r.CategoryID != "" {
+			t.Fatalf("shared rule was migrated: %q", r.CategoryID)
 		}
 	}
 	rule = saved.Rule
@@ -236,7 +243,7 @@ func TestSuggestRuleCategoryUsesMigrationDetection(t *testing.T) {
 	if err != nil || category != "skill" {
 		t.Fatalf("skills container: %q, %v", category, err)
 	}
-	if err := f.svc.DeleteRuleCategory("skill", "builtin"); err != nil {
+	if err := f.svc.DeleteRuleCategory("skill", rules.ScopeRepo); err != nil {
 		t.Fatal(err)
 	}
 	category, err = f.svc.SuggestRuleCategory(source, rules.KindAuto)
@@ -317,7 +324,7 @@ func TestCategoryIconsPersistAndDefault(t *testing.T) {
 	if _, err := f.svc.SaveRuleCategory(rules.Category{ID: "skill", Color: "purple", Icon: "star"}, rules.ScopeRepo); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.svc.DeleteRuleCategory("skill", "builtin"); err != nil {
+	if err := f.svc.DeleteRuleCategory("skill", rules.ScopeRepo); err != nil {
 		t.Fatal(err)
 	}
 	repo, err := rules.LoadRepoRules(f.root)
@@ -349,5 +356,35 @@ func TestCategoryIconsPersistAndDefault(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("legacy category missing")
+	}
+}
+
+func TestLocalCategoryChangesLeaveSharedRulesUntouched(t *testing.T) {
+	f := newRulesFixture(t)
+	rule := instructionsRule()
+	rule.CategoryID = "instructions"
+	if _, err := f.svc.SaveRule(rule, rules.ScopeRepo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SaveRule(rule, rules.ScopeLocal); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(f.root, rules.RulesFileName)
+	before := readFile(t, path)
+	if _, err := f.svc.SaveRuleCategory(rules.Category{ID: "instructions", Color: "rose"}, rules.ScopeLocal); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.DeleteRuleCategory("instructions", rules.ScopeLocal); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.MigrateRuleCategories(); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, path); got != before {
+		t.Fatalf("local category operations changed repository rules: %s", got)
+	}
+	local, err := rules.LoadLocalRules()
+	if err != nil || len(local.Rules) != 1 || local.Rules[0].CategoryID != "uncategorized" {
+		t.Fatalf("local rule retained deleted category: %+v, %v", local, err)
 	}
 }

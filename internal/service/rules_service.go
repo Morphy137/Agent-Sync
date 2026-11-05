@@ -342,17 +342,30 @@ func (s *Service) saveRuleLocked(rule rules.Rule, scope string) (*SaveRuleResult
 	} else {
 		target.Rules = append(target.Rules, stored)
 	}
+	otherChanged := false
 	if idx := findRuleIndex(other, rule.ID); idx >= 0 {
 		other.Rules = append(other.Rules[:idx], other.Rules[idx+1:]...)
+		otherChanged = true
 	}
 
-	if s.cfg.RootPath != "" {
+	if scope == rules.ScopeRepo {
 		if err := rules.SaveRepoRules(s.cfg.RootPath, repoFile); err != nil {
 			return nil, err
 		}
-	}
-	if err := rules.SaveLocalRules(localFile); err != nil {
-		return nil, err
+		if otherChanged {
+			if err := rules.SaveLocalRules(localFile); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		if err := rules.SaveLocalRules(localFile); err != nil {
+			return nil, err
+		}
+		if otherChanged {
+			if err := rules.SaveRepoRules(s.cfg.RootPath, repoFile); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	s.syncOrchestratorRulesLocked()

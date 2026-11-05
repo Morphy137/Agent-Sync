@@ -301,6 +301,37 @@ describe("RuleEditorModal.svelte", () => {
     cleanup();
   });
 
+  it("defaults new rules to local while keeping shared selection and existing scope", async () => {
+    appState.openRuleEditor();
+    const view = render(RuleEditorModal);
+    expect(view.getByRole("radio", { name: "Local" }).getAttribute("aria-checked")).toBe("true");
+    await fireEvent.click(view.getByRole("radio", { name: "Shared (repository)" }));
+    expect(
+      view.getByRole("radio", { name: "Shared (repository)" }).getAttribute("aria-checked")
+    ).toBe("true");
+
+    appState.openRuleEditor({ rule: instructionsRule as any, scope: "repo" });
+    await waitFor(() =>
+      expect(
+        view.getByRole("radio", { name: "Shared (repository)" }).getAttribute("aria-checked")
+      ).toBe("true")
+    );
+  });
+
+  it("preserves the scope of an existing shared subscription rule", () => {
+    appState.openRuleEditor({
+      rule: {
+        ...instructionsRule,
+        source: { origin: "subscription", subscription: "s_1", path: "AGENTS.md" },
+      } as any,
+      scope: "repo",
+    });
+    const view = render(RuleEditorModal);
+    expect(
+      view.getByRole("radio", { name: "Shared (repository)" }).getAttribute("aria-checked")
+    ).toBe("true");
+  });
+
   async function openWithPreset() {
     appState.openRuleEditor({
       presetSource: { origin: "repo", path: "shared/AGENTS.md" } as any,

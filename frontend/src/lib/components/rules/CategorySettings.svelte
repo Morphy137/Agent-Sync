@@ -33,12 +33,7 @@
     editing = rules.Category.createFrom({
       ...category,
       icon: categoryIconId(category.icon, category.id),
-      scope:
-        category.scope === "builtin"
-          ? appState.config?.rootPath
-            ? "repo"
-            : "local"
-          : category.scope,
+      scope: category.scope === "builtin" ? "local" : category.scope,
     });
   }
 
@@ -60,7 +55,7 @@
       name: "",
       color: "blue",
       icon: "folder",
-      scope: appState.config?.rootPath ? "repo" : "local",
+      scope: "local",
     });
   }
 
@@ -88,11 +83,7 @@
     try {
       await api.deleteRuleCategory(
         removing.id,
-        (removing.scope === "builtin"
-          ? appState.config?.rootPath
-            ? "repo"
-            : "local"
-          : removing.scope) as RuleScope
+        (removing.scope === "builtin" ? "local" : removing.scope) as RuleScope
       );
       removing = null;
       await load();

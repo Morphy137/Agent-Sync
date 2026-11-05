@@ -386,7 +386,7 @@ func (a *App) SaveRuleCategory(category rules.Category, scope string) (rules.Cat
 // DeleteRuleCategory removes a rule category.
 func (a *App) DeleteRuleCategory(id, scope string) error { return a.svc.DeleteRuleCategory(id, scope) }
 
-// MigrateRuleCategories assigns categories to existing rules.
+// MigrateRuleCategories assigns categories to existing local rules.
 func (a *App) MigrateRuleCategories() error { return a.svc.MigrateRuleCategories() }
 
 // SuggestRuleCategory detects a source's available category.
