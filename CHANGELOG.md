@@ -4,6 +4,16 @@ All notable changes to AgentSync are listed here. The app shows this file in **S
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-11-10
+
+### Added
+- Manage rule categories, edit existing rules and destinations, and work with source files from the CLI and MCP server.
+- Configure operational preferences, prepare repositories, and preview subscription file updates without opening the app.
+
+### Fixed
+- Headless status includes local rules even when no repository root is selected.
+- Importing files refuses destination links that lead outside the repository.
+
 ## [0.0.9] - 2026-11-05
 
 ### Added

@@ -86,6 +86,11 @@ func (a *API) Status() (*StatusReport, error) {
 		Subscriptions: len(cfg.Subscriptions),
 		Rules:         RulesSummary{Unmapped: []string{}},
 	}
+	rr, err := a.svc.GetRulesReport()
+	if err != nil {
+		return nil, err
+	}
+	report.Rules = summarizeRules(rr)
 	if cfg.RootPath == "" {
 		return report, nil
 	}
@@ -96,9 +101,6 @@ func (a *API) Status() (*StatusReport, error) {
 		report.Plan = plan
 	} else {
 		report.PlanError = err.Error()
-	}
-	if rr, err := a.svc.GetRulesReport(); err == nil {
-		report.Rules = summarizeRules(rr)
 	}
 	return report, nil
 }
@@ -180,6 +182,7 @@ type DestinationInput struct {
 
 // RuleInput describes a new rule.
 type RuleInput struct {
+	CategoryID   string             `json:"categoryId,omitempty" jsonschema:"category id (see list_categories)"`
 	Name         string             `json:"name,omitempty" jsonschema:"display name; defaults to the source file or folder name"`
 	Scope        string             `json:"scope,omitempty" jsonschema:"repo (default: stored in the repository and shared with your other PCs) or local (this PC only; default when origin is local)"`
 	Origin       string             `json:"origin,omitempty" jsonschema:"where the source lives: repo (default; path relative to the repository root), local (absolute path on this PC) or subscription"`
@@ -269,11 +272,12 @@ func (a *API) AddRule(in RuleInput) (*service.SaveRuleResult, error) {
 		return nil, apperr.New(apperr.InvalidArgument).WithParam("field", "destinations")
 	}
 	rule := rules.Rule{
-		Name:    strings.TrimSpace(in.Name),
-		Enabled: !in.Disabled,
-		Source:  src,
-		Kind:    in.Kind,
-		Exclude: in.Exclude,
+		CategoryID: in.CategoryID,
+		Name:       strings.TrimSpace(in.Name),
+		Enabled:    !in.Disabled,
+		Source:     src,
+		Kind:       in.Kind,
+		Exclude:    in.Exclude,
 	}
 	if rule.Name == "" {
 		rule.Name = defaultRuleName(src)
@@ -286,6 +290,63 @@ func (a *API) AddRule(in RuleInput) (*service.SaveRuleResult, error) {
 		rule.Destinations = append(rule.Destinations, dest)
 	}
 	return a.svc.SaveRule(rule, in.scope())
+}
+
+// RulePatch is a partial update, not a replacement. Omitted/null fields are unchanged;
+// false and [] are explicit values. IDs and destinations are never replaced here.
+// Use UpdateDestination for destination edits. Source fields are patched independently.
+type RulePatch struct {
+	Scope        *string   `json:"scope,omitempty" jsonschema:"repo or local; omitted/null preserves current scope; moves the existing rule without replacing IDs"`
+	Name         *string   `json:"name,omitempty" jsonschema:"new display name; omitted or null preserves the current name"`
+	CategoryID   *string   `json:"categoryId,omitempty" jsonschema:"category id; omitted preserves it"`
+	Enabled      *bool     `json:"enabled,omitempty" jsonschema:"explicit false disables; omitted preserves current state"`
+	Origin       *string   `json:"origin,omitempty" jsonschema:"source origin; omitted preserves it"`
+	Subscription *string   `json:"subscription,omitempty" jsonschema:"source subscription id; empty clears it"`
+	SourcePath   *string   `json:"sourcePath,omitempty" jsonschema:"source path; omitted preserves it"`
+	Include      *[]string `json:"include,omitempty" jsonschema:"source selection; empty array clears it"`
+	Kind         *string   `json:"kind,omitempty" jsonschema:"content kind; omitted preserves it"`
+	Exclude      *[]string `json:"exclude,omitempty" jsonschema:"excluded globs; empty array clears them"`
+}
+
+// UpdateRule patches only editable fields under the service's read-modify-write lock.
+func (a *API) UpdateRule(id string, patch RulePatch) (*service.SaveRuleResult, error) {
+	scope := ""
+	if patch.Scope != nil {
+		scope = *patch.Scope
+		if scope != rules.ScopeRepo && scope != rules.ScopeLocal {
+			return nil, apperr.New(apperr.InvalidRule).WithParam("reason", "invalid_scope")
+		}
+	}
+	return a.svc.UpdateRuleInScope(id, scope, func(r *rules.Rule) error {
+		if patch.Name != nil {
+			r.Name = *patch.Name
+		}
+		if patch.CategoryID != nil {
+			r.CategoryID = *patch.CategoryID
+		}
+		if patch.Enabled != nil {
+			r.Enabled = *patch.Enabled
+		}
+		if patch.Origin != nil {
+			r.Source.Origin = *patch.Origin
+		}
+		if patch.Subscription != nil {
+			r.Source.Subscription = *patch.Subscription
+		}
+		if patch.SourcePath != nil {
+			r.Source.Path = *patch.SourcePath
+		}
+		if patch.Include != nil {
+			r.Source.Include = *patch.Include
+		}
+		if patch.Kind != nil {
+			r.Kind = *patch.Kind
+		}
+		if patch.Exclude != nil {
+			r.Exclude = *patch.Exclude
+		}
+		return nil
+	})
 }
 
 // ListRules returns every rule with per-destination status, collisions and unmapped aliases.
@@ -333,6 +394,60 @@ func (a *API) AddDestination(ruleID string, in DestinationInput) (*service.SaveR
 	return a.svc.UpdateRule(ruleID, func(r *rules.Rule) error {
 		r.Destinations = append(r.Destinations, dest)
 		return nil
+	})
+}
+
+// DestinationPatch preserves omitted/null fields and the stored destination ID.
+// [] clears Ignore; false explicitly disables. Transform replaces the entire transform;
+// null is a no-op. To remove it use clearTransform:true, never together with transform.
+// Clearing a transform preserves Mode (normally one_way) to avoid silently enabling captures.
+type DestinationPatch struct {
+	Location       *string          `json:"location,omitempty" jsonschema:"location alias; omitted preserves it"`
+	Path           *string          `json:"path,omitempty" jsonschema:"relative destination path; omitted preserves it"`
+	Mode           *string          `json:"mode,omitempty" jsonschema:"sync mode; omitted preserves it even when clearing a transform"`
+	Enabled        *bool            `json:"enabled,omitempty" jsonschema:"explicit false disables; omitted preserves it"`
+	Ignore         *[]string        `json:"ignore,omitempty" jsonschema:"ignored globs; empty array clears them"`
+	Transform      *rules.Transform `json:"transform,omitempty" jsonschema:"replace transform; omitted or null preserves it; incompatible with clearTransform true"`
+	ClearTransform *bool            `json:"clearTransform,omitempty" jsonschema:"true removes the transform while preserving mode; cannot combine with transform"`
+}
+
+// UpdateDestination validates and patches one existing destination under the service lock.
+func (a *API) UpdateDestination(ruleID, destID string, patch DestinationPatch) (*service.SaveRuleResult, error) {
+	return a.svc.UpdateRule(ruleID, func(r *rules.Rule) error {
+		for i := range r.Destinations {
+			d := &r.Destinations[i]
+			if d.ID != destID {
+				continue
+			}
+			if patch.ClearTransform != nil && *patch.ClearTransform && patch.Transform != nil {
+				return apperr.New(apperr.InvalidArgument).WithParam("field", "clearTransform")
+			}
+			if patch.Location != nil {
+				d.Location = *patch.Location
+			}
+			if patch.Path != nil {
+				d.Path = *patch.Path
+			}
+			if patch.Mode != nil {
+				d.Mode = *patch.Mode
+			}
+			if patch.Enabled != nil {
+				d.Enabled = *patch.Enabled
+			}
+			if patch.Ignore != nil {
+				d.Ignore = *patch.Ignore
+			}
+			if patch.Transform != nil {
+				d.Transform = patch.Transform
+			}
+			if patch.ClearTransform != nil && *patch.ClearTransform {
+				d.Transform = nil
+			}
+			// Validate before SaveRule normalization can overwrite a bad mode
+			// with one_way for transformed destinations. Source/scope is unchanged.
+			return rules.Validate(*r, rules.ScopeLocal)
+		}
+		return apperr.New(apperr.DestinationNotFound).WithParam("destination", destID)
 	})
 }
 
