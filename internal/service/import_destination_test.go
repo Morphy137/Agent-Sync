@@ -18,7 +18,13 @@ func TestResolveImportDestinationRootTermination(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if rel, err := filepath.Rel(root, got); err != nil || rel != "." {
+		// Windows may expand short (8.3) names, just as directory aliases
+		// resolve to their target. Compare the same canonical path forms.
+		want, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rel, err := filepath.Rel(want, got); err != nil || rel != "." {
 			t.Fatalf("root resolution = %q: rel=%q err=%v", got, rel, err)
 		}
 		return
@@ -29,6 +35,13 @@ func TestResolveImportDestinationRootTermination(t *testing.T) {
 	roots := []struct{ name, path string }{
 		{"repository", root},
 		{"filesystem", volume + string(filepath.Separator)},
+	}
+	alias := filepath.Join(t.TempDir(), "repository-link")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Logf("root alias fixture unavailable: %v", err)
+	} else {
+		t.Cleanup(func() { _ = os.Remove(alias) })
+		roots = append(roots, struct{ name, path string }{"repository-alias", alias})
 	}
 	if runtime.GOOS == "windows" && len(volume) == 2 && volume[1] == ':' {
 		roots = append(roots, struct{ name, path string }{
