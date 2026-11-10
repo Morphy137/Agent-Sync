@@ -32,8 +32,8 @@ Typical flow when the user asks to sync something:
 3. list_repo_tree / detect_source - find the source and what kind it is (skill, mcp, instructions...).
 4. suggest_placement (optional) - see where AgentSync would put it; add_rule fills omitted destination paths with this suggestion.
 5. add_rule, then sync_rules to write files now, or plan_sync + sync to also commit/push/pull the repository.
-Backups: every overwrite or delete is backed up first. list_backups shows them; restore_backup puts files back (current files are backed up first, and restored files appear as differences to review in the next rules status, never overwritten silently).
-Destructive tools (delete_rule, remove_destination, remove_subscription, discard_repo_file, save_gitignore, restore_backup) require confirm=true: ask the user first.
+Backups are taken for sync overwrites/deletions, repository discard and backup restore. Direct editor saves use concurrency checks, not backup snapshots. list_backups shows snapshots; restore_backup puts files back (current files are backed up first, and restored files appear as differences to review in the next rules status, never overwritten silently).
+Destructive tools (delete_rule, remove_destination, remove_subscription, discard_repo_file, save_gitignore, restore_backup, delete_category, migrate_categories, add_remote) require confirm=true: ask the user first.
 Errors look like "[code] {params}"; codes are stable identifiers (e.g. location_unmapped, rule_not_found).`
 
 // Server wraps an MCP server bound to an ops.API.
@@ -85,6 +85,19 @@ func (in SourceInput) source() rules.Source {
 // RuleIDInput selects a rule.
 type RuleIDInput struct {
 	RuleID string `json:"ruleId" jsonschema:"rule id (see list_rules)"`
+}
+
+// UpdateRuleInput edits an existing rule without replacing IDs or destinations.
+type UpdateRuleInput struct {
+	RuleID string        `json:"ruleId" jsonschema:"existing rule id; missing ids are never created"`
+	Patch  ops.RulePatch `json:"patch" jsonschema:"partial update; omitted/null fields preserved; false and empty arrays are explicit values"`
+}
+
+// UpdateDestinationInput edits one existing destination, preserving its identity.
+type UpdateDestinationInput struct {
+	RuleID        string               `json:"ruleId" jsonschema:"existing rule id"`
+	DestinationID string               `json:"destinationId" jsonschema:"existing destination id"`
+	Patch         ops.DestinationPatch `json:"patch" jsonschema:"partial update; omitted/null preserves fields; clearTransform true removes the transform without changing mode"`
 }
 
 // ConfirmedRuleIDInput selects a rule for a destructive action.
@@ -304,6 +317,9 @@ func (s *Server) registerTools() {
 	s.registerSuggestionTools()
 	s.registerRepoTools()
 	s.registerBackupTools()
+	s.registerCategoryTools()
+	s.registerSettingsTools()
+	s.registerFileTools()
 }
 
 func (s *Server) registerBackupTools() {
@@ -364,6 +380,20 @@ func (s *Server) registerStatusTools() {
 
 func (s *Server) registerRuleTools() {
 	a := s.api
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "update_rule",
+		Description: "Patch an existing rule. Omitted/null fields preserve stored values; enabled:false disables and [] clears include/exclude. scope repo/local moves the rule under the service lock. Rule and destination IDs and sync baselines are preserved. Files are not synced by this operation.",
+		Annotations: idempotent,
+	}, handler(func(in UpdateRuleInput) (service.SaveRuleResult, error) {
+		return deref(a.UpdateRule(in.RuleID, in.Patch))
+	}))
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "update_destination",
+		Description: "Patch one existing destination, preserving IDs and sync baselines. Omitted/null fields are unchanged; enabled:false disables and ignore:[] clears ignored globs. transform replaces the transform; clearTransform:true removes it while preserving mode. Never combine transform with clearTransform:true. Files are not synced here.",
+		Annotations: idempotent,
+	}, handler(func(in UpdateDestinationInput) (service.SaveRuleResult, error) {
+		return deref(a.UpdateDestination(in.RuleID, in.DestinationID, in.Patch))
+	}))
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "list_rules",
 		Description: "List every sync rule with per-destination state (ready, location_unmapped, blocked_collision, disabled, source_missing), per-file status, collisions and unmapped aliases.",
@@ -514,7 +544,7 @@ func (s *Server) registerSubscriptionTools() {
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "add_subscription",
-		Description: "Subscribe to a remote git repository (cloned read-only). Then use origin=subscription in add_rule to sync its files.",
+		Description: "Subscribe to a remote git repository (a never-pushed clone; local files can be edited). Then use origin=subscription in add_rule to sync its files.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false)},
 	}, handler(func(in SubscriptionAddInput) (config.Subscription, error) {
 		return deref(a.AddSubscription(in.URL, in.Name))
@@ -610,7 +640,7 @@ func (s *Server) registerRepoTools() {
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "list_repo_changes",
-		Description: "List repository changes: local edits to commit, edits outside managed paths, incoming/outgoing files, conflicts, ahead/behind counts.",
+		Description: "List repository changes: local paths to commit, paths outside managed rules, conflicts, sync direction, and ahead/behind commit counts (not incoming/outgoing file lists).",
 		Annotations: readNetwork,
 	}, handler(func(in RepoChangesInput) (ops.RepoChanges, error) { return deref(a.ListRepoChanges(in.Fetch)) }))
 

@@ -93,6 +93,9 @@ Destructive tools need `confirm: true`, which the model is told to request only 
 
 ## 3. MCP tools
 
+Rule/destination updates, categories, guarded file editing, import and subscription file diffs are
+documented in [Headless operations](HEADLESS_OPERATIONS.md), with CLI equivalents and patch schemas.
+
 | Tool | What it does | Notes |
 |---|---|---|
 | `status` | Root, git state, pending work, rule counts, unmapped aliases | read-only, no network |
@@ -120,10 +123,10 @@ Destructive tools need `confirm: true`, which the model is told to request only 
 | `list_backups` | Backups taken before files were overwritten, deleted or discarded: `id`, owner (rule and destination), date, reason, files, size, `restorable` | read-only |
 | `restore_backup` | Restore a backup (all files, or only `files`) to where it came from; the current files are backed up first and the result carries `undoBackupId` | **`confirm: true`** |
 | `get_gitignore` / `exclude_repo_path` / `add_recommended_gitignore` | Read `.gitignore`, exclude a repo path, add the recommended patterns | |
+| `save_gitignore` | Replace the whole `.gitignore` | **`confirm: true`** |
 
 Subscription updates are blocked by local changes; removal is also blocked when local files,
 commits or stashes would be lost. Save those changes elsewhere before cleaning the clone.
-| `save_gitignore` | Replace the whole `.gitignore` | **`confirm: true`** |
 
 Restored destination files are not pushed again by the next sync: they show up as differences to
 review (see [SYNC_RULES.md](SYNC_RULES.md#backups-and-restore)). Backups of removed rules or of
@@ -153,22 +156,23 @@ Exit codes: `0` success, `1` operation failed, `2` invalid command line.
 | `sync [--rules-only] [--fingerprint F] [--resolve PATH=keep_repo\|keep_local]…` | Run a sync |
 | `root set <folder>` | Set the repository root |
 | `rules list` · `rules show <id>` | Inspect rules |
-| `rules add --source PATH --to LOCATION[:PATH]… [--include FILE]… [--origin …] [--subscription ID] [--name N] [--scope repo\|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]… [--disabled]` | Create a rule |
+| `rules add --source PATH --to LOCATION[:PATH]… [--include FILE]… [--origin …] [--subscription ID] [--name N] [--category ID] [--scope repo\|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]… [--disabled]` | Create a rule |
 | `rules add --input FILE\|-` | Create a rule from JSON (same shape as the MCP `add_rule` input) |
 | `rules enable <id>` · `rules disable <id>` · `rules remove <id> --yes` | Change or delete a rule |
 | `rules diff <rule> <dest> [relPath]` · `rules resolve <rule> <dest> <relPath> --choice C [--content-file F]` | Conflicts |
 | `destinations add <rule> --location L [--path P] [--mode M] [--transform TYPE:KEY] [--ignore GLOB]… [--disabled]` | Add a destination |
 | `destinations remove <rule> <dest> --yes` | Remove a destination |
 | `locations list` · `locations set <alias> <folder>` · `locations remove <alias>` | Location aliases |
-| `detect <path> [--origin O] [--subscription ID]` · `suggest <path> --location L` | Detection and placement |
+| `detect <path> [--origin O] [--subscription ID]` · `suggest <path> --location L [--origin O] [--subscription ID]` | Detection and placement |
 | `subscriptions list\|add <url> [--name N]\|check <id>\|update <id>\|auto-update <id> on\|off\|tree <id>\|remove <id> --yes` | Subscriptions |
 | `suggestions list --subscription ID` | Suggested rules of a subscription with their target paths and status |
-| `suggestions apply --subscription ID (--id SUGGESTION… \| --all) [--map ALIAS=FOLDER]…` | Create rules from suggestions; `--map` gives a folder for a location alias not mapped yet. Needs `--id` or `--all`: nothing is applied by default |
+| `suggestions apply --subscription ID (--id SUGGESTION [--id SUGGESTION]… \| --all) [--map ALIAS=FOLDER]…` | Create rules from suggestions; repeat `--id` for multiple choices. `--map` gives a folder for an unmapped alias. Needs `--id` or `--all`: nothing is applied by default |
 | `suggestions export --subscription ID [--output FILE]` | Write the suggestions file for a repository from the rules that read from a subscription (stdout without `--output`) |
 | `backups list` · `backups restore <id> [--file F]… --yes` | Backups: list them, restore all files or only the given ones |
 | `repo tree` · `repo changes [--fetch]` · `repo diff <path> [--mode working\|incoming]` · `repo discard <path> --yes` · `repo connect <url>` | Repository |
 | `repo gitignore show` · `repo gitignore exclude <path>` · `repo gitignore add-recommended` · `repo gitignore save --file FILE\|- --yes` | Repository exclusions |
 | `mcp` | Run the MCP server on stdio |
+| `version` | Print the CLI version |
 
 Example:
 
@@ -185,6 +189,33 @@ positional arguments.
 ---
 
 ## 5. Running next to the GUI
+
+### Operational settings and repository setup
+
+`settings show` / MCP `get_settings` read operational preferences. `settings update --input FILE|-`
+/ MCP `update_settings` accept a partial JSON object: omitted fields stay unchanged, and explicit
+`false` and `0` are respected. Supported fields are `language` (`system`, `en`, `es`), `backupPath` (absolute),
+`backupRetention` (positive), `checkIntervalMinutes` (nonnegative; zero disables checks),
+`confirmBeforeSync`, `disableUpdateCheck` and `autoApplyUpdates`. Unknown JSON fields are rejected.
+Tray, Windows startup and theme controls remain desktop-only. Updates merge atomically under the
+same cross-process lock as other service operations.
+
+Headless processes do not run a periodic scheduler. Subscription `auto-update` and
+`autoApplyUpdates` take effect during checks performed by the desktop app; restart the app after
+changing the check interval through a headless client so its running scheduler adopts the interval.
+
+| CLI | MCP | Purpose |
+|---|---|---|
+| `root create <parent> <name>` | `create_root` (`parent`, `name`) | Create and select a new root folder |
+| `root clone <url> <parent> <name>` | `clone_repository` (`url`, `parent`, `name`) | Clone and select a root |
+| `repo init` | `init_repository` | Initialize Git at the selected root |
+| `repo info` | `get_git_info` | Read Git state and identity |
+| `repo identity --name N --email E` | `set_git_identity` (`name`, `email`) | Set repository-local identity |
+| `repo add-remote <url> --yes` | `add_remote` (`url`, `confirm: true`) | Add origin **and push** the current branch |
+| `recognizers path` | `get_recognizers_path` | Initialize the custom recognizers file if missing and return its path |
+
+`add_remote` is an upload operation and requires user approval. It does not replace
+`connect_remote`, which attaches a remote while keeping local differences for review.
 
 The GUI, any number of CLI invocations and MCP servers can run at the same time:
 
