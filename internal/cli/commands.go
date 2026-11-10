@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"io"
@@ -54,8 +55,9 @@ func init() {
 		{path: "root set", usage: "<folder>", desc: "cmd.root_set", run: cmdRootSet},
 
 		{path: "rules list", desc: "cmd.rules_list", run: cmdRulesList},
+		{path: "rules update", usage: "<ruleId> --input FILE|-", desc: "cmd.rules_update", run: cmdRulesUpdate},
 		{path: "rules show", usage: "<ruleId>", desc: "cmd.rules_show", run: cmdRulesShow},
-		{path: "rules add", usage: "--source PATH --to LOCATION[:PATH]... [--include FILE]... [--origin repo|local|subscription] [--subscription ID] [--name N] [--scope repo|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]... [--disabled] | --input FILE|-", desc: "cmd.rules_add", run: cmdRulesAdd},
+		{path: "rules add", usage: "--source PATH --to LOCATION[:PATH]... [--include FILE]... [--origin repo|local|subscription] [--subscription ID] [--name N] [--category ID] [--scope repo|local] [--kind K] [--mode M] [--transform TYPE:KEY] [--exclude GLOB]... [--disabled] | --input FILE|-", desc: "cmd.rules_add", run: cmdRulesAdd},
 		{path: "rules remove", usage: "<ruleId> --yes", desc: "cmd.rules_remove", run: cmdRulesRemove},
 		{path: "rules enable", usage: "<ruleId>", desc: "cmd.rules_enable", run: cmdRulesToggle(true)},
 		{path: "rules disable", usage: "<ruleId>", desc: "cmd.rules_disable", run: cmdRulesToggle(false)},
@@ -64,6 +66,7 @@ func init() {
 
 		{path: "destinations add", usage: "<ruleId> --location L [--path P] [--mode M] [--transform TYPE:KEY] [--ignore GLOB]... [--disabled]", desc: "cmd.dest_add", run: cmdDestAdd},
 		{path: "destinations remove", usage: "<ruleId> <destId> --yes", desc: "cmd.dest_remove", run: cmdDestRemove},
+		{path: "destinations update", usage: "<ruleId> <destId> --input FILE|-", desc: "cmd.dest_update", run: cmdDestUpdate},
 
 		{path: "locations list", desc: "cmd.loc_list", run: cmdLocList},
 		{path: "locations set", usage: "<alias> <folder>", desc: "cmd.loc_set", run: cmdLocSet},
@@ -101,6 +104,9 @@ func init() {
 		{path: "mcp", desc: "cmd.mcp", raw: runMCP},
 		{path: "version", desc: "cmd.version", run: func(*env, []string) (any, error) { return map[string]string{"version": Version}, nil }},
 	}
+	commands = append(commands, categoryCommands()...)
+	commands = append(commands, fileCommands()...)
+	commands = append(commands, settingsCommands()...)
 }
 
 // findCommand matches the longest command path at the start of args.
@@ -231,7 +237,12 @@ func readInput(path string, stdin io.Reader, out any) error {
 	if err != nil {
 		return usagef("--input: %v", err)
 	}
-	if err := json.Unmarshal(data, out); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil {
+		return usagef("--input: invalid JSON: %v", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
 		return usagef("--input: invalid JSON: %v", err)
 	}
 	return nil
@@ -247,6 +258,7 @@ func cmdRulesAdd(e *env, args []string) (any, error) {
 	origin := fs.String("origin", "", "")
 	subscription := fs.String("subscription", "", "")
 	name := fs.String("name", "", "")
+	category := fs.String("category", "", "")
 	scope := fs.String("scope", "", "")
 	kind := fs.String("kind", "", "")
 	mode := fs.String("mode", "", "")
@@ -275,7 +287,7 @@ func cmdRulesAdd(e *env, args []string) (any, error) {
 		return nil, err
 	}
 	in = ops.RuleInput{
-		Name: *name, Scope: *scope, Origin: *origin, Subscription: *subscription,
+		Name: *name, CategoryID: *category, Scope: *scope, Origin: *origin, Subscription: *subscription,
 		SourcePath: *source, Include: includes, Kind: *kind, Exclude: excludes, Disabled: *disabled,
 	}
 	for _, t := range targets {
@@ -285,6 +297,23 @@ func cmdRulesAdd(e *env, args []string) (any, error) {
 		in.Destinations = append(in.Destinations, d)
 	}
 	return e.API().AddRule(in)
+}
+
+func cmdRulesUpdate(e *env, args []string) (any, error) {
+	fs := newFlags("rules update")
+	input := fs.String("input", "", "")
+	pos, err := expectArgs(fs, args, "<ruleId>")
+	if err != nil {
+		return nil, err
+	}
+	if *input == "" {
+		return nil, usagef("%s", tr(e.lang, "err.patch_input"))
+	}
+	var patch ops.RulePatch
+	if err := readInput(*input, stdin, &patch); err != nil {
+		return nil, err
+	}
+	return e.API().UpdateRule(pos[0], patch)
 }
 
 func cmdRulesRemove(e *env, args []string) (any, error) {
@@ -378,6 +407,23 @@ func cmdDestAdd(e *env, args []string) (any, error) {
 	}
 	in := ops.DestinationInput{Location: *location, Path: *p, Mode: *mode, Transform: tf, Disabled: *disabled, Ignore: ignores}
 	return e.API().AddDestination(pos[0], in)
+}
+
+func cmdDestUpdate(e *env, args []string) (any, error) {
+	fs := newFlags("destinations update")
+	input := fs.String("input", "", "")
+	pos, err := expectArgs(fs, args, "<ruleId>", "<destId>")
+	if err != nil {
+		return nil, err
+	}
+	if *input == "" {
+		return nil, usagef("%s", tr(e.lang, "err.patch_input"))
+	}
+	var patch ops.DestinationPatch
+	if err := readInput(*input, stdin, &patch); err != nil {
+		return nil, err
+	}
+	return e.API().UpdateDestination(pos[0], pos[1], patch)
 }
 
 func cmdDestRemove(e *env, args []string) (any, error) {

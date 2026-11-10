@@ -800,6 +800,14 @@ func (s *Service) ImportIntoRepo(sourcePath, repoRelDir string) (string, error) 
 		return "", err
 	}
 	dest := filepath.Join(destDir, filepath.Base(src))
+	rel, err := filepath.Rel(s.cfg.RootPath, dest)
+	if err != nil {
+		return "", apperr.Wrap(apperr.Unknown, err)
+	}
+	dest, err = resolveImportDestination(s.cfg.RootPath, rel)
+	if err != nil {
+		return "", err
+	}
 	if _, err := os.Stat(dest); err == nil {
 		return "", apperr.New(apperr.FolderExists).WithParam("path", dest)
 	}
@@ -813,21 +821,82 @@ func (s *Service) ImportIntoRepo(sourcePath, repoRelDir string) (string, error) 
 		if err != nil {
 			return "", err
 		}
-		for rel := range files {
-			if matchesAnyPattern(rel, rules.DefaultSecretExcludes) {
+		for fileRel := range files {
+			if matchesAnyPattern(fileRel, rules.DefaultSecretExcludes) {
 				continue
 			}
-			if err := fsops.AtomicCopy(filepath.Join(src, filepath.FromSlash(rel)), filepath.Join(dest, filepath.FromSlash(rel))); err != nil {
+			copyDest, err := resolveImportDestination(s.cfg.RootPath, filepath.Join(rel, filepath.FromSlash(fileRel)))
+			if err != nil {
+				return "", err
+			}
+			if err := fsops.AtomicCopy(filepath.Join(src, filepath.FromSlash(fileRel)), copyDest); err != nil {
 				return "", apperr.Wrap(apperr.WriteFailed, err)
 			}
 		}
 	}
 
-	rel, err := filepath.Rel(s.cfg.RootPath, dest)
-	if err != nil {
-		return "", apperr.Wrap(apperr.Unknown, err)
-	}
 	return filepath.ToSlash(rel), nil
+}
+
+// resolveImportDestination checks every existing ancestor before allowing new
+// descendants. Resolve links before copying so a lexical in-root path cannot
+// redirect an import outside the repository (including Windows junctions).
+func resolveImportDestination(root, rel string) (string, error) {
+	if _, err := safeJoin(root, rel); err != nil {
+		return "", err
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", apperr.Wrap(apperr.WriteFailed, err)
+	}
+	current := resolvedRoot
+	parts := strings.Split(filepath.Clean(rel), string(filepath.Separator))
+	for i, part := range parts {
+		next := filepath.Join(current, part)
+		if info, err := os.Lstat(next); os.IsNotExist(err) {
+			return filepath.Join(current, filepath.Join(parts[i:]...)), nil
+		} else if err != nil {
+			return "", apperr.Wrap(apperr.WriteFailed, err)
+		} else if info.Mode()&os.ModeIrregular != 0 {
+			// Go reports Windows junctions as irregular files rather than
+			// symlinks, so EvalSymlinks alone does not resolve them.
+			return "", apperr.New(apperr.InvalidRule).WithParam("reason", "path_escapes_root")
+		}
+		current, err = filepath.EvalSymlinks(next)
+		if err != nil {
+			return "", apperr.Wrap(apperr.WriteFailed, err)
+		}
+		if !config.IsSubdirectory(current, resolvedRoot) {
+			return "", apperr.New(apperr.InvalidRule).WithParam("reason", "path_escapes_root")
+		}
+		// A symlink may resolve to a path containing a junction that
+		// EvalSymlinks left untouched. Check that target's ancestry too.
+		for ancestor := current; ; {
+			// Rel uses platform path semantics, including UNC volume casing.
+			rel, err := filepath.Rel(resolvedRoot, ancestor)
+			if err != nil {
+				return "", apperr.New(apperr.InvalidRule).WithParam("reason", "path_escapes_root")
+			}
+			if rel == "." {
+				break
+			}
+			info, err := os.Lstat(ancestor)
+			if err != nil {
+				return "", apperr.Wrap(apperr.WriteFailed, err)
+			}
+			if info.Mode()&os.ModeIrregular != 0 {
+				return "", apperr.New(apperr.InvalidRule).WithParam("reason", "path_escapes_root")
+			}
+			parent := filepath.Dir(ancestor)
+			if parent == ancestor {
+				// Never loop at a volume/share root if the repository root
+				// was not reached. Reject rather than trusting the ancestry.
+				return "", apperr.New(apperr.InvalidRule).WithParam("reason", "path_escapes_root")
+			}
+			ancestor = parent
+		}
+	}
+	return current, nil
 }
 
 // matchesAnyPattern matches a forward-slash relative path (or its base name) against glob patterns.

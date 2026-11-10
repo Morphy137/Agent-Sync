@@ -24,9 +24,30 @@ server** (tools such as `status`, `add_rule`, `sync`) when it is connected; othe
 - **Transform**: `json_merge:<key>` / `toml_merge:<key>` merges only AgentSync's MCP entries into an
   agent config file and keeps the rest.
 
-Rule reports may include a `categoryId`; categories organize presentation and do not change sync behavior.
+Rules support `categoryId`; categories organize presentation and do not change sync behavior.
+Use `list_categories` / `save_category` / `suggest_category` (CLI `categories list/save/suggest`) to
+manage them. `delete_category` and `migrate_categories` require user approval and `confirm:true`.
 Older AgentSync clients can remove category fields when rewriting rules files, so use a current client
 when modifying categorized rules.
+
+## Edit existing configuration
+
+- Keep IDs and sync baselines: use `update_rule {ruleId,patch}` and
+  `update_destination {ruleId,destinationId,patch}` instead of deleting/recreating. CLI:
+  `rules update ID --input FILE|-` / `destinations update RULE DEST --input FILE|-`; input is only the patch.
+  Omitted/null fields preserve values; `false` disables, `[]` clears lists. Rule patches accept
+  `scope`, `name`, `categoryId`, `enabled`, `origin`, `subscription`, `sourcePath`, `include`, `kind`, `exclude`.
+  Destination patches accept `location`, `path`, `mode`, `enabled`, `ignore`, `transform`, `clearTransform`.
+  To remove a transform use `clearTransform:true` without `transform`; the mode stays unchanged.
+- Read configured files with `list_file_roots`, `list_file_directory`, `read_file`. To `save_file`,
+  pass the exact `hash` and `absolutePath` from the read as `expectedHash` and `expectedPath`.
+  A stale file/root is refused; reread and ask about competing edits. CLI: `files roots/list/read/save`.
+- `list_rule_source_files`, `read_rule_source_file`, `save_rule_source_file` work within a rule's
+  selected sources. Saves require `expectedHash`; subscription rule sources are read-only.
+  CLI: `rules files/read-file/save-file`. Local subscription clone edits are explicit browser saves.
+- `import_into_repo` (CLI `repo import SOURCE --dir REL`) copies a source without creating a rule or
+  overwriting existing targets. `subscription_file_diff` (CLI `subscriptions diff ID PATH`) previews
+  the last fetched update; call `check_subscription` first for fresh data.
 
 ## Workflow
 
@@ -72,7 +93,8 @@ agentsync-cli suggestions apply --subscription s_abc --id 3f9a1c2b7d10 --map cod
 
 ## Backups
 
-Every overwrite or delete is backed up first. To recover a file, `list_backups` (CLI `backups list`)
+Sync overwrites/deletions, discards and restores are backed up first. Direct editor saves use
+concurrency checks, not backup snapshots. To recover a file, `list_backups` (CLI `backups list`)
 shows them newest first with the rule, destination, date, reason and files; `restore_backup` (CLI
 `backups restore <id> [--file F]... --yes`) puts all or some files back after the user agrees. The
 current files are backed up first (`undoBackupId`), so a restore can itself be undone. A restored
@@ -94,6 +116,12 @@ review (`untracked_diff`): `sync_rules` skips it until the user resolves it with
   excluded; use `exclude_repo_path` to keep other files out of the repository.
 - Prefer `sync_rules` for local changes; only run a full `sync` (which pushes) when the user asked to
   share or upload.
+- `add_remote` also pushes the current branch and requires `confirm: true` (CLI `repo add-remote --yes`).
+  Use `connect_remote` instead when attaching a remote while preserving local differences for review.
+- `get_settings` / `update_settings` (CLI `settings show` / `settings update --input FILE|-`) read and
+  partially update operational preferences. Omitted values are preserved. Do not send desktop-only
+  tray/startup/theme fields. There is no headless periodic scheduler: automatic subscription checks
+  require the desktop app, and a changed check interval takes effect after restarting it.
 - Errors start with a stable code, e.g. `[location_unmapped] {"alias":"codex"}`: fix the cause
   (here, `set_location codex …`) instead of retrying.
 
